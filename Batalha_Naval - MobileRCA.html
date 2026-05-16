@@ -194,7 +194,7 @@ body{font-family:'Barlow',sans-serif;background:var(--navy);color:var(--text);mi
     <div class="stat-item s-success"><div class="stat-val" id="st-alta">—</div><div class="stat-lbl">Alta</div></div>
     <div class="stat-item s-foam"><div class="stat-val" id="st-subcats">—</div><div class="stat-lbl">Sub/cli</div></div>
     <div class="stat-item s-alert"><div class="stat-val" id="st-cov">—</div><div class="stat-lbl">Mix%</div></div>
-    <div class="stat-item"><div class="stat-periodo" id="st-periodo">—</div><div class="stat-lbl">Período</div></div>
+
   </div>
 
   <!-- FILTERS -->
@@ -393,7 +393,6 @@ function renderAll(){
   document.getElementById('st-cov').textContent=(covs.length?Math.round(covs.reduce((a,b)=>a+b,0)/covs.length):0)+'%';
   const de=document.getElementById('mix-de').value;
   const ate=document.getElementById('mix-ate').value;
-  document.getElementById('st-periodo').textContent=fmtDateBR(de)+' → '+fmtDateBR(ate);
 
   // Render main panel based on VIEW
   if(VIEW==='ramos') renderRamos(clients);
@@ -484,10 +483,13 @@ function renderColuna(col){
   const subcats=[...c.subcats].sort();
 
   // Header comum
+  const nomeBreve=c.cliente?c.cliente.split(' ').slice(0,2).join(' '):'—';
   const header=`
     <div class="cli-header">
-      <button class="btn-voltar" onclick="VIEW='lista';renderAll()">‹ Clientes</button>
-      <div class="cli-nome">${esc(c.cliente||'—')}</div>
+      <div class="cli-header-top">
+        <button class="btn-voltar" onclick="VIEW='lista';renderAll()">‹ Clientes</button>
+        <div class="cli-nome-hdr">${esc(nomeBreve)}</div>
+      </div>
       <div class="cli-meta"><span class="tag-ramo">${esc(c.ramo||'—')}</span> ${esc(c.supervisor||'')}</div>
     </div>
     <div class="cli-cards">
@@ -507,27 +509,32 @@ function renderColuna(col){
 
   let content='';
   if(col==='col1'){
-    content=`<div class="col-title">🎯 MIX OBRIGATÓRIO — ${ok}/${itens.length} ITENS</div>`+
-      (itens.length?itens.map(item=>{
-        let comprou=false,label='',tag='';
-        if(item.tipo==='individual'){comprou=c.subcats.has(item.sub);label=item.sub;}
-        else if(item.tipo==='grupo'){comprou=item.subs.some(s=>c.subcats.has(s));label=item.nome;tag='<span class="tag-g">Grupo</span>';}
-        else{const p=c.produtos[item.sub];comprou=p&&p.has(item.prod);label=item.prod;tag='<span class="tag-p">Produto</span>';}
-        return`<div class="mix-row ${comprou?'ok':'nok'}"><span class="mix-ico">${comprou?'✅':'🔴'}</span><span class="mix-lbl">${esc(label)}</span>${tag}</div>`;
-      }).join(''):'<div class="empty">Sem mix configurado.</div>');
+    const mixRows=itens.length?itens.map(item=>{
+      let comprou=false,label='',tag='';
+      if(item.tipo==='individual'){comprou=c.subcats.has(item.sub);label=item.sub;}
+      else if(item.tipo==='grupo'){comprou=item.subs.some(s=>c.subcats.has(s));label=item.nome;tag='<span class="tag-g">Grupo</span>';}
+      else{const p=c.produtos[item.sub];comprou=p&&p.has(item.prod);label=item.prod;tag='<span class="tag-p">Produto</span>';}
+      return`<div class="mix-row ${comprou?'ok':'nok'}"><span class="mix-ico">${comprou?'✅':'🔴'}</span><span class="mix-lbl">${esc(label)}</span>${tag}</div>`;
+    }).join(''):'<div class="empty">Sem mix configurado.</div>';
+    const fraseMix=itens.length?`<div class="resumo-frase">Você vendeu <strong>${ok} item${ok!==1?'s':''}</strong> dos <strong>${itens.length} obrigatórios</strong> para esse cliente.</div>`:'';
+    content=`<div class="col-title">🎯 MIX OBRIGATÓRIO — ${ok}/${itens.length} ITENS</div>`+mixRows+fraseMix;
   } else if(col==='col2'){
-    content=`<div class="col-title">🏆 MAIS VENDIDO NO RAMO — ${benchItems.length} SUBCATS (TOP 20)</div>`+
-      (benchItems.slice(0,20).map((item,i)=>{
-        const isObrig=mixObrigSet.has(item.sub);
-        const pctVal=Math.round((item.count/benchTotal)*100);
-        return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span></div>`;
-      }).join('')||'<div class="empty">Sem dados globais.</div>');
+    const benchTop=benchItems.slice(0,20);
+    const vendeuNoBench=benchTop.filter(item=>c.subcats.has(item.sub)).length;
+    const benchRows=benchTop.map((item,i)=>{
+      const isObrig=mixObrigSet.has(item.sub);
+      const pctVal=Math.round((item.count/benchTotal)*100);
+      return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span></div>`;
+    }).join('')||'<div class="empty">Sem dados globais.</div>';
+    const fraseBench=benchTop.length?`<div class="resumo-frase">Dos <strong>${benchTop.length} itens</strong> mais vendidos neste ramo, você vendeu <strong>${vendeuNoBench}</strong> para esse cliente.</div>`:'';
+    content=`<div class="col-title">🏆 MAIS VENDIDO NO RAMO — ${benchItems.length} SUBCATS (TOP 20)</div>`+benchRows+fraseBench;
   } else {
-    content=`<div class="col-title">🛒 ITENS COMPRADOS — ${subcats.length} SUBCATS</div>`+
-      (subcats.map(sub=>{
-        const isObrig=mixObrigSet.has(sub);
-        return`<div class="comprada-row"><span class="comprada-sub${isObrig?' obrig':''}">${esc(sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="comprada-cnt">${c.produtos[sub]?.size||0}p</span></div>`;
-      }).join('')||'<div class="empty">Sem itens comprados.</div>');
+    const compradasRows=subcats.map(sub=>{
+      const isObrig=mixObrigSet.has(sub);
+      return`<div class="comprada-row"><span class="comprada-sub${isObrig?' obrig':''}">${esc(sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="comprada-cnt">${c.produtos[sub]?.size||0}p</span></div>`;
+    }).join('')||'<div class="empty">Sem itens comprados.</div>';
+    const fraseCompras=subcats.length?`<div class="resumo-frase">Você vendeu <strong>${subcats.length} subcategoria${subcats.length!==1?'s':''}</strong> para esse cliente neste período.</div>`:'';
+    content=`<div class="col-title">🛒 ITENS COMPRADOS — ${subcats.length} SUBCATS</div>`+compradasRows+fraseCompras;
   }
 
   document.getElementById('main-panel').innerHTML=header+`<div class="col-content">${content}</div>`;
