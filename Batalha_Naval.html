@@ -1047,19 +1047,26 @@ let supervisorRCAMap = {};
 let currentTab = 'painel';
 
 function switchTab(tab, btn) {
+  // Verificação de senha ANTES de qualquer mudança visual
+  if (tab === 'cadastro') {
+    const senha = prompt('🔒 Digite a senha para acessar o Configurar Mix:');
+    if (senha !== 'Comerci@al') {
+      alert('Senha incorreta. Acesso negado.');
+      return;
+    }
+  }
+
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
   document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
   if (btn) btn.classList.add('active');
   document.getElementById('page-' + tab).classList.add('active');
   currentTab = tab;
 
-  // Filtro cobertura só faz sentido na aba mix obrigatório
   const covGroup = document.getElementById('covFilterGroup');
   if (covGroup) covGroup.style.display = (tab === 'painel') ? '' : 'none';
 
   if (tab === 'ranking') {
     document.getElementById('sharedFilters').style.display = 'none';
-    // Seta mês/ano atual se primeira abertura
     if (RANKING_CLIENTS.length === 0) {
       const hoje = new Date();
       const mesEl = document.getElementById('rankingMes');
