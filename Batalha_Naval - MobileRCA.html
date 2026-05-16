@@ -523,8 +523,9 @@ function renderColuna(col){
     const vendeuNoBench=benchTop.filter(item=>c.subcats.has(item.sub)).length;
     const benchRows=benchTop.map((item,i)=>{
       const isObrig=mixObrigSet.has(item.sub);
+      const vendeu=c.subcats.has(item.sub);
       const pctVal=Math.round((item.count/benchTotal)*100);
-      return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span></div>`;
+      return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span>${vendeu?'<span class="dot-vendeu">●</span>':''}</div>`;
     }).join('')||'<div class="empty">Sem dados globais.</div>';
     const fraseBench=benchTop.length?`<div class="resumo-frase">Dos <strong>${benchTop.length} itens</strong> mais vendidos neste ramo, você vendeu <strong>${vendeuNoBench}</strong> para esse cliente.</div>`:'';
     content=`<div class="col-title">🏆 MAIS VENDIDO NO RAMO — ${benchItems.length} SUBCATS (TOP 20)</div>`+benchRows+fraseBench;
