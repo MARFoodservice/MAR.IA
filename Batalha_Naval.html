@@ -985,7 +985,27 @@
     <h2>⚙️ Configurar Mix Obrigatório</h2>
     <p class="desc">Defina quais subcategorias são obrigatórias por ramo de atividade.</p>
 
-    <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;">
+
+    <!-- ===== GESTÃO DE USUÁRIOS ===== -->
+    <div style="margin-bottom:28px;padding:18px;background:rgba(13,79,140,0.15);border:1px solid rgba(91,196,245,0.2);border-radius:10px;">
+      <div style="font-size:13px;font-weight:700;color:#5bc4f5;text-transform:uppercase;letter-spacing:1px;margin-bottom:4px;">👥 Gestão de Usuários — Batalha Naval</div>
+      <div style="font-size:12px;color:var(--text-dim);margin-bottom:14px;">Sincroniza automaticamente os representantes ativos do faturamento com os logins do sistema. Só cria quem ainda não tem acesso.</div>
+
+      <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:14px;">
+        <button onclick="syncUsuarios()" style="background:#0d4f8c;color:#fff;border:none;padding:9px 18px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;gap:6px;">
+          ↻ Sincronizar Usuários
+        </button>
+        <button onclick="listarUsuarios()" style="background:rgba(91,196,245,0.1);color:#5bc4f5;border:1px solid rgba(91,196,245,0.3);padding:9px 18px;border-radius:7px;font-size:13px;font-weight:700;cursor:pointer;">
+          👁 Ver Usuários Cadastrados
+        </button>
+      </div>
+
+      <div id="sync-log" style="background:#0a1628;border:1px solid rgba(91,196,245,0.15);border-radius:7px;padding:12px;font-size:12px;font-family:monospace;line-height:1.8;max-height:260px;overflow-y:auto;display:none;"></div>
+      <div id="usuarios-table" style="display:none;margin-top:12px;"></div>
+    </div>
+    <!-- ===== FIM GESTÃO DE USUÁRIOS ===== -->
+
+        <div style="display:flex;align-items:flex-end;gap:12px;margin-bottom:20px;padding:14px 16px;background:rgba(255,255,255,0.03);border:1px solid var(--border);border-radius:8px;flex-wrap:wrap;">
       <div style="font-size:11px;font-weight:700;color:var(--text-dim);text-transform:uppercase;letter-spacing:1px;width:100%;margin-bottom:4px;">📅 Período de análise (independente dos outros filtros)</div>
       <div class="filter-group" style="max-width:145px">
         <label>De</label>
@@ -2556,6 +2576,145 @@ function irParaVendedor(rca) {
   await carregarConfig();
   loadData();
 })();
+
+// ===== GESTÃO DE USUÁRIOS =====
+const SYNC_SERVICE_KEY = SUPABASE_KEY; // usa a service_role key já definida no arquivo
+
+function syncLog(msg, tipo='info') {
+  const div = document.getElementById('sync-log');
+  div.style.display = 'block';
+  document.getElementById('usuarios-table').style.display = 'none';
+  const colors = { ok: '#2ecc71', err: '#ff4d4d', info: '#f5a623', dim: '#8bafc2' };
+  div.innerHTML += `<span style="color:${colors[tipo]||colors.info}">${msg}</span>\n`;
+  div.scrollTop = div.scrollHeight;
+}
+
+async function syncUsuarios() {
+  const div = document.getElementById('sync-log');
+  div.innerHTML = '';
+  div.style.display = 'block';
+  document.getElementById('usuarios-table').style.display = 'none';
+
+  syncLog('Buscando representantes ativos no faturamento 2026...', 'info');
+
+  // 1. Buscar RCAs distintos no faturamento 2026 via service_role (ignora RLS)
+  const anoAtual = new Date().getFullYear();
+  const res1 = await fetch(`${SUPABASE_URL}/rest/v1/faturamento?select=rca,codrca&filial=eq.MAR%20FOODSERVICE&codoper=eq.S&total=gt.0&dtmov=gte.${anoAtual}-01-01&limit=50000`, {
+    headers: { 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY }
+  });
+  const fat = await res1.json();
+
+  // Deduplica por codrca
+  const rcaMap = {};
+  fat.forEach(r => { if (r.codrca && r.rca) rcaMap[r.codrca] = r.rca; });
+  const rcas = Object.entries(rcaMap);
+  syncLog(`Encontrados ${rcas.length} representantes no faturamento.`, 'dim');
+
+  // 2. Buscar quem já tem user_id na tabela
+  const res2 = await fetch(`${SUPABASE_URL}/rest/v1/Batalha%20Naval_Vendedor_Usuario?select=codrca,user_id&limit=1000`, {
+    headers: { 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY }
+  });
+  const cadastrados = await res2.json();
+  const comLogin = new Set(cadastrados.filter(r => r.user_id).map(r => String(parseFloat(r.codrca))));
+  const semLogin = rcas.filter(([cod]) => !comLogin.has(String(parseFloat(cod))));
+
+  if (semLogin.length === 0) {
+    syncLog('✅ Todos os representantes já possuem login!', 'ok');
+    return;
+  }
+
+  syncLog(`${semLogin.length} representantes sem login. Criando...`, 'info');
+
+  let ok = 0, erros = 0;
+  for (const [codrca, rca] of semLogin) {
+    const email = parseFloat(codrca) + '@batalha.app';
+    try {
+      // Criar no Auth
+      const resAuth = await fetch(`${SUPABASE_URL}/auth/v1/admin/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY },
+        body: JSON.stringify({ email, password: 'Mar@foods', email_confirm: true, user_metadata: { nome: rca, codrca: parseFloat(codrca) } })
+      });
+      const authData = await resAuth.json();
+      if (!resAuth.ok) throw new Error(authData.message || authData.error || 'Erro Auth');
+      const userId = authData.id;
+
+      // Verificar se já existe na tabela (sem user_id)
+      const resCheck = await fetch(`${SUPABASE_URL}/rest/v1/Batalha%20Naval_Vendedor_Usuario?codrca=eq.${parseFloat(codrca)}&select=id`, {
+        headers: { 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY }
+      });
+      const existing = await resCheck.json();
+
+      if (existing.length > 0) {
+        // Atualiza user_id
+        await fetch(`${SUPABASE_URL}/rest/v1/Batalha%20Naval_Vendedor_Usuario?codrca=eq.${parseFloat(codrca)}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json', 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ user_id: userId })
+        });
+      } else {
+        // Insere novo registro
+        await fetch(`${SUPABASE_URL}/rest/v1/Batalha%20Naval_Vendedor_Usuario`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY, 'Prefer': 'return=minimal' },
+          body: JSON.stringify({ user_id: userId, codrca: parseFloat(codrca), nome: rca })
+        });
+      }
+
+      syncLog(`✓ ${parseFloat(codrca)} — ${rca}`, 'ok');
+      ok++;
+    } catch(e) {
+      syncLog(`✗ ${parseFloat(codrca)} — ${rca} → ${e.message}`, 'err');
+      erros++;
+    }
+    await new Promise(r => setTimeout(r, 150));
+  }
+  syncLog(`\nFinalizado: ${ok} criados, ${erros} erros.`, 'info');
+}
+
+async function listarUsuarios() {
+  const div = document.getElementById('sync-log');
+  div.style.display = 'none';
+  const tbl = document.getElementById('usuarios-table');
+  tbl.innerHTML = '<div style="font-size:12px;color:var(--text-dim);padding:8px">Carregando...</div>';
+  tbl.style.display = 'block';
+
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/Batalha%20Naval_Vendedor_Usuario?select=codrca,nome,is_supervisor,user_id&order=nome`, {
+    headers: { 'apikey': SYNC_SERVICE_KEY, 'Authorization': 'Bearer ' + SYNC_SERVICE_KEY }
+  });
+  const data = await res.json();
+
+  const comLogin = data.filter(r => r.user_id).length;
+  const semLogin = data.filter(r => !r.user_id).length;
+
+  tbl.innerHTML = `
+    <div style="display:flex;gap:16px;margin-bottom:10px;font-size:12px;">
+      <span style="color:#2ecc71">✅ Com login: <strong>${comLogin}</strong></span>
+      <span style="color:#ff4d4d">❌ Sem login: <strong>${semLogin}</strong></span>
+      <span style="color:#5bc4f5">Total: <strong>${data.length}</strong></span>
+    </div>
+    <div style="max-height:240px;overflow-y:auto;border:1px solid rgba(91,196,245,0.15);border-radius:6px;">
+      <table style="width:100%;border-collapse:collapse;font-size:12px;">
+        <thead><tr style="background:#0d4f8c;position:sticky;top:0;">
+          <th style="padding:6px 10px;text-align:left;color:#fff">Nome</th>
+          <th style="padding:6px 10px;text-align:center;color:#fff">RCA</th>
+          <th style="padding:6px 10px;text-align:center;color:#fff">Login</th>
+          <th style="padding:6px 10px;text-align:center;color:#fff">Tipo</th>
+        </tr></thead>
+        <tbody>
+          ${data.map((r,i) => `
+            <tr style="background:${i%2===0?'rgba(255,255,255,0.02)':'transparent'};border-bottom:1px solid rgba(91,196,245,0.08)">
+              <td style="padding:5px 10px">${r.nome||'—'}</td>
+              <td style="padding:5px 10px;text-align:center;color:var(--text-dim)">${parseFloat(r.codrca)||'—'}</td>
+              <td style="padding:5px 10px;text-align:center">${r.user_id?'<span style="color:#2ecc71">✅</span>':'<span style="color:#ff4d4d">❌</span>'}</td>
+              <td style="padding:5px 10px;text-align:center">${r.is_supervisor?'<span style="color:#5bc4f5">Supervisor</span>':'Vendedor'}</td>
+            </tr>`).join('')}
+        </tbody>
+      </table>
+    </div>`;
+}
+// ===== FIM GESTÃO DE USUÁRIOS =====
+
 </script>
 </body>
 </html>
