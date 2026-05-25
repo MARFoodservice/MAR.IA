@@ -534,7 +534,7 @@ function renderColuna(col){
       return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span>${vendeu?'<span class="dot-vendeu">●</span>':''}</div>`;
     }).join('')||'<div class="empty">Sem dados globais.</div>';
     const fraseBench=benchTop.length?`<div class="resumo-frase">Dos <strong>${benchTop.length} itens</strong> mais vendidos neste ramo, você vendeu <strong>${vendeuNoBench}</strong> para esse cliente.</div>`:'';
-    content=`<div class="col-title">🏆 MAIS VENDIDO NO RAMO — ${benchItems.length} SUBCATS (TOP 20)</div>`+benchRows+fraseBench;
+    content=`<div class="col-title">🏆 MIX + VENDIDO — 180 DIAS (${(()=>{const d=new Date();d.setDate(d.getDate()-180);return d.toLocaleDateString('pt-BR')})()}→${new Date().toLocaleDateString('pt-BR')}) — ${BENCHMARK_TOTAL[c.ramo]||0} CLI · TOP 20 · ● = OBRIG.</div>`+benchRows+fraseBench;
   } else {
     const compradasRows=subcats.map(sub=>{
       const isObrig=mixObrigSet.has(sub);
