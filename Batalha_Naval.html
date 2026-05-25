@@ -1057,6 +1057,7 @@ let configChanged = false;
 let MES_ATUAL_CLIENTS = []; // clientes do mês atual (para comparativo)
 let CONFIG_CLIENTS = [];    // clientes do período da aba configurar mix
 let RANKING_CLIENTS = [];   // clientes do período do ranking
+let BENCHMARK_180 = {};     // { ramo: { subcategoria: Set(codcli) } } — últimos 180 dias
 
 // Relação supervisor → RCAs (preenchida com dados reais)
 let supervisorRCAMap = {};
@@ -1118,13 +1119,17 @@ async function loadData() {
   const de = document.getElementById('filterDe').value;
   const ate = document.getElementById('filterAte').value;
 
-  // Mês atual automático
   const hoje = new Date();
   const mesAtualDe = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-01`;
   const proximoMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
   const mesAtualAte = proximoMes.toISOString().slice(0,10);
 
+  const d180 = new Date(hoje); d180.setDate(d180.getDate() - 180);
+  const bench180De = d180.toISOString().slice(0,10);
+  const bench180Ate = hoje.toISOString().slice(0,10);
+
   const BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,cliente,rca,codrca,supervisor,codsupervisor,ramo,codramo,subcategoria,codsubcategoria,descricao,total,dtmov&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE`;
+  const BENCH_BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,ramo,subcategoria&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE&dtmov=gte.${bench180De}&dtmov=lte.${bench180Ate}`;
 
   try {
     let urlFiltrado = BASE;
@@ -1136,15 +1141,15 @@ async function loadData() {
     }
     urlFiltrado += '&limit=50000';
 
-    // Mês atual (só busca se período filtrado != mês atual)
     const periodoEhMesAtual = de === mesAtualDe;
-    let urlMesAtual = BASE + `&dtmov=gte.${mesAtualDe}&dtmov=lt.${mesAtualAte}&limit=50000`;
+    const urlMesAtual = BASE + `&dtmov=gte.${mesAtualDe}&dtmov=lt.${mesAtualAte}&limit=50000`;
 
+    // Busca principal e mês atual em paralelo
     const fetches = [fetch(urlFiltrado, { headers: HEADERS })];
     if (!periodoEhMesAtual) fetches.push(fetch(urlMesAtual, { headers: HEADERS }));
-
     const resps = await Promise.all(fetches);
-    const [rowsFiltrado, rowsMesAtual] = await Promise.all(resps.map(r => r.json()));
+    const jsons = await Promise.all(resps.map(r => r.json()));
+    const [rowsFiltrado, rowsMesAtual] = jsons;
 
     setDbStatus('connected', `${rowsFiltrado.length} registros carregados`);
     processData(rowsFiltrado);
@@ -1154,6 +1159,28 @@ async function loadData() {
     } else {
       MES_ATUAL_CLIENTS = ALL_CLIENTS;
     }
+
+    // Benchmark 180 dias com paginação — busca até não ter mais dados
+    BENCHMARK_180 = {};
+    const PAGE = 50000;
+    let offset = 0;
+    let totalBenchRows = 0;
+    while (true) {
+      const url = BENCH_BASE + `&limit=${PAGE}&offset=${offset}`;
+      const r = await fetch(url, { headers: { ...HEADERS, 'Prefer': 'count=none' } });
+      const rows = await r.json();
+      if (!Array.isArray(rows) || rows.length === 0) break;
+      rows.forEach(r => {
+        if (!r.ramo || !r.subcategoria || !r.codcli) return;
+        if (!BENCHMARK_180[r.ramo]) BENCHMARK_180[r.ramo] = {};
+        if (!BENCHMARK_180[r.ramo][r.subcategoria]) BENCHMARK_180[r.ramo][r.subcategoria] = new Set();
+        BENCHMARK_180[r.ramo][r.subcategoria].add(String(r.codcli));
+      });
+      totalBenchRows += rows.length;
+      if (rows.length < PAGE) break;
+      offset += PAGE;
+    }
+    setDbStatus('connected', `${rowsFiltrado.length} reg. filtrados · ${totalBenchRows} benchmark 180d`);
 
     hideLoading();
   } catch (err) {
@@ -1523,12 +1550,21 @@ function renderDetail() {
           <span style="font-size:12px;font-weight:600;color:${item.hit ? '#2ecc71' : '#ff4d4d'};">${tipoTag[item.tipo]}${item.label}</span>
         </div>`).join('');
 
-  // ---- COLUNA 2: MAIS VENDIDOS NA SUBCATEGORIA (todos os outros clientes do ramo) ----
-  // Ranking de subcategorias mais compradas entre todos os clientes do ramo filtrado
-  const clientesRamo = filteredClients.filter(cl => cl.ramo === ramo);
-  const subRanking = {};
-  clientesRamo.forEach(cl => cl.subcategorias.forEach(s => { subRanking[s] = (subRanking[s]||0)+1; }));
-  const subRanked = Object.entries(subRanking).sort((a,b) => b[1]-a[1]);
+  // ---- COLUNA 2: MAIS VENDIDOS — últimos 180 dias (empresa inteira por ramo) ----
+  const hoje180 = new Date();
+  const d180b = new Date(hoje180); d180b.setDate(d180b.getDate() - 180);
+  const fmt180 = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
+  const benchLabel = `${fmt180(d180b)} → ${fmt180(hoje180)}`;
+
+  const ramoMapBench = (BENCHMARK_180 && BENCHMARK_180[ramo]) || {};
+  const subRanked = Object.entries(ramoMapBench)
+    .map(([sub, cliSet]) => [sub, cliSet.size])
+    .sort((a, b) => b[1] - a[1]);
+
+  const todosClisBench = new Set();
+  Object.values(ramoMapBench).forEach(s => s.forEach(id => todosClisBench.add(id)));
+  const totalBenchmark = todosClisBench.size;
+
   const obrigSet = new Set([
     ...(MIX_CONFIG[ramo] || []),
     ...(GRUPOS_CONFIG[ramo]||[]).flatMap(g=>g.subcategorias),
@@ -1538,7 +1574,7 @@ function renderDetail() {
   const rankRows = subRanked.slice(0, 20).map(([sub, cnt], i) => {
     const comprou = compSet.has(sub);
     const isObrig = obrigSet.has(sub);
-    const pctRank = clientesRamo.length > 0 ? Math.round((cnt/clientesRamo.length)*100) : 0;
+    const pctRank = totalBenchmark > 0 ? Math.round((cnt/totalBenchmark)*100) : 0;
     const color = comprou ? '#2ecc71' : isObrig ? '#ff4d4d' : 'var(--text)';
     const obrigDot = isObrig ? `<span style="width:5px;height:5px;border-radius:50%;background:var(--foam);display:inline-block;margin-left:4px;vertical-align:middle;"></span>` : '';
     return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
@@ -1596,7 +1632,7 @@ function renderDetail() {
           <div class="num" style="font-size:24px;color:${progressColor};">${pct!==null?pct+'%':'—'}</div><div class="lbl">Cobertura</div>
         </div>
         <div class="cov-card blue" style="min-width:80px;text-align:center;padding:8px 12px;">
-          <div class="num" style="font-size:24px;">${subRanked.length}</div><div class="lbl">+ Vendidos</div>
+          <div class="num" style="font-size:24px;">${subRanked.length}</div><div class="lbl">+ Vendidos 180d</div>
         </div>
         <div class="cov-card blue" style="min-width:80px;text-align:center;padding:8px 12px;">
           <div class="num" style="font-size:24px;">${todasSubs.length}</div><div class="lbl">Subcats compradas</div>
@@ -1612,7 +1648,7 @@ function renderDetail() {
       </div>
       <!-- COL 2 -->
       <div style="padding:14px 16px;overflow-y:auto;border-right:1px solid var(--border);">
-        <div class="cliente-section-title">🏆 Mix + vendido na subcategoria — ${subRanked.length}/20 <span style="font-size:10px;font-weight:400;">● = obrig.</span></div>
+        <div class="cliente-section-title">🏆 Mix + vendido — 180 dias (${benchLabel}) — ${totalBenchmark} clientes · top 20 <span style="font-size:10px;font-weight:400;">● = obrig.</span></div>
         ${rankRows}
       </div>
       <!-- COL 3 -->
