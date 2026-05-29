@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Cenário Redistribuição Maio 2026</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600&family=DM+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+:root {
+  --bg: #F7F6F3; --surface: #FFFFFF; --surface2: #F1EFE8;
+  --border: rgba(0,0,0,0.08); --border2: rgba(0,0,0,0.14);
+  --text1: #1A1917; --text2: #5F5E5A; --text3: #888780;
+  --blue: #185FA5; --blue-light: #E6F1FB;
+  --green: #0F6E56; --green-light: #E1F5EE; --green-mid: #1D9E75;
+  --amber: #854F0B; --amber-light: #FAEEDA; --amber-mid: #BA7517;
+  --red: #A32D2D; --red-light: #FCEBEB; --red-mid: #E24B4A;
+  --r-md: 8px; --r-lg: 14px;
+}
+body { font-family: 'DM Sans', sans-serif; background: var(--bg); color: var(--text1); min-height: 100vh; padding: 2rem 1.5rem; }
+
+.header { display: flex; align-items: flex-start; justify-content: space-between; flex-wrap: wrap; gap: 1rem; margin-bottom: 2rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--border2); }
+.header-brand { display: flex; align-items: center; gap: 14px; }
+.header-icon { width: 42px; height: 42px; background: var(--text1); border-radius: var(--r-md); display: flex; align-items: center; justify-content: center; }
+.header-icon svg { width: 22px; height: 22px; fill: white; }
+.header-title { font-size: 20px; font-weight: 600; letter-spacing: -0.3px; }
+.header-sub { font-size: 12px; color: var(--text2); margin-top: 2px; }
+.year-badge { font-size: 11px; font-weight: 500; padding: 5px 14px; border-radius: 20px; background: var(--blue); color: white; font-family: 'DM Mono', monospace; }
+
+.grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 1.5rem; }
+.grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.metric { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-md); padding: 1rem 1.1rem; }
+.metric-lbl { font-size: 11px; color: var(--text2); margin-bottom: 5px; }
+.metric-val { font-size: 22px; font-weight: 600; font-family: 'DM Mono', monospace; letter-spacing: -0.5px; }
+.metric-sub { font-size: 10px; margin-top: 3px; color: var(--text3); }
+.ok  { color: var(--green); }
+.bad { color: var(--red); }
+.neu { color: var(--text2); }
+
+.card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--r-lg); padding: 1.25rem; margin-bottom: 1.5rem; }
+.card-head { display: flex; justify-content: space-between; align-items: center; margin-bottom: 1rem; padding-bottom: .75rem; border-bottom: 1px solid var(--border); font-size: 13px; font-weight: 500; }
+
+.pill { font-size: 10px; font-weight: 500; padding: 2px 8px; border-radius: 10px; display: inline-block; }
+.p-ok   { background: var(--green-light); color: var(--green); }
+.p-bad  { background: var(--red-light); color: var(--red); }
+.p-warn { background: var(--amber-light); color: var(--amber); }
+.p-neu  { background: var(--surface2); color: var(--text2); }
+
+table { width: 100%; border-collapse: collapse; font-size: 12px; }
+th { text-align: left; font-weight: 500; font-size: 11px; color: var(--text2); padding: 6px 10px; border-bottom: 1px solid var(--border2); background: var(--surface2); font-family: 'DM Mono', monospace; }
+td { padding: 8px 10px; border-bottom: 1px solid var(--border); font-family: 'DM Mono', monospace; font-size: 11px; }
+tr:last-child td { border-bottom: none; }
+tr.tot td { font-weight: 600; background: var(--bg); }
+tr.mai td { background: #FAEEDA44; }
+
+.kpi-box { background: var(--surface2); border-radius: var(--r-md); padding: .85rem 1rem; }
+.legend { display: flex; gap: 16px; font-size: 10px; color: var(--text3); margin-top: 10px; flex-wrap: wrap; }
+.li { display: flex; align-items: center; gap: 5px; }
+.dot { width: 10px; height: 10px; border-radius: 2px; }
+
+.info-box { background: var(--blue-light); border-radius: var(--r-md); padding: .85rem 1rem; margin-bottom: 1.5rem; font-size: 12px; color: var(--blue); line-height: 1.6; }
+hr { border: none; border-top: 1px solid var(--border2); margin: 1.5rem 0; }
+.footer { text-align: center; font-size: 11px; color: var(--text3); margin-top: 3rem; padding-top: 1rem; border-top: 1px solid var(--border); font-family: 'DM Mono', monospace; }
+
+@media(max-width:700px){ .grid3{grid-template-columns:1fr 1fr;} .grid2{grid-template-columns:1fr;} }
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="header-icon">
+      <svg viewBox="0 0 24 24"><path d="M3 3h18v4H3zm0 6h12v4H3zm0 6h18v4H3z"/></svg>
+    </div>
+    <div>
+      <div class="header-title">Cenário · Redistribuição de Volume Maio 2026</div>
+      <div class="header-sub">Impacto da redução de R$ 1M em Maio com redistribuição proporcional Jun–Dez</div>
+    </div>
+  </div>
+  <span class="year-badge">Opção A · 2026</span>
+</div>
+
+<div class="info-box">
+  <strong>Premissa:</strong> O Comercial solicitou redução de R$ 1.000.000 no volume movimentado de Maio. O volume foi redistribuído proporcionalmente entre Junho e Dezembro. Para manter a meta anual de 4,49%, é necessária uma redução de <strong>R$ 52.051</strong> no custo de frete de Jun–Dez, também distribuída proporcionalmente.
+</div>
+
+<div class="grid3">
+  <div class="metric">
+    <div class="metric-lbl">Volume retirado de Maio</div>
+    <div class="metric-val bad">-R$ 1,00M</div>
+    <div class="metric-sub">redistribuído Jun–Dez proporcionalmente</div>
+  </div>
+  <div class="metric">
+    <div class="metric-lbl">Redução de custo necessária</div>
+    <div class="metric-val bad">-R$ 52.051</div>
+    <div class="metric-sub">para manter 4,49% no ano</div>
+  </div>
+  <div class="metric">
+    <div class="metric-lbl">Meta anual mantida</div>
+    <div class="metric-val ok">4,49%</div>
+    <div class="metric-sub ok">ano equilibrado ✓</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">
+    Redistribuição Mensal · Volume e Custo Ajustados (Jun–Dez)
+    <span class="pill p-ok">Opção A — proporcional</span>
+  </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Mês</th>
+        <th>Vol. Original</th>
+        <th>Vol. Ajustado</th>
+        <th>Δ Volume</th>
+        <th>Custo Original</th>
+        <th>Custo Ajustado</th>
+        <th>Δ Custo</th>
+        <th>% Original</th>
+        <th>% Ajustado</th>
+        <th>Status</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr><td>Janeiro</td><td>19.047.297</td><td>19.047.297</td><td>—</td><td>869.769</td><td>869.769</td><td>—</td><td>4,57%</td><td>4,57%</td><td><span class="pill p-neu">Sem alter.</span></td></tr>
+      <tr><td>Fevereiro</td><td>18.459.185</td><td>18.459.185</td><td>—</td><td>835.047</td><td>835.047</td><td>—</td><td>4,52%</td><td>4,52%</td><td><span class="pill p-neu">Sem alter.</span></td></tr>
+      <tr><td>Março</td><td>17.068.182</td><td>17.068.182</td><td>—</td><td>790.670</td><td>790.670</td><td>—</td><td>4,63%</td><td>4,63%</td><td><span class="pill p-neu">Sem alter.</span></td></tr>
+      <tr><td>Abril</td><td>16.699.232</td><td>16.699.232</td><td>—</td><td>833.632</td><td>833.632</td><td>—</td><td>4,99%</td><td>4,99%</td><td><span class="pill p-neu">Sem alter.</span></td></tr>
+      <tr class="mai">
+        <td><strong>Maio ⚠</strong></td>
+        <td>15.320.537</td>
+        <td><strong>14.320.537</strong></td>
+        <td style="color:var(--red);">-1.000.000</td>
+        <td>746.174</td>
+        <td><strong>746.174</strong></td>
+        <td>—</td>
+        <td>4,87%</td>
+        <td style="color:var(--red);font-weight:600;">5,21%</td>
+        <td><span class="pill p-warn">▲ +0,34pp</span></td>
+      </tr>
+      <tr><td>Junho</td><td>13.564.377</td><td><strong>13.707.219</strong></td><td style="color:var(--green);">+142.842</td><td>736.259</td><td><strong>728.767</strong></td><td style="color:var(--green);">-7.492</td><td>5,43%</td><td style="color:var(--green);font-weight:600;">5,32%</td><td><span class="pill p-ok">▼ -0,11pp</span></td></tr>
+      <tr><td>Julho</td><td>16.064.307</td><td><strong>16.233.530</strong></td><td style="color:var(--green);">+169.223</td><td>740.777</td><td><strong>732.908</strong></td><td style="color:var(--green);">-7.869</td><td>4,61%</td><td style="color:var(--green);font-weight:600;">4,51%</td><td><span class="pill p-ok">▼ -0,10pp</span></td></tr>
+      <tr><td>Agosto</td><td>16.426.040</td><td><strong>16.599.012</strong></td><td style="color:var(--green);">+172.972</td><td>759.168</td><td><strong>751.098</strong></td><td style="color:var(--green);">-8.070</td><td>4,62%</td><td style="color:var(--green);font-weight:600;">4,52%</td><td><span class="pill p-ok">▼ -0,10pp</span></td></tr>
+      <tr><td>Setembro</td><td>19.875.439</td><td><strong>20.084.722</strong></td><td style="color:var(--green);">+209.283</td><td>849.656</td><td><strong>840.877</strong></td><td style="color:var(--green);">-8.779</td><td>4,27%</td><td style="color:var(--green);font-weight:600;">4,19%</td><td><span class="pill p-ok">▼ -0,08pp</span></td></tr>
+      <tr><td>Outubro</td><td>21.257.946</td><td><strong>21.481.742</strong></td><td style="color:var(--green);">+223.796</td><td>877.079</td><td><strong>867.699</strong></td><td style="color:var(--green);">-9.380</td><td>4,13%</td><td style="color:var(--green);font-weight:600;">4,04%</td><td><span class="pill p-ok">▼ -0,09pp</span></td></tr>
+      <tr><td>Novembro</td><td>23.440.575</td><td><strong>23.687.424</strong></td><td style="color:var(--green);">+246.849</td><td>939.311</td><td><strong>928.941</strong></td><td style="color:var(--green);">-10.370</td><td>4,01%</td><td style="color:var(--green);font-weight:600;">3,92%</td><td><span class="pill p-ok">▼ -0,09pp</span></td></tr>
+      <tr><td>Dezembro</td><td>23.390.291</td><td><strong>23.637.140</strong></td><td style="color:var(--green);">+246.849</td><td>934.951</td><td><strong>924.981</strong></td><td style="color:var(--green);">-9.970</td><td>4,00%</td><td style="color:var(--green);font-weight:600;">3,91%</td><td><span class="pill p-ok">▼ -0,09pp</span></td></tr>
+      <tr class="tot">
+        <td>Total Ano</td>
+        <td>220.613.407</td>
+        <td>220.613.407</td>
+        <td style="color:var(--green);">= igual</td>
+        <td>9.912.493</td>
+        <td><strong>9.860.563</strong></td>
+        <td style="color:var(--green);">-51.930</td>
+        <td>4,49%</td>
+        <td style="color:var(--green);font-weight:600;">4,49%</td>
+        <td><span class="pill p-ok">Meta OK ✓</span></td>
+      </tr>
+    </tbody>
+  </table>
+  <div class="legend">
+    <div class="li"><div class="dot" style="background:#FAEEDA;border:0.5px solid #BA7517;"></div>Maio — volume reduzido, % piora</div>
+    <div class="li"><div class="dot" style="background:#E1F5EE;border:0.5px solid #1D9E75;"></div>Jun–Dez — volume e custo redistribuídos, % melhora</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-head">Resumo Estratégico · Impacto da Redistribuição</div>
+  <div class="grid2">
+    <div class="kpi-box" style="border-left: 3px solid var(--red-mid);">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Maio — único mês prejudicado</div>
+      <div style="font-size:20px;font-weight:600;color:var(--red);font-family:'DM Mono',monospace;">5,21% <span style="font-size:12px;">▲ +0,34pp</span></div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px;">Volume cai R$ 1M · custo de frete mantido</div>
+    </div>
+    <div class="kpi-box" style="border-left: 3px solid var(--green-mid);">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Jun–Dez — todos os meses melhoram</div>
+      <div style="font-size:20px;font-weight:600;color:var(--green);font-family:'DM Mono',monospace;">-0,08 a -0,11pp</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px;">Volume extra + redução proporcional de custo</div>
+    </div>
+    <div class="kpi-box" style="border-left: 3px solid #378ADD;">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Redução média de custo por mês</div>
+      <div style="font-size:20px;font-weight:600;font-family:'DM Mono',monospace;">R$ 7.430</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px;">distribuído proporcionalmente em 7 meses</div>
+    </div>
+    <div class="kpi-box" style="border-left: 3px solid var(--green-mid);">
+      <div style="font-size:11px;color:var(--text2);margin-bottom:4px;">Meta anual — resultado final</div>
+      <div style="font-size:20px;font-weight:600;color:var(--green);font-family:'DM Mono',monospace;">4,49% mantida ✓</div>
+      <div style="font-size:10px;color:var(--text3);margin-top:3px;">Volume total inalterado · custo ajustado -R$ 52K</div>
+    </div>
+  </div>
+</div>
+
+<div class="footer">Cenário A · Redistribuição proporcional Jun–Dez · Painel Logística 2026</div>
+
+</body>
+</html>
