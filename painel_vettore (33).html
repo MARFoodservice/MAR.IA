@@ -1,0 +1,1392 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Vettore Logística — Painel de Gestão</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#0b0e17;--bg2:#111520;--surface:#161b2e;--surface2:#1c2238;--surface3:#222840;
+  --border:rgba(255,255,255,.07);--border2:rgba(255,255,255,.13);
+  --text:#e8eaf0;--text2:#8b90a0;--text3:#4e5368;
+  --accent:#3d8bff;--accent2:#1a5ccc;
+  --ok:#22c981;--ok-bg:rgba(34,201,129,.1);
+  --warn:#f5a623;--warn-bg:rgba(245,166,35,.1);
+  --bad:#ff4d4d;--bad-bg:rgba(255,77,77,.1);
+  --r100:#3d8bff;--r100-bg:rgba(61,139,255,.12);
+  --r300:#22c981;--r300-bg:rgba(34,201,129,.12);
+  --r600:#f5a623;--r600-bg:rgba(245,166,35,.12);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Inter',sans-serif;background:var(--bg);color:var(--text);font-size:13px;line-height:1.5;min-height:100vh}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:var(--surface3);border-radius:4px}
+
+.header{background:var(--bg2);border-bottom:1px solid var(--border);padding:.875rem 2rem;display:flex;align-items:center;justify-content:space-between;position:sticky;top:0;z-index:100}
+.logo{width:34px;height:34px;border-radius:8px;background:linear-gradient(135deg,var(--accent),var(--accent2));display:flex;align-items:center;justify-content:center;font-weight:700;font-size:12px;color:#fff}
+.header-brand{display:flex;align-items:center;gap:12px}
+.header-title{font-size:14px;font-weight:600}
+.header-sub{font-size:11px;color:var(--text3);margin-top:1px}
+.header-right{display:flex;align-items:center;gap:10px}
+.status-dot{width:7px;height:7px;border-radius:50%;background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.header-badge{font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2);background:var(--surface);border:1px solid var(--border);padding:4px 10px;border-radius:6px}
+
+.nav{background:var(--bg2);border-bottom:1px solid var(--border);padding:0 2rem;display:flex}
+.nav-btn{padding:11px 18px;border:none;background:transparent;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;color:var(--text3);cursor:pointer;border-bottom:2px solid transparent;transition:all .15s}
+.nav-btn:hover{color:var(--text2)}
+.nav-btn.active{color:var(--accent);border-bottom-color:var(--accent)}
+
+.container{max-width:1400px;margin:0 auto;padding:1.5rem 2rem}
+.page{display:none}.page.active{display:block}
+
+.sec{font-size:10px;font-weight:600;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:.75rem;display:flex;align-items:center;gap:8px}
+.sec::after{content:'';flex:1;height:1px;background:rgba(61,139,255,.2)}
+
+.cards4{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:1.5rem}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.125rem 1.25rem;position:relative;overflow:hidden;transition:border-color .2s}
+.card:hover{border-color:var(--border2)}
+.card::before{content:'';position:absolute;top:0;left:0;right:0;height:2px;border-radius:12px 12px 0 0}
+.card.c-ok::before{background:linear-gradient(90deg,var(--ok),transparent)}
+.card.c-bad::before{background:linear-gradient(90deg,var(--bad),transparent)}
+.card.c-warn::before{background:linear-gradient(90deg,var(--warn),transparent)}
+.card.c-neu::before{background:linear-gradient(90deg,var(--accent),transparent)}
+.card-lbl{font-size:10px;font-weight:500;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:8px}
+.card-val{font-size:28px;font-weight:700;font-family:'JetBrains Mono',monospace;line-height:1}
+.card-sub{font-size:11px;margin-top:7px}
+.card-bar{height:2px;background:var(--surface3);border-radius:2px;margin-top:12px;overflow:hidden}
+.card-fill{height:100%;border-radius:2px}
+.ok{color:var(--ok)}.warn{color:var(--warn)}.bad{color:var(--bad)}.neu{color:var(--text2)}
+
+.g2{display:grid;grid-template-columns:380px 1fr;gap:12px;margin-bottom:1.5rem}
+.bloco{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.125rem 1.25rem}
+.bloco-title{font-size:10px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:1rem;padding-bottom:.75rem;border-bottom:1px solid var(--border)}
+
+.raio-row{display:flex;align-items:center;gap:10px;margin-bottom:14px}
+.raio-row:last-of-type{margin-bottom:0}
+.raio-tag{font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:3px 8px;border-radius:5px;min-width:52px;text-align:center}
+.r100{background:var(--r100-bg);color:var(--r100);border:1px solid rgba(61,139,255,.2)}
+.r300{background:var(--r300-bg);color:var(--r300);border:1px solid rgba(34,201,129,.2)}
+.r600{background:var(--r600-bg);color:var(--r600);border:1px solid rgba(245,166,35,.2)}
+.raio-bars{flex:1}
+.raio-bg{height:6px;background:var(--surface3);border-radius:3px;overflow:hidden}
+.raio-bar-fill{height:100%;border-radius:3px}
+.raio-nums{display:flex;justify-content:space-between;margin-top:4px}
+.raio-num{font-size:12px;font-weight:600;font-family:'JetBrains Mono',monospace}
+.raio-meta{font-size:10px;color:var(--text3);font-family:'JetBrains Mono',monospace}
+
+.tend{display:flex;margin-top:1rem;padding-top:1rem;border-top:1px solid var(--border)}
+.tend-item{flex:1;text-align:center}
+.tend-item+.tend-item{border-left:1px solid var(--border)}
+.tend-val{font-size:20px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.tend-lbl{font-size:9px;color:var(--text3);margin-top:4px;text-transform:uppercase;letter-spacing:.06em}
+
+.filtros-bar{display:flex;align-items:center;gap:6px;margin-bottom:.875rem;flex-wrap:wrap}
+.filtro-btn{font-size:11px;font-weight:500;padding:4px 12px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+.filtro-btn:hover{border-color:var(--border2);color:var(--text2)}
+.filtro-btn.active{background:var(--accent);color:#fff;border-color:var(--accent)}
+.op-filter-btn{font-size:10px;font-weight:600;padding:3px 10px;border-radius:20px;border:1px solid var(--border);background:transparent;color:var(--text3);cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s;letter-spacing:.03em}
+.op-filter-btn:hover{border-color:var(--border2);color:var(--text2)}
+.op-filter-btn.active{background:var(--surface3);color:var(--text);border-color:var(--border2)}
+
+.reg-wrap{overflow-x:auto;max-height:400px;overflow-y:auto}
+.reg-table{width:100%;border-collapse:collapse;min-width:700px}
+.reg-table thead{position:sticky;top:0;z-index:2}
+.reg-table th{font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--text3);padding:8px 10px;background:var(--surface2);border-bottom:1px solid var(--border);text-align:left}
+.reg-table th:not(:first-child){text-align:right}
+.reg-table td{padding:10px 10px;border-bottom:1px solid var(--border);font-size:12px;vertical-align:middle;transition:background .1s}
+.reg-table td:not(:first-child){text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px}
+.reg-table tr:last-child td{border-bottom:none}
+.reg-table tbody tr:hover td{background:var(--surface2)}
+.reg-nome{font-weight:500;font-size:12px;color:var(--text)}
+.reg-sub{font-size:10px;color:var(--text3);margin-top:2px}
+.badge{display:inline-block;font-size:10px;font-weight:600;font-family:'JetBrains Mono',monospace;padding:2px 7px;border-radius:4px}
+.b-ok{background:var(--ok-bg);color:var(--ok)}
+.b-warn{background:var(--warn-bg);color:var(--warn)}
+.b-bad{background:var(--bad-bg);color:var(--bad)}
+.pct-ok{color:var(--ok);font-weight:700}.pct-warn{color:var(--warn);font-weight:700}.pct-bad{color:var(--bad);font-weight:700}
+
+.resumo-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.res-item{background:var(--surface2);border-radius:8px;padding:.875rem 1rem;border:1px solid var(--border)}
+.res-lbl{font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.07em;margin-bottom:5px;font-weight:600}
+.res-val{font-size:15px;font-weight:700;font-family:'JetBrains Mono',monospace}
+
+.ops3{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1.5rem}
+.op-card{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1rem 1.25rem}
+.op-nome{font-size:10px;font-weight:600;letter-spacing:.06em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.op-val{font-size:22px;font-weight:700;font-family:'JetBrains Mono',monospace}
+.op-sub{font-size:11px;color:var(--text3);margin-top:4px}
+.op-bar{height:2px;background:var(--surface3);border-radius:2px;margin-top:10px;overflow:hidden}
+
+.form-bloco{background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:1.25rem;margin-bottom:1.25rem}
+.form-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;margin-bottom:1rem}
+.form-group{display:flex;flex-direction:column;gap:5px}
+.form-lbl{font-size:10px;font-weight:600;letter-spacing:.05em;text-transform:uppercase;color:var(--text3)}
+.form-group input,.form-group select{padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;color:var(--text);outline:none;transition:border .15s;width:100%}
+.form-group input:focus,.form-group select:focus{border-color:var(--accent);box-shadow:0 0 0 3px rgba(61,139,255,.1)}
+.form-group input::placeholder{color:var(--text3)}
+.form-group select option{background:var(--surface2);color:var(--text)}
+.btn-save{background:linear-gradient(135deg,var(--accent),var(--accent2));color:#fff;border:none;padding:9px 22px;border-radius:7px;font-family:'Inter',sans-serif;font-size:12px;font-weight:600;cursor:pointer;transition:opacity .15s}
+.btn-save:hover{opacity:.88}
+.btn-del{background:transparent;color:var(--bad);border:1px solid var(--border);padding:3px 9px;border-radius:5px;font-size:10px;cursor:pointer;font-family:'Inter',sans-serif;transition:all .12s}
+.btn-del:hover{background:var(--bad-bg);border-color:var(--bad)}
+.msg-ok{font-size:11px;color:var(--ok);margin-left:10px}
+.msg-err{font-size:11px;color:var(--bad);margin-left:10px}
+
+.tots4{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:1.25rem}
+.tot-card{background:var(--surface);border:1px solid var(--border);border-radius:10px;padding:.875rem 1rem}
+.tot-lbl{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);margin-bottom:6px}
+.tot-val{font-size:18px;font-weight:700;font-family:'JetBrains Mono',monospace}
+
+.hist-wrap{overflow-x:auto}
+.hist-table{width:100%;border-collapse:collapse;font-size:11px;min-width:700px}
+.hist-table th{font-size:9px;font-weight:600;letter-spacing:.07em;text-transform:uppercase;color:var(--text3);padding:8px 10px;border-bottom:1px solid var(--border);text-align:left;background:var(--surface2)}
+.hist-table td{padding:9px 10px;border-bottom:1px solid var(--border);vertical-align:middle}
+.hist-table tr:last-child td{border-bottom:none}
+.hist-table tr:hover td{background:var(--surface2)}
+.empty{text-align:center;padding:2.5rem;color:var(--text3);font-size:12px}
+.chip{font-size:10px;background:var(--surface3);padding:2px 8px;border-radius:4px;color:var(--text2);border:1px solid var(--border)}
+
+.evol-wrap{position:relative;height:160px;margin:1rem 0 .5rem}
+.evol-grid line{stroke:var(--border)}
+.evol-svg{width:100%;height:100%;overflow:visible}
+.evol-label{font-size:9px;fill:var(--text3);font-family:'Inter',sans-serif}
+.evol-val{font-size:8px;font-family:'JetBrains Mono',monospace}
+.evol-legend{display:flex;gap:16px;justify-content:center;margin-top:.5rem}
+.evol-leg-item{display:flex;align-items:center;gap:5px;font-size:10px;color:var(--text2)}
+.evol-leg-dot{width:8px;height:3px;border-radius:2px}
+@media(max-width:600px){.evol-wrap{height:120px}}
+@media(max-width:900px){.cards4,.ops3,.tots4{grid-template-columns:repeat(2,1fr)}.form-grid{grid-template-columns:repeat(2,1fr)}.resumo-grid{grid-template-columns:repeat(2,1fr)}}
+@media(max-width:600px){.container{padding:1rem}.header,.nav{padding-left:1rem;padding-right:1rem}.cards4{grid-template-columns:1fr 1fr}}
+</style>
+</head>
+<body>
+
+<div class="header">
+  <div class="header-brand">
+    <div class="logo">VL</div>
+    <div>
+      <div class="header-title">Vettore Logística</div>
+      <div class="header-sub">Painel de Gestão · Marfoods</div>
+    </div>
+  </div>
+  <div class="header-right">
+    <div class="status-dot"></div>
+    <div class="header-badge">MAR · 2026</div>
+  </div>
+</div>
+
+<div class="nav">
+  <button class="nav-btn active" onclick="showPage('resultado',this)">Resultado executivo</button>
+  <button class="nav-btn" onclick="showPage('regioes',this)">Regiões</button>
+  <button class="nav-btn" onclick="showPage('agregados',this)">Agregados</button>
+  <button class="nav-btn" onclick="showPage('rotas',this)">Rotas</button>
+  <button class="nav-btn" onclick="showPage('lancamento',this)">Lançamento de custos</button>
+</div>
+
+<div class="container">
+
+<!-- RESULTADO -->
+<div id="page-resultado" class="page active">
+
+  <div class="sec" style="justify-content:space-between;align-items:center">
+    <span>Indicadores macro — março 2026</span>
+    <div style="display:flex;gap:6px;margin-left:auto">
+      <button class="op-filter-btn active" onclick="setFiltroOp('Todas',this)">Todas</button>
+      <button class="op-filter-btn" onclick="setFiltroOp('Marfoods',this)">Marfoods</button>
+      <button class="op-filter-btn" onclick="setFiltroOp('Brockers',this)">Brockers</button>
+      <button class="op-filter-btn" onclick="setFiltroOp('Cross',this)">Cross</button>
+    </div>
+  </div>
+
+  <div class="cards4" id="cards-macro"></div>
+
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="bloco-title">Custo % por raio de atendimento</div>
+    <div class="raio-row raio-block-Ate-75km"></div>
+    <div class="raio-row raio-block-76-150km"></div>
+    <div class="raio-row raio-block-151-300km"></div>
+    <div class="raio-row raio-block-301-600km"></div>
+    <div class="raio-row raio-block-Acima-600km" style="margin-bottom:0"></div>
+    <div class="tend">
+      <div class="tend-item"><div class="tend-val bad tend-real-val">4,66 %</div><div class="tend-lbl">Real março</div></div>
+      <div class="tend-item"><div class="tend-val warn">4,71 %</div><div class="tend-lbl">Tendência anual</div></div>
+      <div class="tend-item"><div class="tend-val neu">4,50 %</div><div class="tend-lbl">Meta anual</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Valor transportado por operação</div>
+  <div class="ops3">
+    <div class="op-card">
+      <div class="op-nome">Marfoods</div>
+      <div class="op-val">R$ 11,6M</div>
+      <div class="op-sub">72,6% do volume total</div>
+      <div class="op-bar"><div style="height:100%;width:73%;background:var(--accent);border-radius:2px"></div></div>
+    </div>
+    <div class="op-card">
+      <div class="op-nome">Brockers</div>
+      <div class="op-val">R$ 1,4M</div>
+      <div class="op-sub">8,7% do volume total</div>
+      <div class="op-bar"><div style="height:100%;width:9%;background:var(--ok);border-radius:2px"></div></div>
+    </div>
+    <div class="op-card">
+      <div class="op-nome">Cross</div>
+      <div class="op-val">R$ 2,4M</div>
+      <div class="op-sub">14,9% do volume total</div>
+      <div class="op-bar"><div style="height:100%;width:15%;background:var(--warn);border-radius:2px"></div></div>
+    </div>
+  </div>
+
+  <div class="sec">Resumo financeiro</div>
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="resumo-grid">
+      <div class="res-item"><div class="res-lbl">Valor NF distribuição</div><div class="res-val">R$ 16.053.431</div></div>
+      <div class="res-item"><div class="res-lbl">Vale frete distribuição</div><div class="res-val">R$ 679.818</div></div>
+      <div class="res-item"><div class="res-lbl">Vale frete transferência</div><div class="res-val">R$ 68.389</div></div>
+      <div class="res-item"><div class="res-lbl">Vale frete total (MA)</div><div class="res-val bad">R$ 748.207</div></div>
+      <div class="res-item"><div class="res-lbl">Custos fixos lançados</div><div class="res-val" id="res-cf">R$ 0</div></div>
+      <div class="res-item"><div class="res-lbl">Custo total</div><div class="res-val bad" id="res-total">R$ 748.207</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Evolução mensal — custo frete % · 2026</div>
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="evol-wrap"><svg id="evol-svg" class="evol-svg"></svg></div>
+    <div class="evol-legend">
+      <div class="evol-leg-item"><div class="evol-leg-dot" style="background:var(--ok)"></div>Real</div>
+      <div class="evol-leg-item"><div class="evol-leg-dot" style="background:var(--accent);opacity:.7"></div>Tendência</div>
+      <div class="evol-leg-item"><div class="evol-leg-dot" style="background:var(--warn);border:1px dashed var(--warn)"></div>Meta mês</div>
+      <div class="evol-leg-item"><div class="evol-leg-dot" style="background:var(--text3)"></div>Meta anual 4,50%</div>
+    </div>
+  </div>
+</div>
+
+<!-- REGIÕES -->
+<div id="page-regioes" class="page">
+
+  <div class="sec">Custo % por raio de atendimento</div>
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="raio-row raio-block-Ate-75km"></div>
+    <div class="raio-row raio-block-76-150km"></div>
+    <div class="raio-row raio-block-151-300km"></div>
+    <div class="raio-row raio-block-301-600km"></div>
+    <div class="raio-row raio-block-Acima-600km" style="margin-bottom:0"></div>
+    <div class="tend">
+      <div class="tend-item"><div class="tend-val bad tend-real-val">4,66 %</div><div class="tend-lbl">Real março</div></div>
+      <div class="tend-item"><div class="tend-val warn">4,71 %</div><div class="tend-lbl">Tendência anual</div></div>
+      <div class="tend-item"><div class="tend-val neu">4,50 %</div><div class="tend-lbl">Meta anual</div></div>
+    </div>
+  </div>
+
+  <div class="sec">Custo % por região · VF distrib + transferência rateada + Cross Kuhn</div>
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="filtros-bar" style="margin-bottom:.5rem">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px">CD:</span>
+      <button class="filtro-btn active" onclick="filtrarCD('Todos',this)">Todos</button>
+      <button class="filtro-btn" onclick="filtrarCD('CD Sapucaia',this)" style="border-color:var(--accent);color:var(--accent)">CD Sapucaia</button>
+      <button class="filtro-btn" onclick="filtrarCD('CD Pelotas',this)" style="border-color:var(--ok);color:var(--ok)">CD Pelotas</button>
+      <button class="filtro-btn" onclick="filtrarCD('CD Caxias do Sul',this)" style="border-color:var(--warn);color:var(--warn)">CD Caxias do Sul</button>
+    </div>
+    <div class="filtros-bar">
+      <button class="filtro-btn active" onclick="filtrar('todos',this)">Todas</button>
+      <button class="filtro-btn" onclick="filtrar('Até 75 km',this)">Até 75 km</button>
+      <button class="filtro-btn" onclick="filtrar('76 - 150 km',this)">76-150 km</button>
+      <button class="filtro-btn" onclick="filtrar('151 - 300 km',this)">151-300 km</button>
+      <button class="filtro-btn" onclick="filtrar('301 - 600 km',this)">301-600 km</button>
+      <button class="filtro-btn" onclick="filtrar('ok',this)">Dentro da meta</button>
+      <button class="filtro-btn" onclick="filtrar('fora',this)">Fora da meta</button>
+    </div>
+    <div id="cd-summary"></div>
+    <div class="reg-wrap">
+      <table class="reg-table">
+        <thead><tr><th>CD / Faixa de Raio</th><th>Valor NF</th><th>VF Distrib</th><th>VF Transf</th><th>Outros</th><th>VF Total</th><th>Custo %</th><th>Meta %</th></tr></thead>
+        <tbody id="reg-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+
+</div>
+
+<!-- AGREGADOS -->
+<div id="page-agregados" class="page">
+
+  <div class="sec" id="agg-sec-title">Visão geral — agregados ativos março 2026</div>
+  <div class="cards4" style="grid-template-columns:repeat(6,1fr)" id="agg-cards"></div>
+
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="bloco-title">Ranking de agregados · março 2026</div>
+
+    <div class="filtros-bar" style="margin-bottom:1rem">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px">Ordenar por:</span>
+      <button class="filtro-btn active" onclick="sortAgg('vale_frete',this)">Vale frete</button>
+      <button class="filtro-btn" onclick="sortAgg('embarques',this)">Embarques</button>
+      <button class="filtro-btn" onclick="sortAgg('entregas',this)">Entregas</button>
+      <button class="filtro-btn" onclick="sortAgg('custo_pct',this)">Custo %</button>
+      <button class="filtro-btn" onclick="sortAgg('ocupacao',this)">Ocupação</button>
+      <button class="filtro-btn" onclick="sortAgg('efetividade',this)">Efetividade</button>
+      <button class="filtro-btn" onclick="sortAgg('rs_kg',this)">R$/KG</button>
+      <button class="filtro-btn" onclick="sortAgg('ticket',this)">Ticket médio</button>
+    </div>
+
+    <div class="filtros-bar" style="margin-bottom:1rem;padding-bottom:1rem;border-bottom:1px solid var(--border)">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px">Categoria:</span>
+      <button class="filtro-btn active" onclick="filtrarCat('Todas',this)">Todas</button>
+      <button class="filtro-btn" onclick="filtrarCat('Van',this)" title="até 1.500 kg">Van <span style="opacity:.6;font-size:9px">≤1.500</span></button>
+      <button class="filtro-btn" onclick="filtrarCat('Vulk',this)" title="1.501 a 2.000 kg">Vulk <span style="opacity:.6;font-size:9px">≤2.000</span></button>
+      <button class="filtro-btn" onclick="filtrarCat('Leve 3/4',this)" title="2.001 a 3.500 kg">Leve 3/4 <span style="opacity:.6;font-size:9px">≤3.500</span></button>
+      <button class="filtro-btn" onclick="filtrarCat('Toco',this)" title="3.501 a 6.500 kg">Toco <span style="opacity:.6;font-size:9px">≤6.500</span></button>
+      <button class="filtro-btn" onclick="filtrarCat('Truck',this)" title="acima de 6.500 kg">Truck <span style="opacity:.6;font-size:9px">>6.500</span></button>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="reg-table" style="min-width:1100px">
+        <thead>
+          <tr>
+            <th style="width:32px">#</th>
+            <th>Agregado</th>
+            <th>Veículo</th>
+            <th style="text-align:right">Emb.</th>
+            <th style="text-align:right">Entregas</th>
+            <th style="text-align:right">Custo Frete</th>
+            <th style="text-align:right">Custo %</th>
+            <th style="text-align:right">Ocupação</th>
+            <th style="text-align:right">Efetivid.</th>
+            <th style="text-align:right">R$/KG</th>
+            <th style="text-align:right">Ticket</th>
+            <th style="text-align:center" title="Score de Risco: custo (50%) + ocupação (30%) + efetividade (20%)">Risco</th>
+          </tr>
+        </thead>
+        <tbody id="agg-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- ROTAS -->
+<div id="page-rotas" class="page">
+
+  <div class="sec">Visão geral — rotas março 2026</div>
+  <div class="cards4" style="grid-template-columns:repeat(6,1fr);margin-bottom:1.5rem">
+    <div class="card c-neu"><div class="card-lbl">Rotas fixas</div><div class="card-val neu" id="rota-card-n" style="font-size:24px">136</div><div class="card-sub neu">rotas consolidadas</div><div class="card-bar"><div class="card-fill" style="width:100%;background:var(--accent)"></div></div></div>
+    <div class="card c-neu"><div class="card-lbl">Embarques</div><div class="card-val neu" id="rota-card-emb" style="font-size:24px">647</div><div class="card-sub neu">manifestos no mês</div><div class="card-bar"><div class="card-fill" style="width:80%;background:var(--accent)"></div></div></div>
+    <div class="card c-neu"><div class="card-lbl">Custo frete total</div><div class="card-val neu" id="rota-card-vf" style="font-size:20px">R$ 680K</div><div class="card-sub neu">distribuição · março</div><div class="card-bar"><div class="card-fill" style="width:75%;background:var(--accent)"></div></div></div>
+    <div class="card c-bad"><div class="card-lbl">Custo % médio</div><div class="card-val bad" id="rota-card-custo" style="font-size:24px">4,72 %</div><div class="card-sub bad" style="font-size:9px">NFs mapeadas na grade · ref. MA: 4,66%</div><div class="card-bar"><div class="card-fill" style="width:94%;background:var(--bad)"></div></div></div>
+    <div class="card c-neu"><div class="card-lbl">Entregas</div><div class="card-val neu" id="rota-card-serv" style="font-size:24px">9.903</div><div class="card-sub neu">serviços realizados</div><div class="card-bar"><div class="card-fill" style="width:70%;background:var(--accent)"></div></div></div>
+    <div class="card c-neu"><div class="card-lbl">Pedágio total</div><div class="card-val neu" id="rota-card-ped" style="font-size:20px">R$ 6.158</div><div class="card-sub neu">consolidado mês</div><div class="card-bar"><div class="card-fill" style="width:40%;background:var(--accent)"></div></div></div>
+  </div>
+
+  <div class="bloco" style="margin-bottom:1.5rem">
+    <div class="bloco-title" style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px">
+      <span>Rotas consolidadas · março 2026</span>
+      <span id="rotas-count" style="font-size:10px;color:var(--text3);font-weight:400;text-transform:none;letter-spacing:0">49 rotas</span>
+    </div>
+
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:.75rem">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;white-space:nowrap">Região:</span>
+      <div style="position:relative;flex:1;max-width:480px">
+        <select id="sel-regiao" onchange="filtroRotasSelect(this)"
+          style="width:100%;padding:6px 32px 6px 12px;background:var(--surface2);border:1px solid var(--border2);border-radius:8px;color:var(--text);font-family:'Inter',sans-serif;font-size:11px;font-weight:500;cursor:pointer;appearance:none;-webkit-appearance:none;outline:none;transition:border-color .15s">
+          <option value="Todas">Todas as regiões</option>
+          <option value="Região Metropolitana">Região Metropolitana</option>
+          <option value="Região Vale dos Sinos">Região Vale dos Sinos</option>
+          <option value="Região Carbonífera">Região Carbonífera</option>
+          <option value="Região Serra">Região Serra</option>
+          <option value="Região Serra Interior">Região Serra Interior</option>
+          <option value="Região Central">Região Central</option>
+          <option value="Região Litoral Norte">Região Litoral Norte</option>
+          <option value="Região Litoral Sul">Região Litoral Sul</option>
+          <option value="Região Sul">Região Sul</option>
+          <option value="Região Extremo Sul">Região Extremo Sul</option>
+          <option value="Região Norte">Região Norte — Kuhn</option>
+        </select>
+        <span style="position:absolute;right:10px;top:50%;transform:translateY(-50%);pointer-events:none;color:var(--text3);font-size:10px">▼</span>
+      </div>
+    </div>
+    <div class="filtros-bar" style="margin-bottom:.75rem">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px">Raio:</span>
+      <button class="filtro-btn active" onclick="filtroRotas('raio','Todos',this)">Todos</button>
+      <button class="filtro-btn" onclick="filtroRotas('raio','Até 75 km',this)">Até 75 km</button>
+      <button class="filtro-btn" onclick="filtroRotas('raio','76 - 150 km',this)">76-150 km</button>
+      <button class="filtro-btn" onclick="filtroRotas('raio','151 - 300 km',this)">151-300 km</button>
+      <button class="filtro-btn" onclick="filtroRotas('raio','301 - 600 km',this)">301-600 km</button>
+    </div>
+    <div class="filtros-bar" style="margin-bottom:1rem">
+      <span style="font-size:10px;color:var(--text3);font-weight:600;text-transform:uppercase;letter-spacing:.05em;margin-right:4px">Operação:</span>
+      <button class="filtro-btn active" onclick="filtroRotas('op','Todas',this)">Todas</button>
+      <button class="filtro-btn" onclick="filtroRotas('op','Marfoods',this)">Marfoods</button>
+      <button class="filtro-btn" onclick="filtroRotas('op','Brockers',this)">Brockers</button>
+      <button class="filtro-btn" onclick="filtroRotas('op','Cross',this)">Cross</button>
+    </div>
+
+    <div style="overflow-x:auto">
+      <table class="reg-table" style="min-width:980px">
+        <thead>
+          <tr>
+            <th style="width:28px">#</th>
+            <th>Rota fixa</th>
+            <th>Agregado(s)</th>
+            <th style="text-align:left">CD</th>
+            <th style="text-align:center">Operação</th>
+            <th style="text-align:center">Faixa KM</th>
+            <th style="text-align:right">Emb.</th>
+            <th style="text-align:right">Valor NF</th>
+            <th style="text-align:right">Custo Frete</th>
+            <th style="text-align:right">Custo %</th>
+            <th style="text-align:right">Ocupação</th>
+            <th style="text-align:right">NFs</th>
+            <th style="text-align:right">Entregas</th>
+          </tr>
+        </thead>
+        <tbody id="rotas-tbody"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+<!-- LANÇAMENTO -->
+<div id="page-lancamento" class="page">
+  <div class="form-bloco">
+    <div class="bloco-title">Novo lançamento de custo</div>
+    <div class="form-grid">
+      <div class="form-group"><label class="form-lbl">Data *</label><input type="date" id="f-data"></div>
+      <div class="form-group"><label class="form-lbl">Pacote *</label>
+        <select id="f-pacote"><option value="">Selecione...</option><option>Custo Descarga de Produtos</option><option>Perdas e Faltas com Clientes</option><option>Quadro QLP</option><option>Custo Extra</option></select>
+      </div>
+      <div class="form-group"><label class="form-lbl">Valor R$ *</label><input type="number" id="f-valor" placeholder="0,00" min="0" step="0.01"></div>
+      <div class="form-group"><label class="form-lbl">Alocar em *</label>
+        <select id="f-alocar" onchange="updateRef()"><option value="">Selecione...</option><option value="manifesto">Manifesto</option><option value="rota">Rota</option><option value="regiao">Região</option><option value="raio">Raio KM</option></select>
+      </div>
+      <div class="form-group"><label class="form-lbl">Referência *</label><div id="f-ref-wrap"><input type="text" id="f-ref-text" placeholder="—" disabled></div></div>
+      <div class="form-group"><label class="form-lbl">Observação</label><input type="text" id="f-obs" placeholder="Descrição do custo..."></div>
+    </div>
+    <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+      <button class="btn-save" onclick="salvar()">Salvar lançamento</button>
+      <span id="f-msg"></span>
+    </div>
+  </div>
+
+  <div class="sec">Totais lançados — março 2026</div>
+  <div class="tots4">
+    <div class="tot-card"><div class="tot-lbl">Descarga</div><div class="tot-val" id="tot-desc">R$ 0</div></div>
+    <div class="tot-card"><div class="tot-lbl">Perdas e Faltas</div><div class="tot-val" id="tot-perd">R$ 0</div></div>
+    <div class="tot-card"><div class="tot-lbl">QLP</div><div class="tot-val" id="tot-qlp">R$ 0</div></div>
+    <div class="tot-card"><div class="tot-lbl">Custo Extra</div><div class="tot-val" id="tot-ext">R$ 0</div></div>
+  </div>
+
+  <div class="sec">Histórico de lançamentos</div>
+  <div class="bloco"><div class="hist-wrap"><div id="hist"></div></div></div>
+</div>
+</div>
+
+<script>
+const REGIOES=[
+  {cd:"CD Sapucaia",faixa:"Até 75 km",val_nf:6757975.55,vf_d:191894.95,vf_t:0.0,ck:0,vf_total:191894.95,custo:2.84,meta:2.8},
+  {cd:"CD Sapucaia",faixa:"76 - 150 km",val_nf:2481182.9,vf_d:111987.42,vf_t:0.0,ck:0,vf_total:111987.42,custo:4.51,meta:5.0},
+  {cd:"CD Sapucaia",faixa:"151 - 300 km",val_nf:1169957.52,vf_d:58559.65,vf_t:0.0,ck:0,vf_total:58559.65,custo:5.01,meta:5.0},
+  {cd:"CD Sapucaia",faixa:"301 - 600 km",val_nf:1129483.54,vf_d:69921.26,vf_t:0.0,ck:0,vf_total:69921.26,custo:6.19,meta:4.0},
+  {cd:"CD Sapucaia",faixa:"Acima de 600 km",val_nf:96526.1,vf_d:2026.52,vf_t:0.0,ck:0,vf_total:2026.52,custo:2.1,meta:4.0},
+  {cd:"CD Pelotas",faixa:"Até 75 km",val_nf:765538.96,vf_d:41246.01,vf_t:13501.88,ck:0,vf_total:54747.89,custo:7.15,meta:4.8},
+  {cd:"CD Pelotas",faixa:"76 - 150 km",val_nf:823295.4,vf_d:48416.75,vf_t:14520.52,ck:0,vf_total:62937.27,custo:7.64,meta:5.5},
+  {cd:"CD Pelotas",faixa:"151 - 300 km",val_nf:106426.94,vf_d:7116.58,vf_t:1877.06,ck:0,vf_total:8993.64,custo:8.45,meta:5.5},
+  {cd:"CD Pelotas",faixa:"301 - 600 km",val_nf:779421.94,vf_d:67727.65,vf_t:13746.74,ck:0,vf_total:81474.39,custo:10.45,meta:8.5},
+  {cd:"CD Caxias do Sul",faixa:"Até 75 km",val_nf:1279514.27,vf_d:60519.12,vf_t:18991.04,ck:0,vf_total:79510.16,custo:6.21,meta:4.5},
+  {cd:"CD Caxias do Sul",faixa:"76 - 150 km",val_nf:184435.2,vf_d:10406.52,vf_t:2737.46,ck:0,vf_total:13143.98,custo:7.13,meta:5.5},
+  {cd:"CD Caxias do Sul",faixa:"151 - 300 km",val_nf:203097.91,vf_d:6429.7,vf_t:3014.46,ck:0,vf_total:9444.16,custo:4.65,meta:5.5}
+];
+const ROTAS=["Acegua", "Alvorada", "Bage", "Bento", "Butia", "Cachoeirinha", "Camaquã", "Canela", "Canguçu", "Canoas", "Carlos Barbosa", "Caxias do Sul", "Cerrito", "Charqueadas", "Chui", "Dois Irmãos", "Esteio", "Farroupilha", "Flores", "Gramado", "Gravatai", "Guaiba", "Guaporé", "Jaguarao", "Kuhn", "Lajeado", "Litoral - Capão", "Litoral - Cidreira", "Litoral - Osório", "Litoral - Torres", "Litoral - Tramandai", "Montenegro", "Mostardas", "Novo Hamburgo", "Pelotas", "Porto Alegre", "Rio Grande", "Santa Cruz", "Sapiranga", "Soledade", "São Jose do Norte", "São Leopoldo", "São Lourenço", "Taquara", "Tavares", "Vacaria", "Vale Real", "Veranopolis", "Viamão"];
+let filtroAtivo='todos';
+let filtroCD='Todos';
+let filtroOp='Todas';
+
+const CD_FAIXA_DATA={
+  "At\u00e9 75 km":{
+    "CD Sapucaia":{pct:2.84,meta:2.8,nf:6757975.55},
+    "CD Pelotas":{pct:7.15,meta:4.8,nf:765538.96},
+    "CD Caxias do Sul":{pct:6.21,meta:4.5,nf:1279514.27}
+  },
+  "76 - 150 km":{
+    "CD Sapucaia":{pct:4.51,meta:5.0,nf:2481182.9},
+    "CD Pelotas":{pct:7.64,meta:5.5,nf:823295.4},
+    "CD Caxias do Sul":{pct:7.13,meta:5.5,nf:184435.2}
+  },
+  "151 - 300 km":{
+    "CD Sapucaia":{pct:5.01,meta:5.0,nf:1169957.52},
+    "CD Pelotas":{pct:8.45,meta:5.5,nf:106426.94},
+    "CD Caxias do Sul":{pct:4.65,meta:5.5,nf:203097.91}
+  },
+  "301 - 600 km":{
+    "CD Sapucaia":{pct:6.19,meta:4.0,nf:1129483.54},
+    "CD Pelotas":{pct:10.45,meta:8.5,nf:779421.94}
+  },
+  "Acima de 600 km":{
+    "CD Sapucaia":{pct:2.1,meta:4.0,nf:96526.1}
+  }
+};
+const RAIO_DATA={
+  "At\u00e9 75 km":{
+    "Todas":{val_nf:8803028.78,vf:293660.09,pct:3.34},
+    "Marfoods":{val_nf:6104189.92,vf:211262.99,pct:3.46},
+    "Brockers":{val_nf:1041254.16,vf:37313.04,pct:3.58},
+    "Cross":{val_nf:1657584.7,vf:45084.06,pct:2.72}
+  },
+  "76 - 150 km":{
+    "Todas":{val_nf:3488913.5,vf:170810.69,pct:4.9},
+    "Marfoods":{val_nf:2697427.02,vf:143314.11,pct:5.31},
+    "Brockers":{val_nf:115863.44,vf:6072.65,pct:5.24},
+    "Cross":{val_nf:675623.04,vf:21423.94,pct:3.17}
+  },
+  "151 - 300 km":{
+    "Todas":{val_nf:1479482.37,vf:72105.92,pct:4.87},
+    "Marfoods":{val_nf:970181.83,vf:51385.75,pct:5.3},
+    "Brockers":{val_nf:144111.9,vf:5881.65,pct:4.08},
+    "Cross":{val_nf:365188.64,vf:14838.52,pct:4.06}
+  },
+  "301 - 600 km":{
+    "Todas":{val_nf:1908905.48,vf:137648.91,pct:7.21},
+    "Marfoods":{val_nf:1743543.25,vf:125937.41,pct:7.22},
+    "Brockers":{val_nf:78066.53,vf:6659.93,pct:8.53},
+    "Cross":{val_nf:87295.7,vf:5051.56,pct:5.79}
+  },
+  "Acima de 600 km":{
+    "Todas":{val_nf:96526.1,vf:2026.52,pct:2.1},
+    "Marfoods":{val_nf:51780.43,vf:444.61,pct:0.86},
+    "Brockers":{val_nf:38436.69,vf:1363.39,pct:3.55},
+    "Cross":{val_nf:6308.98,vf:218.52,pct:3.46}
+  }
+};
+const RAIO_METAS={"Até 75 km":3.22,"76 - 150 km":5.14,"151 - 300 km":5.1,"301 - 600 km":5.84,"Acima de 600 km":4.0};
+
+function fmt(n){return'R$ '+Math.round(n).toLocaleString('pt-BR')}
+function fmtPct(n){return n.toFixed(2).replace('.',',')+' %'}
+function raioTag(r){const c=r==='100KM'?'r100':r==='300KM'?'r300':'r600';return`<span class="raio-tag ${c}" style="font-size:9px;padding:1px 6px">${r}</span>`}
+function cdTag(cd){const map={'CD Sapucaia':'var(--accent)','CD Pelotas':'var(--ok)','CD Caxias do Sul':'var(--warn)'};const c=map[cd]||'var(--text3)';return`<span style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid ${c};color:${c};font-family:'JetBrains Mono',monospace">${cd||'—'}</span>`}
+function bCls(c,m){return c<=m?'b-ok':c<=m*1.15?'b-warn':'b-bad'}
+function pCls(c,m){return c<=m?'pct-ok':c<=m*1.15?'pct-warn':'pct-bad'}
+
+const MACRO_DATA={
+  'Todas':   {custo:4.23, ocup:62.88, rkg:0.59, ticket:68.65, val_nf:16053431, vf:679818, kg:1154985, serv:9903, meta_custo:4.63},
+  'Marfoods':{custo:4.47, ocup:58.01, rkg:0.74, ticket:63.70, val_nf:13384580, vf:598531, kg:808594,  serv:9396, meta_custo:4.63},
+  'Brockers':{custo:3.48, ocup:37.11, rkg:0.91, ticket:123.62,val_nf:1133349,  vf:39434,  kg:43527,   serv:319,  meta_custo:4.63},
+  'Cross':   {custo:2.73, ocup:64.95, rkg:0.51, ticket:222.62,val_nf:1535502,  vf:41853,  kg:81323,   serv:188,  meta_custo:4.63},
+};
+
+function setFiltroOp(op,btn){
+  filtroOp=op;
+  document.querySelectorAll('.op-filter-btn').forEach(x=>{
+    x.classList.toggle('active', x.textContent===op);
+  });
+  renderCards();
+  renderRaios();
+}
+
+function renderCards(){
+  const d=MACRO_DATA[filtroOp]||MACRO_DATA['Todas'];
+  const meta_c=d.meta_custo;
+  const cls_c=d.custo<=meta_c?'ok':d.custo<=meta_c*1.05?'warn':'bad';
+  const cls_o=d.ocup>=55?'ok':d.ocup>=45?'warn':'bad';
+  const diff_c_num=d.custo-meta_c;
+  const diff_o_num=d.ocup-55;
+  const diff_c=Math.abs(diff_c_num).toFixed(2).replace('.',',');
+  const diff_o=Math.abs(diff_o_num).toFixed(2).replace('.',',');
+  const sinal_c=diff_c_num>0?'▲ +':'▼ ';
+  const sinal_o=diff_o_num>0?'▲ +':'▼ ';
+  const bar_c=Math.min(d.custo/meta_c,1.5)*67;
+  const bar_o=Math.min(d.ocup/100,1)*100;
+  const sub_label=filtroOp==='Todas'?'distribuição':filtroOp;
+  document.getElementById('cards-macro').innerHTML=`
+    <div class="card c-${cls_c}">
+      <div class="card-lbl">Custo de frete %</div>
+      <div class="card-val ${cls_c}">${d.custo.toFixed(2).replace('.',',')} %</div>
+      <div class="card-sub ${cls_c}">${sinal_c}${diff_c}pp · meta ${meta_c.toFixed(2).replace('.',',')}%</div>
+      <div class="card-bar"><div class="card-fill" style="width:${bar_c}%;background:var(--${cls_c})"></div></div>
+    </div>
+    <div class="card c-${cls_o}">
+      <div class="card-lbl">Ocupação ${sub_label}</div>
+      <div class="card-val ${cls_o}">${d.ocup.toFixed(2).replace('.',',')} %</div>
+      <div class="card-sub ${cls_o}">${sinal_o}${diff_o}pp · meta 55%</div>
+      <div class="card-bar"><div class="card-fill" style="width:${bar_o}%;background:var(--${cls_o})"></div></div>
+    </div>
+    <div class="card c-neu">
+      <div class="card-lbl">R$ / kg transportado</div>
+      <div class="card-val neu">R$ ${d.rkg.toFixed(2).replace('.',',')}</div>
+      <div class="card-sub neu">${d.kg.toLocaleString('pt-BR')} kg · sem meta</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(d.rkg/1.5*100,100)}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="card c-neu">
+      <div class="card-lbl">Ticket médio / entrega</div>
+      <div class="card-val neu">R$ ${d.ticket.toFixed(2).replace('.',',')}</div>
+      <div class="card-sub neu">${d.serv.toLocaleString('pt-BR')} entregas · sem meta</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(d.ticket/300*100,100)}%;background:var(--accent)"></div></div>
+    </div>`;
+  const vm=document.querySelector('#cards-macro .card-val');
+  if(vm) vm.id='v-custo-macro';
+}
+
+function renderRaios(){
+  const op=filtroOp||'Todas';
+  const raios=[{id:'Até 75 km',cls:'r100',blk:'Ate-75km'},{id:'76 - 150 km',cls:'r300',blk:'76-150km'},{id:'151 - 300 km',cls:'r300',blk:'151-300km'},{id:'301 - 600 km',cls:'r600',blk:'301-600km'},{id:'Acima de 600 km',cls:'r600',blk:'Acima-600km'}];
+  raios.forEach((r)=>{const {id,cls}=r;
+    const d=RAIO_DATA[id][op]||RAIO_DATA[id]['Todas'];
+    const meta=RAIO_METAS[id];
+    const c=d.pct<=meta?'ok':d.pct<=meta*1.15?'warn':'bad';
+    const pct=Math.min(d.pct/meta,1)*100;
+    document.querySelectorAll('.raio-block-'+(r.blk||id)).forEach(el=>{
+      const cd_data=CD_FAIXA_DATA[id]||{};
+      const cd_cor={'CD Sapucaia':'var(--accent)','CD Pelotas':'var(--ok)','CD Caxias do Sul':'var(--warn)'};
+      const cd_rows=Object.entries(cd_data).map(([cd,v])=>{
+        const cc=v.pct<=v.meta?'ok':v.pct<=v.meta*1.15?'warn':'bad';
+        const cor=cd_cor[cd]||'var(--text3)';
+        return `<div style="display:flex;align-items:center;gap:6px;margin-top:3px;padding-left:2px">
+          <span style="font-size:8px;color:${cor};font-weight:600;min-width:100px;font-family:'JetBrains Mono',monospace">${cd.replace('CD ','')}</span>
+          <span style="font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700" class="${cc}">${v.pct.toFixed(2).replace('.',',')}%</span>
+          <span style="font-size:8px;color:var(--text3)">/ meta ${v.meta.toFixed(2).replace('.',',')}%</span>
+        </div>`;
+      }).join('');
+      el.innerHTML=`
+        <span class="raio-tag ${cls}">${id}</span>
+        <div class="raio-bars" style="flex:1">
+          <div class="raio-bg"><div class="raio-bar-fill" style="width:${pct}%;background:var(--${c})"></div></div>
+          <div class="raio-nums"><span class="raio-num ${c}">${fmtPct(d.pct)}</span><span class="raio-meta">meta ${meta.toFixed(2).replace('.',',')}%</span></div>
+          ${cd_rows?`<div style="margin-top:4px;padding-top:4px;border-top:1px solid var(--border)">${cd_rows}</div>`:''}
+        </div>`;
+    });
+  });
+  // Real Março = sempre do MA validado (âncora financeira)
+  const d=MACRO_DATA[op]||MACRO_DATA['Todas'];
+  const pctReal=d.custo;
+  document.querySelectorAll('.tend-real-val').forEach(el=>{
+    el.textContent=fmtPct(pctReal);
+    el.className='tend-val '+(pctReal<=4.63?'ok':pctReal<=4.8?'warn':'bad');
+  });
+}
+
+function showPage(p,btn){
+  document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.nav-btn').forEach(x=>x.classList.remove('active'));
+  document.getElementById('page-'+p).classList.add('active');
+  btn.classList.add('active');
+  if(p==='lancamento')renderHist();
+  updateTotais();
+}
+function filtrar(f,btn){
+  filtroAtivo=f;
+  btn.closest('.filtros-bar').querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  renderRegioes();
+}
+function filtrarCD(cd,btn){
+  filtroCD=cd;
+  btn.closest('.filtros-bar').querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  renderRegioes();
+}
+function getLanc(){try{return JSON.parse(localStorage.getItem('vettore_mar2026')||'[]')}catch(e){return[]}}
+function saveLanc(a){try{localStorage.setItem('vettore_mar2026',JSON.stringify(a))}catch(e){}}
+
+function renderRegioes(){
+  const lanc=getLanc();
+  // CD x Faixa view
+  let rows=REGIOES.map(r=>{
+    const extra=lanc.filter(e=>e.cd_ref===r.cd&&e.faixa_ref===r.faixa).reduce((s,e)=>s+parseFloat(e.valor||0),0);
+    const vt=r.vf_total+r.ck+extra;
+    const cp=parseFloat((vt/r.val_nf*100).toFixed(2));
+    return{...r,vt_calc:vt,cp_calc:cp,extra};
+  });
+  // Filtro CD
+  if(filtroCD!=='Todos')rows=rows.filter(r=>r.cd===filtroCD);
+  // Filtro faixa
+  if(filtroAtivo==='Até 75 km')rows=rows.filter(r=>r.faixa==='Até 75 km');
+  else if(filtroAtivo==='76 - 150 km')rows=rows.filter(r=>r.faixa==='76 - 150 km');
+  else if(filtroAtivo==='151 - 300 km')rows=rows.filter(r=>r.faixa==='151 - 300 km');
+  else if(filtroAtivo==='301 - 600 km')rows=rows.filter(r=>r.faixa==='301 - 600 km');
+  else if(filtroAtivo==='ok')rows=rows.filter(r=>r.cp_calc<=r.meta);
+  else if(filtroAtivo==='fora')rows=rows.filter(r=>r.cp_calc>r.meta);
+
+  // Summary card
+  const cdSumEl=document.getElementById('cd-summary');
+  if(cdSumEl){
+    const src=filtroCD==='Todos'?rows:rows;
+    if(src.length>0){
+      const tot_nf=src.reduce((s,r)=>s+r.val_nf,0);
+      const tot_vf=src.reduce((s,r)=>s+r.vt_calc,0);
+      const tot_meta=src.reduce((s,r)=>s+r.val_nf*r.meta/100,0);
+      const pct=tot_vf/tot_nf*100;
+      const meta_pond=tot_meta/tot_nf*100;
+      const cls=pct<=meta_pond?'ok':pct<=meta_pond*1.1?'warn':'bad';
+      const title=filtroCD==='Todos'?'Consolidado Geral':filtroCD;
+      const cor={'CD Sapucaia':'var(--accent)','CD Pelotas':'var(--ok)','CD Caxias do Sul':'var(--warn)'}[filtroCD]||'var(--text2)';
+      cdSumEl.innerHTML=`<div style="display:flex;gap:1.5rem;padding:.75rem 1rem;background:var(--surface2);border-radius:10px;border-left:3px solid ${cor};margin-bottom:.75rem;flex-wrap:wrap;align-items:center">
+        <div><div style="font-size:9px;color:var(--text3);text-transform:uppercase;letter-spacing:.06em">${title}</div>
+        <div style="font-size:10px;color:var(--text2)">${src.length} faixa${src.length!==1?'s':''}</div></div>
+        <div><div style="font-size:9px;color:var(--text3)">Valor NF</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">${fmt(tot_nf)}</div></div>
+        <div><div style="font-size:9px;color:var(--text3)">Custo Frete</div><div style="font-family:'JetBrains Mono',monospace;font-size:13px;color:var(--text)">${fmt(tot_vf)}</div></div>
+        <div><div style="font-size:9px;color:var(--text3)">Custo %</div><div style="font-family:'JetBrains Mono',monospace;font-size:20px;font-weight:700;color:var(--${cls})">${pct.toFixed(2).replace('.',',')}%</div></div>
+        <div><div style="font-size:9px;color:var(--text3)">Meta</div><div style="font-family:'JetBrains Mono',monospace;font-size:14px;color:var(--text2)">${meta_pond.toFixed(2).replace('.',',')}%</div></div>
+      </div>`;
+    } else { cdSumEl.innerHTML=''; }
+  }
+
+  const faixaCorMap={'Até 75 km':'var(--ok)','76 - 150 km':'var(--accent)','151 - 300 km':'var(--warn)','301 - 600 km':'#ff4d4d','Acima de 600 km':'#9b59b6'};
+  const cdCorMap={'CD Sapucaia':'var(--accent)','CD Pelotas':'var(--ok)','CD Caxias do Sul':'var(--warn)'};
+
+  // Agrupar por CD para separadores visuais
+  let html='';
+  let lastCD='';
+  rows.forEach(r=>{
+    const outros=(r.ck||0)+(r.extra||0);
+    const cor_faixa=faixaCorMap[r.faixa]||'var(--text3)';
+    const cor_cd=cdCorMap[r.cd]||'var(--text3)';
+    if(r.cd!==lastCD){
+      lastCD=r.cd;
+      const cd_rows=rows.filter(x=>x.cd===r.cd);
+      const cd_nf=cd_rows.reduce((s,x)=>s+x.val_nf,0);
+      const cd_vf=cd_rows.reduce((s,x)=>s+x.vt_calc,0);
+      const cd_pct=cd_vf/cd_nf*100;
+      const cd_meta=cd_rows.reduce((s,x)=>s+x.val_nf*x.meta/100,0)/cd_nf*100;
+      const cd_cls=cd_pct<=cd_meta?'ok':cd_pct<=cd_meta*1.1?'warn':'bad';
+      html+=`<tr style="background:var(--surface2)">
+        <td colspan="8" style="padding:.5rem .75rem">
+          <div style="display:flex;align-items:center;gap:1rem">
+            <span style="font-size:10px;font-weight:700;color:${cor_cd};text-transform:uppercase;letter-spacing:.06em">${r.cd}</span>
+            <span style="font-size:9px;color:var(--text3)">${fmt(cd_nf)} NF</span>
+            <span style="font-family:'JetBrains Mono',monospace;font-size:12px;font-weight:700" class="${cd_cls}">${cd_pct.toFixed(2).replace('.',',')}%</span>
+            <span style="font-size:9px;color:var(--text3)">meta ${cd_meta.toFixed(2).replace('.',',')}%</span>
+          </div>
+        </td>
+      </tr>`;
+    }
+    html+=`<tr>
+      <td>
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="display:inline-block;width:3px;height:28px;border-radius:2px;background:${cor_faixa};flex-shrink:0"></span>
+          <div>
+            <div style="font-weight:600;font-size:12px;color:var(--text)">${r.faixa}</div>
+            <div style="font-size:9px;color:var(--text3)">${r.cd}</div>
+          </div>
+        </div>
+      </td>
+      <td>${fmt(r.val_nf)}</td>
+      <td>${fmt(r.vf_d)}</td>
+      <td style="color:${r.vf_t>0?'var(--warn)':'var(--text3)'}">${r.vf_t>0?fmt(r.vf_t):'—'}</td>
+      <td style="color:${outros>0?'var(--accent)':'var(--text3)'}">${outros>0?fmt(outros):'—'}</td>
+      <td style="font-weight:700">${fmt(r.vt_calc)}</td>
+      <td><span class="${pCls(r.cp_calc,r.meta)}">${fmtPct(r.cp_calc)}</span></td>
+      <td><span class="badge ${bCls(r.cp_calc,r.meta)}">${fmtPct(r.meta)}</span></td>
+    </tr>`;
+  });
+  document.getElementById('reg-tbody').innerHTML=html||'<tr><td colspan="8" class="empty">Nenhuma linha para os filtros selecionados.</td></tr>';
+}
+
+function updateTotais(){
+  const lanc=getLanc();
+  const tots={'Custo Descarga de Produtos':0,'Perdas e Faltas com Clientes':0,'Quadro QLP':0,'Custo Extra':0};
+  lanc.forEach(e=>{if(tots[e.pacote]!==undefined)tots[e.pacote]+=parseFloat(e.valor||0)});
+  const total=Object.values(tots).reduce((s,v)=>s+v,0);
+  const set=(id,v)=>{const el=document.getElementById(id);if(el)el.textContent=v};
+  set('tot-desc',fmt(tots['Custo Descarga de Produtos']));
+  set('tot-perd',fmt(tots['Perdas e Faltas com Clientes']));
+  set('tot-qlp',fmt(tots['Quadro QLP']));
+  set('tot-ext',fmt(tots['Custo Extra']));
+  set('res-cf',fmt(total));
+  set('res-total',fmt(748207+total));
+  const vm=document.getElementById('v-custo-macro');
+  if(vm){const cp=((748207+total)/16053431*100);vm.textContent=fmtPct(cp);vm.className='card-val '+(cp<=4.63?'ok':cp<=4.8?'warn':'bad')}
+  renderRegioes();
+}
+
+const REF_OPTS={
+  manifesto:'<input type="text" id="f-ref-text" placeholder="Ex: 60788">',
+  rota:'<select id="f-ref-text"><option value="">Selecione...</option>'+ROTAS.map(r=>`<option>${r}</option>`).join('')+'</select>',
+  regiao:'<select id="f-ref-text"><option value="">Selecione...</option>'+REGIOES.map(r=>`<option>${r.nome}</option>`).join('')+'</select>',
+  raio:'<select id="f-ref-text"><option value="">Selecione...</option><option>100KM</option><option>300KM</option><option>600KM</option></select>',
+};
+function updateRef(){
+  const v=document.getElementById('f-alocar').value;
+  document.getElementById('f-ref-wrap').innerHTML=REF_OPTS[v]||'<input type="text" id="f-ref-text" placeholder="—" disabled>';
+  const el=document.getElementById('f-ref-text');
+  if(el)el.style.cssText='padding:9px 11px;background:var(--surface2);border:1px solid var(--border);border-radius:7px;font-family:Inter,sans-serif;font-size:12px;color:var(--text);width:100%;outline:none';
+}
+function salvar(){
+  const data=document.getElementById('f-data').value;
+  const pacote=document.getElementById('f-pacote').value;
+  const valor=parseFloat(document.getElementById('f-valor').value);
+  const alocar=document.getElementById('f-alocar').value;
+  const ref=document.getElementById('f-ref-text')?.value||'';
+  const obs=document.getElementById('f-obs').value;
+  const msg=document.getElementById('f-msg');
+  if(!data||!pacote||!valor||isNaN(valor)||!alocar||!ref){msg.textContent='Preencha todos os campos obrigatórios.';msg.className='msg-err';return}
+  const lanc=getLanc();
+  lanc.push({data,pacote,valor,alocar,ref,obs,regiao_ref:alocar==='regiao'?ref:''});
+  saveLanc(lanc);
+  ['f-data','f-pacote','f-valor','f-alocar','f-obs'].forEach(id=>{const el=document.getElementById(id);if(el)el.value=''});
+  document.getElementById('f-ref-wrap').innerHTML='<input type="text" id="f-ref-text" placeholder="—" disabled>';
+  msg.textContent='Lançamento salvo com sucesso!';msg.className='msg-ok';
+  setTimeout(()=>msg.textContent='',3000);
+  renderHist();updateTotais();
+}
+function deletar(i){const lanc=getLanc();lanc.splice(i,1);saveLanc(lanc);renderHist();updateTotais()}
+function renderHist(){
+  const lanc=getLanc();const el=document.getElementById('hist');
+  if(!lanc.length){el.innerHTML='<div class="empty">Nenhum lançamento registrado ainda.</div>';updateTotais();return}
+  el.innerHTML=`<table class="hist-table">
+    <thead><tr><th>Data</th><th>Pacote</th><th>Valor</th><th>Alocação</th><th>Referência</th><th>Observação</th><th></th></tr></thead>
+    <tbody>${lanc.map((e,i)=>`<tr>
+      <td style="font-family:'JetBrains Mono',monospace;color:var(--text2)">${e.data}</td>
+      <td style="color:var(--text)">${e.pacote}</td>
+      <td style="font-weight:700;font-family:'JetBrains Mono',monospace;color:var(--ok)">${fmt(e.valor)}</td>
+      <td><span class="chip">${e.alocar}</span></td>
+      <td style="color:var(--text2)">${e.ref||'—'}</td>
+      <td style="color:var(--text3)">${e.obs||'—'}</td>
+      <td><button class="btn-del" onclick="deletar(${i})">remover</button></td>
+    </tr>`).join('')}</tbody>
+  </table>`;
+  updateTotais();
+}
+// ── EVOLUÇÃO MENSAL ──
+const ORCAMENTO=[
+  {mes:'Jan',meta:4.57,real:null},{mes:'Fev',meta:4.52,real:null},
+  {mes:'Mar',meta:4.63,real:4.66},{mes:'Abr',meta:4.99,real:null},
+  {mes:'Mai',meta:4.87,real:null},{mes:'Jun',meta:5.43,real:null},
+  {mes:'Jul',meta:4.61,real:null},{mes:'Ago',meta:4.62,real:null},
+  {mes:'Set',meta:4.27,real:null},{mes:'Out',meta:4.13,real:null},
+  {mes:'Nov',meta:4.01,real:null},{mes:'Dez',meta:4.00,real:null},
+];
+// Tendência: projeção linear a partir do real de março
+const TEND_VAL=4.71; // tendência anual calculada
+
+function renderEvol(){
+  const svg=document.getElementById('evol-svg');
+  if(!svg) return;
+  const W=svg.parentElement.offsetWidth||600;
+  const H=160;
+  svg.setAttribute('viewBox',`0 0 ${W} ${H}`);
+  const pad={l:32,r:16,t:16,b:28};
+  const cw=W-pad.l-pad.r;
+  const ch=H-pad.t-pad.b;
+  const n=ORCAMENTO.length;
+  const xStep=cw/(n-1);
+  // Escala Y: 3.5% a 6%
+  const yMin=3.5,yMax=6.0;
+  const yScale=v=>pad.t+ch-(v-yMin)/(yMax-yMin)*ch;
+  const xPos=i=>pad.l+i*xStep;
+
+  let html='';
+
+  // Grid horizontal
+  [3.5,4.0,4.5,5.0,5.5,6.0].forEach(v=>{
+    const y=yScale(v);
+    html+=`<line x1="${pad.l}" y1="${y}" x2="${W-pad.r}" y2="${y}" stroke="rgba(255,255,255,.06)" stroke-width="1"/>`;
+    html+=`<text x="${pad.l-4}" y="${y+3}" class="evol-label" text-anchor="end">${v.toFixed(1)}%</text>`;
+  });
+
+  // Linha meta anual 4.50%
+  const yAnual=yScale(4.50);
+  html+=`<line x1="${pad.l}" y1="${yAnual}" x2="${W-pad.r}" y2="${yAnual}" stroke="rgba(139,144,160,.4)" stroke-width="1" stroke-dasharray="4,3"/>`;
+
+  // Labels meses
+  ORCAMENTO.forEach((m,i)=>{
+    html+=`<text x="${xPos(i)}" y="${H-6}" class="evol-label" text-anchor="middle">${m.mes}</text>`;
+  });
+
+  // Linha meta mensal (pontilhada âmbar)
+  let metaPath='';
+  ORCAMENTO.forEach((m,i)=>{
+    metaPath+=(i===0?'M':'L')+`${xPos(i)},${yScale(m.meta)}`;
+  });
+  html+=`<path d="${metaPath}" fill="none" stroke="rgba(245,166,35,.5)" stroke-width="1.5" stroke-dasharray="4,3"/>`;
+
+  // Linha tendência (azul, começa em março, projetada até dez)
+  const idxMar=2;
+  const tendPath=ORCAMENTO.slice(idxMar).map((m,i)=>{
+    const idx=idxMar+i;
+    return (i===0?'M':'L')+`${xPos(idx)},${yScale(TEND_VAL)}`;
+  }).join('');
+  html+=`<path d="${tendPath}" fill="none" stroke="rgba(61,139,255,.5)" stroke-width="1.5" stroke-dasharray="5,3"/>`;
+
+  // Linha real (só meses com dados — março)
+  const reais=ORCAMENTO.filter(m=>m.real!==null);
+  if(reais.length>0){
+    // Pontos reais
+    ORCAMENTO.forEach((m,i)=>{
+      if(m.real===null) return;
+      const x=xPos(i), y=yScale(m.real);
+      const cor=m.real<=m.meta?'var(--ok)':m.real<=m.meta*1.05?'var(--warn)':'var(--bad)';
+      html+=`<circle cx="${x}" cy="${y}" r="5" fill="${cor}" stroke="var(--bg2)" stroke-width="2"/>`;
+      html+=`<text x="${x}" y="${y-10}" class="evol-val" text-anchor="middle" fill="${cor}">${m.real.toFixed(2).replace('.',',')}%</text>`;
+    });
+  }
+
+  // Ponto meta anual label
+  html+=`<text x="${W-pad.r}" y="${yAnual-5}" class="evol-label" text-anchor="end" fill="rgba(139,144,160,.6)">4,50% meta anual</text>`;
+
+  svg.innerHTML=html;
+}
+
+renderRegioes();updateTotais();renderRaios();renderCards();
+// Aguardar DOM para renderizar SVG com largura correta
+setTimeout(renderEvol,50);
+window.addEventListener('resize',renderEvol);
+
+// ── AGREGADOS ──
+const AGREGADOS=[
+  {nome:'MB TRANSPORTE RODOVIARIO DE CARGAS LTDA',embarques:158,vale_frete:184377.43,valor_nf:4302952.98,kg_real:249575.83,entregas:2418,custo_pct:4.28,ocupacao:65.85,rs_kg:0.7388,ticket:76.25,efetividade:97.6,multi_placa:true,placas:[
+    {placa:'DUP9001',motorista:'ALEX MEDEIROS DA CRUZ',embarques:14,vale_frete:12807.0,valor_nf:244643.06,entregas:205,custo_pct:5.23,ocupacao:72.59,rs_kg:0.8401,ticket:62.47,efetividade:97.5},
+    {placa:'IKN9A64',motorista:'SAMUEL MACHADO DA SILVA',embarques:24,vale_frete:27619.4,valor_nf:941643.88,entregas:297,custo_pct:2.93,ocupacao:66.95,rs_kg:0.4911,ticket:92.99,efetividade:96.2},
+    {placa:'IUP2D15',motorista:'DOUGLAS SILVA GUIMARAES',embarques:6,vale_frete:3559.5,valor_nf:120006.87,entregas:82,custo_pct:2.97,ocupacao:76.48,rs_kg:0.5171,ticket:43.41,efetividade:99.2},
+    {placa:'IVT2I72',motorista:'GUILHERME ALVES DINIZ',embarques:3,vale_frete:1575.0,valor_nf:63383.43,entregas:45,custo_pct:2.48,ocupacao:70.69,rs_kg:0.4951,ticket:35.0,efetividade:100.0},
+    {placa:'IYY1A16',motorista:'EDUARDO TEIXEIRA TITOW',embarques:14,vale_frete:29072.2,valor_nf:622304.97,entregas:299,custo_pct:4.67,ocupacao:64.29,rs_kg:0.9229,ticket:97.23,efetividade:98.9},
+    {placa:'JAN9F25',motorista:'GABRIEL BARCELO CORREA',embarques:2,vale_frete:2166.0,valor_nf:25171.61,entregas:30,custo_pct:8.6,ocupacao:52.21,rs_kg:1.3829,ticket:72.2,efetividade:100.0},
+    {placa:'JBB0J74',motorista:'WILLIAN DE OLIVEIRA RODRIGUES',embarques:14,vale_frete:9029.2,valor_nf:260213.0,entregas:178,custo_pct:3.47,ocupacao:64.7,rs_kg:0.6646,ticket:50.73,efetividade:95.6},
+    {placa:'JBZ8C97',motorista:'CALEU SCHNEIDER',embarques:16,vale_frete:15140.0,valor_nf:271135.56,entregas:251,custo_pct:5.58,ocupacao:67.4,rs_kg:0.936,ticket:60.32,efetividade:99.1},
+    {placa:'MAV7D02',motorista:'JOSE LUIS BRILL',embarques:20,vale_frete:24784.5,valor_nf:676270.56,entregas:365,custo_pct:3.66,ocupacao:56.16,rs_kg:0.6304,ticket:67.9,efetividade:96.6},
+    {placa:'MLL8F00',motorista:'LEANDRO DIAS DA SILVA',embarques:26,vale_frete:40605.63,valor_nf:723986.43,entregas:335,custo_pct:5.61,ocupacao:67.68,rs_kg:0.923,ticket:121.21,efetividade:98.0},
+    {placa:'QIG5I62',motorista:'LUCAS BITTENCOURT',embarques:19,vale_frete:18019.0,valor_nf:354193.61,entregas:331,custo_pct:5.09,ocupacao:76.82,rs_kg:0.823,ticket:54.44,efetividade:98.2},
+  ]},
+  {nome:'LIBANIO DE LIMA SEXA',embarques:65,vale_frete:108051.16,valor_nf:1508927.98,kg_real:87330.09,entregas:1533,custo_pct:7.16,ocupacao:38.39,rs_kg:1.2373,ticket:70.48,efetividade:97.6,multi_placa:true,placas:[
+    {placa:'IQR8A29',motorista:'BRUNO CORREA DA ROSA',embarques:17,vale_frete:18900.0,valor_nf:331892.75,entregas:365,custo_pct:5.69,ocupacao:35.44,rs_kg:0.8963,ticket:51.78,efetividade:95.6},
+    {placa:'ISZ6G30',motorista:'RODRIGO BEHLING',embarques:15,vale_frete:23093.1,valor_nf:400763.09,entregas:342,custo_pct:5.76,ocupacao:41.86,rs_kg:1.0507,ticket:67.52,efetividade:97.7},
+    {placa:'ITC9E07',motorista:'MATHEUS GALLO PEIXOTO',embarques:17,vale_frete:35048.97,valor_nf:421410.03,entregas:449,custo_pct:8.32,ocupacao:42.37,rs_kg:1.3904,ticket:78.06,efetividade:97.7},
+    {placa:'IWB4B10',motorista:'CRISTIANO MARTINS MATHIAS',embarques:16,vale_frete:31009.09,valor_nf:354862.11,entregas:377,custo_pct:8.74,ocupacao:34.03,rs_kg:1.627,ticket:82.25,efetividade:99.4},
+  ]},
+  {nome:'JRS TRANSPORTES LTDA.',embarques:59,vale_frete:66933.82,valor_nf:1349595.55,kg_real:84569.73,entregas:738,custo_pct:4.96,ocupacao:45.86,rs_kg:0.7915,ticket:90.7,efetividade:96.1,multi_placa:true,placas:[
+    {placa:'IQF0195',motorista:'CLEBER FERNANDO DE OLIVEIRA MASSEN',embarques:15,vale_frete:16278.0,valor_nf:338291.03,entregas:176,custo_pct:4.81,ocupacao:44.28,rs_kg:0.7002,ticket:92.49,efetividade:99.5},
+    {placa:'IRI7J09',motorista:'JAIR ROZA DA SILVA',embarques:16,vale_frete:18215.8,valor_nf:335301.89,entregas:235,custo_pct:5.43,ocupacao:50.43,rs_kg:0.9406,ticket:77.51,efetividade:93.4},
+    {placa:'ISH4A09',motorista:'ROBERTO ROSSA',embarques:15,vale_frete:17512.42,valor_nf:315145.7,entregas:164,custo_pct:5.56,ocupacao:42.31,rs_kg:0.8623,ticket:106.78,efetividade:94.9},
+    {placa:'JZN5J94',motorista:'OZIEL DE SOUZA DA ROSA',embarques:13,vale_frete:14927.6,valor_nf:360856.93,entregas:163,custo_pct:4.14,ocupacao:47.58,rs_kg:0.6896,ticket:91.58,efetividade:96.8},
+  ]},
+  {nome:'JONAS PAULA DA SILVA',embarques:31,vale_frete:50029.5,valor_nf:1027194.34,kg_real:61505.23,entregas:594,custo_pct:4.87,ocupacao:56.69,rs_kg:0.8134,ticket:84.22,efetividade:98.5,multi_placa:true,placas:[
+    {placa:'IPI1730',motorista:'ERICK LAMEIRA POMPEO',embarques:10,vale_frete:18008.0,valor_nf:334117.47,entregas:167,custo_pct:5.39,ocupacao:56.02,rs_kg:0.9185,ticket:107.83,efetividade:98.7},
+    {placa:'IRP8H06',motorista:'ERIC SOUZA DOS SANTOS',embarques:9,vale_frete:7820.3,valor_nf:327950.26,entregas:83,custo_pct:2.38,ocupacao:63.67,rs_kg:0.3899,ticket:94.22,efetividade:97.2},
+    {placa:'ITV5715',motorista:'DANIEL ZEFERINO STAEHLER',embarques:12,vale_frete:24201.2,valor_nf:365126.61,entregas:344,custo_pct:6.63,ocupacao:52.01,rs_kg:1.108,ticket:70.35,efetividade:99.2},
+  ]},
+  {nome:'ANE GREICE CASTILHOS DE ALMEIDA',embarques:43,vale_frete:37427.23,valor_nf:1179264.46,kg_real:53315.85,entregas:459,custo_pct:3.17,ocupacao:36.27,rs_kg:0.702,ticket:81.54,efetividade:96.6,multi_placa:true,placas:[
+    {placa:'IGH2239',motorista:'DIEGO EVALDT DAS CHAGAS',embarques:21,vale_frete:19187.27,valor_nf:556497.33,entregas:288,custo_pct:3.45,ocupacao:47.66,rs_kg:0.5478,ticket:66.62,efetividade:99.8},
+    {placa:'ISE4G26',motorista:'DENZEL DA SILVEIRA CUNHA',embarques:1,vale_frete:895.0,valor_nf:45076.0,entregas:9,custo_pct:1.99,ocupacao:16.47,rs_kg:1.5522,ticket:99.44,efetividade:100.0},
+    {placa:'MEQ1B54',motorista:'DENZEL DA SILVEIRA CUNHA',embarques:21,vale_frete:17344.96,valor_nf:577691.13,entregas:162,custo_pct:3.0,ocupacao:24.1,rs_kg:0.9793,ticket:107.07,efetividade:93.3},
+  ]},
+  {nome:'DIEGO DA SILVA FERRAZ',embarques:46,vale_frete:36928.27,valor_nf:1036240.03,kg_real:61907.76,entregas:767,custo_pct:3.56,ocupacao:89.72,rs_kg:0.5965,ticket:48.15,efetividade:97.5,multi_placa:true,placas:[
+    {placa:'MDG6I24',motorista:'LUIS HENRIQUE FREITAS ALVES',embarques:25,vale_frete:18562.17,valor_nf:553805.14,entregas:434,custo_pct:3.35,ocupacao:89.8,rs_kg:0.5512,ticket:42.77,efetividade:97.2},
+    {placa:'MKT9F36',motorista:'DIEGO DA SILVA FERRAZ',embarques:21,vale_frete:18366.1,valor_nf:482434.89,entregas:333,custo_pct:3.81,ocupacao:89.62,rs_kg:0.6505,ticket:55.15,efetividade:97.8},
+  ]},
+  {nome:'WAGNER DIAS GODOY TRANSPORTES',embarques:10,vale_frete:27650.4,valor_nf:479050.98,kg_real:31064.8,entregas:318,custo_pct:5.77,ocupacao:77.66,rs_kg:0.8901,ticket:86.95,efetividade:98.1,multi_placa:false,placas:[
+    {placa:'MFX2A09',motorista:'WAGNER DIAS GODOY',embarques:10,vale_frete:27650.4,valor_nf:479050.98,entregas:318,custo_pct:5.77,ocupacao:77.66,rs_kg:0.8901,ticket:86.95,efetividade:98.1},
+  ]},
+  {nome:'JOSE FERNANDO BIAJONI ALLEND',embarques:19,vale_frete:20837.1,valor_nf:347225.11,kg_real:24025.71,entregas:359,custo_pct:6.0,ocupacao:36.13,rs_kg:0.8673,ticket:58.04,efetividade:98.7,multi_placa:false,placas:[
+    {placa:'IWN3158',motorista:'JOSE FERNANDO BIAJONI ALLEND',embarques:19,vale_frete:20837.1,valor_nf:347225.11,entregas:359,custo_pct:6.0,ocupacao:36.13,rs_kg:0.8673,ticket:58.04,efetividade:98.7},
+  ]},
+  {nome:'CENTROSUL SOLUCOES LOGISTICAS LTDA',embarques:20,vale_frete:16470.67,valor_nf:361360.65,kg_real:4658.82,entregas:141,custo_pct:4.56,ocupacao:51.76,rs_kg:3.5354,ticket:116.81,efetividade:99.4,multi_placa:false,placas:[
+    {placa:'TQZ5J81',motorista:'GUILHERME ABEL DA SILVA',embarques:20,vale_frete:16470.67,valor_nf:361360.65,entregas:141,custo_pct:4.56,ocupacao:51.76,rs_kg:3.5354,ticket:116.81,efetividade:99.4},
+  ]},
+  {nome:'SEEHASE TRANSPORTES',embarques:28,vale_frete:16096.5,valor_nf:505307.73,kg_real:26599.67,entregas:420,custo_pct:3.19,ocupacao:63.33,rs_kg:0.6051,ticket:38.33,efetividade:97.6,multi_placa:true,placas:[
+    {placa:'IKQ3E03',motorista:'RAMIRO JORDAN REGINALDO SANTOS',embarques:18,vale_frete:10636.5,valor_nf:303678.93,entregas:273,custo_pct:3.5,ocupacao:60.96,rs_kg:0.6463,ticket:38.96,efetividade:97.6},
+    {placa:'IZR9I66',motorista:'LEONARDO MARTINS DA PAZ',embarques:10,vale_frete:5460.0,valor_nf:201628.8,entregas:147,custo_pct:2.71,ocupacao:67.61,rs_kg:0.5384,ticket:37.14,efetividade:97.6},
+  ]},
+  {nome:'JOAO P. SILVA DA SILVA TRANSPORTES',embarques:17,vale_frete:14018.55,valor_nf:339111.12,kg_real:19981.13,entregas:268,custo_pct:4.13,ocupacao:78.36,rs_kg:0.7016,ticket:52.31,efetividade:96.6,multi_placa:false,placas:[
+    {placa:'IJO7D69',motorista:'JOAO PAULO SILVA DA SILVA',embarques:17,vale_frete:14018.55,valor_nf:339111.12,entregas:268,custo_pct:4.13,ocupacao:78.36,rs_kg:0.7016,ticket:52.31,efetividade:96.6},
+  ]},
+  {nome:'WAGNER FERREIRA BORGES',embarques:16,vale_frete:13411.13,valor_nf:326234.76,kg_real:17965.77,entregas:305,custo_pct:4.11,ocupacao:74.86,rs_kg:0.7465,ticket:43.97,efetividade:98.6,multi_placa:false,placas:[
+    {placa:'MDU4D69',motorista:'WAGNER FERREIRA BORGES',embarques:16,vale_frete:13411.13,valor_nf:326234.76,entregas:305,custo_pct:4.11,ocupacao:74.86,rs_kg:0.7465,ticket:43.97,efetividade:98.6},
+  ]},
+  {nome:'TRANSPORTES CEDRENSE LTDA.',embarques:16,vale_frete:12142.99,valor_nf:509486.67,kg_real:35496.79,entregas:157,custo_pct:2.38,ocupacao:63.39,rs_kg:0.3421,ticket:77.34,efetividade:97.5,multi_placa:false,placas:[
+    {placa:'IQT8401',motorista:'LEONARDO MELLO LEITE',embarques:16,vale_frete:12142.99,valor_nf:509486.67,entregas:157,custo_pct:2.38,ocupacao:63.39,rs_kg:0.3421,ticket:77.34,efetividade:97.5},
+  ]},
+  {nome:'DIEGO FERRARI BUTTE ME',embarques:16,vale_frete:11715.06,valor_nf:503596.17,kg_real:37926.63,entregas:175,custo_pct:2.33,ocupacao:67.73,rs_kg:0.3089,ticket:66.94,efetividade:87.2,multi_placa:false,placas:[
+    {placa:'IJV2E46',motorista:'DIEGO FERRARI BUTTE',embarques:16,vale_frete:11715.06,valor_nf:503596.17,entregas:175,custo_pct:2.33,ocupacao:67.73,rs_kg:0.3089,ticket:66.94,efetividade:87.2},
+  ]},
+  {nome:'CELSO TIMOTEO',embarques:12,vale_frete:11613.1,valor_nf:184355.71,kg_real:10801.8,entregas:152,custo_pct:6.3,ocupacao:60.01,rs_kg:1.0751,ticket:76.4,efetividade:98.2,multi_placa:false,placas:[
+    {placa:'IPS1H41',motorista:'CELSO TIMOTEO',embarques:12,vale_frete:11613.1,valor_nf:184355.71,entregas:152,custo_pct:6.3,ocupacao:60.01,rs_kg:1.0751,ticket:76.4,efetividade:98.2},
+  ]},
+  {nome:'ISRAEL DA SILVA PAKULSKI',embarques:18,vale_frete:11219.25,valor_nf:348767.87,kg_real:19112.94,entregas:344,custo_pct:3.22,ocupacao:70.79,rs_kg:0.587,ticket:32.61,efetividade:98.7,multi_placa:false,placas:[
+    {placa:'KIR5D41',motorista:'ISRAEL DA SILVA PAKULSKI',embarques:18,vale_frete:11219.25,valor_nf:348767.87,entregas:344,custo_pct:3.22,ocupacao:70.79,rs_kg:0.587,ticket:32.61,efetividade:98.7},
+  ]},
+  {nome:'VINICIUS COSTA DA ROSA',embarques:20,vale_frete:11156.25,valor_nf:369561.07,kg_real:19164.8,entregas:357,custo_pct:3.02,ocupacao:63.88,rs_kg:0.5821,ticket:31.25,efetividade:98.2,multi_placa:false,placas:[
+    {placa:'IZE8A99',motorista:'VINICIUS COSTA DA ROSA',embarques:20,vale_frete:11156.25,valor_nf:369561.07,entregas:357,custo_pct:3.02,ocupacao:63.88,rs_kg:0.5821,ticket:31.25,efetividade:98.2},
+  ]},
+  {nome:'ANTONIO RODRIGO BRIZOLA',embarques:19,vale_frete:10947.83,valor_nf:371607.41,kg_real:20092.61,entregas:340,custo_pct:2.95,ocupacao:70.5,rs_kg:0.5449,ticket:32.2,efetividade:98.2,multi_placa:false,placas:[
+    {placa:'IOR2E98',motorista:'MIGUEL RICARDO BRIZOLA',embarques:19,vale_frete:10947.83,valor_nf:371607.41,entregas:340,custo_pct:2.95,ocupacao:70.5,rs_kg:0.5449,ticket:32.2,efetividade:98.2},
+  ]},
+  {nome:'RAFAELA RIBEIRO FAY',embarques:10,vale_frete:6983.5,valor_nf:553745.53,kg_real:40431.34,entregas:37,custo_pct:1.26,ocupacao:87.14,rs_kg:0.1727,ticket:188.74,efetividade:95.0,multi_placa:true,placas:[
+    {placa:'ISW7C01',motorista:'DAVI NUNES DA SILVA',embarques:8,vale_frete:5683.5,valor_nf:476348.53,entregas:35,custo_pct:1.19,ocupacao:100.86,rs_kg:0.1761,ticket:162.39,efetividade:93.8},
+    {placa:'ITZ7J73',motorista:'JEFERSON ADAM DA SILVA',embarques:2,vale_frete:1300.0,valor_nf:77397.0,entregas:2,custo_pct:1.68,ocupacao:56.65,rs_kg:0.1594,ticket:650.0,efetividade:100.0},
+  ]},
+  {nome:'S&P TRANSPORTES LTDA',embarques:8,vale_frete:6751.25,valor_nf:282989.91,kg_real:17401.07,entregas:90,custo_pct:2.39,ocupacao:62.15,rs_kg:0.388,ticket:75.01,efetividade:100.0,multi_placa:false,placas:[
+    {placa:'IXM3G76',motorista:'EDSON LUIS RODRIGUES TERTEROLA',embarques:8,vale_frete:6751.25,valor_nf:282989.91,entregas:90,custo_pct:2.39,ocupacao:62.15,rs_kg:0.388,ticket:75.01,efetividade:100.0},
+  ]},
+  {nome:'CAIO NUNES VIEIRA LTDA',embarques:6,vale_frete:5046.66,valor_nf:104725.46,kg_real:6150.97,entregas:115,custo_pct:4.82,ocupacao:68.34,rs_kg:0.8205,ticket:43.88,efetividade:100.0,multi_placa:false,placas:[
+    {placa:'JDO4G76',motorista:'JOSE JUAN DE RIBEIRO ORTIZ',embarques:6,vale_frete:5046.66,valor_nf:104725.46,entregas:115,custo_pct:4.82,ocupacao:68.34,rs_kg:0.8205,ticket:43.88,efetividade:100.0},
+  ]},
+  {nome:'SPADER DISTRIBUIDORA DE ALIM LTDA',embarques:10,vale_frete:10.0,valor_nf:62129.45,kg_real:4364.35,entregas:27,custo_pct:0.02,ocupacao:29.1,rs_kg:0.0023,ticket:0.37,efetividade:98.0,multi_placa:false,placas:[
+    {placa:'IVI0J28',motorista:'JAIR ROZA DA SILVA',embarques:10,vale_frete:10.0,valor_nf:62129.45,entregas:27,custo_pct:0.02,ocupacao:29.1,rs_kg:0.0023,ticket:0.37,efetividade:98.0},
+  ]},
+];
+
+const META_CUSTO=4.63,META_OCUP=55,META_EFET=95;
+let sortCol='vale_frete';
+let filtroCAT='Todas';
+const expanded=new Set();
+
+const PLACA_CAT={"MLL8F00":"Leve 3/4","IYY1A16":"Leve 3/4","IKN9A64":"Leve 3/4","MAV7D02":"Leve 3/4","QIG5I62":"Van","JBZ8C97":"Van","DUP9001":"Van","JBB0J74":"Van","IUP2D15":"Van","JAN9F25":"Van","IVT2I72":"Van","ITC9E07":"Leve 3/4","IWB4B10":"Leve 3/4","ISZ6G30":"Leve 3/4","IQR8A29":"Leve 3/4","IRI7J09":"Leve 3/4","ISH4A09":"Leve 3/4","IQF0195":"Leve 3/4","JZN5J94":"Leve 3/4","ITV5715":"Leve 3/4","IPI1730":"Leve 3/4","IRP8H06":"Leve 3/4","IGH2239":"Leve 3/4","MEQ1B54":"Leve 3/4","ISE4G26":"Leve 3/4","MDG6I24":"Van","MKT9F36":"Van","MFX2A09":"Toco","IWN3158":"Leve 3/4","TQZ5J81":"Van","IKQ3E03":"Van","IZR9I66":"Van","IJO7D69":"Van","MDU4D69":"Van","IQT8401":"Leve 3/4","IJV2E46":"Leve 3/4","IPS1H41":"Van","KIR5D41":"Van","IZE8A99":"Van","IOR2E98":"Van","ISW7C01":"Toco","ITZ7J73":"Truck","IXM3G76":"Leve 3/4","JDO4G76":"Van","IVI0J28":"Van"};
+
+function cc(v,m){return v<=m?'pct-ok':v<=m*1.15?'pct-warn':'pct-bad'}
+function oc(v,m){return v>=m?'pct-ok':v>=m*0.9?'pct-warn':'pct-bad'}
+
+function fmtK(n){return n>=1000000?'R$ '+(n/1000000).toFixed(1).replace('.',',')+'M':n>=1000?'R$ '+Math.round(n/1000)+'K':'R$ '+Math.round(n)}
+
+function renderAggCards(){
+  const lista = filtroCAT==='Todas'
+    ? AGREGADOS
+    : AGREGADOS.filter(aggMatchesCat);
+
+  let vf=0, emb=0, serv=0, n_agg=0;
+  let ocup_sum=0, ocup_n=0, efet_sum=0, efet_n=0;
+
+  lista.forEach(a=>{
+    const placas = filtroCAT==='Todas' ? a.placas : a.placas.filter(p=>PLACA_CAT[p.placa]===filtroCAT);
+    if(!placas.length) return;
+    n_agg++;
+    placas.forEach(p=>{
+      vf  += p.vale_frete||0;
+      emb += p.embarques||0;
+      serv+= p.entregas||0;
+      if(p.ocupacao){ ocup_sum += p.ocupacao; ocup_n++; }
+      if(p.efetividade){ efet_sum += p.efetividade; efet_n++; }
+    });
+  });
+
+  const ocup = ocup_n>0 ? ocup_sum/ocup_n : 0;
+  const efet = efet_n>0 ? efet_sum/efet_n : 0;
+  const oc = ocup>=55?'ok':ocup>=45?'warn':'bad';
+  const ec = efet>=95?'ok':efet>=90?'warn':'bad';
+  const catLabel = filtroCAT==='Todas'?'distribuição':filtroCAT;
+  const secTitle = filtroCAT==='Todas'
+    ? 'Visão geral — agregados ativos março 2026'
+    : `Visão geral — categoria ${filtroCAT} · março 2026`;
+
+  const el=document.getElementById('agg-sec-title');
+  if(el) el.textContent=secTitle;
+
+  const cards=document.getElementById('agg-cards');
+  if(!cards) return;
+  cards.innerHTML=`
+    <div class="card c-neu">
+      <div class="card-lbl">Agregados ativos</div>
+      <div class="card-val neu">${n_agg}</div>
+      <div class="card-sub neu">${catLabel} · março</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(n_agg/22*100,100)}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="card c-neu">
+      <div class="card-lbl">Vale frete total</div>
+      <div class="card-val neu" style="font-size:20px">${fmtK(vf)}</div>
+      <div class="card-sub neu">pago no mês</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(vf/679818*100,100)}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="card c-neu">
+      <div class="card-lbl">Embarques</div>
+      <div class="card-val neu">${emb.toLocaleString('pt-BR')}</div>
+      <div class="card-sub neu">manifestos no mês</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(emb/647*100,100)}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="card c-neu">
+      <div class="card-lbl">Entregas</div>
+      <div class="card-val neu">${serv.toLocaleString('pt-BR')}</div>
+      <div class="card-sub neu">serviços realizados</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(serv/9903*100,100)}%;background:var(--accent)"></div></div>
+    </div>
+    <div class="card c-${oc}">
+      <div class="card-lbl">Ocupação média</div>
+      <div class="card-val ${oc}">${ocup.toFixed(2).replace('.',',')}%</div>
+      <div class="card-sub ${oc}">${ocup>=55?'▲ +':'▼ '}${Math.abs(ocup-55).toFixed(2).replace('.',',')}pp · meta 55%</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(ocup,100)}%;background:var(--${oc})"></div></div>
+    </div>
+    <div class="card c-${ec}">
+      <div class="card-lbl">Efetividade média</div>
+      <div class="card-val ${ec}">${efet.toFixed(1).replace('.',',')}%</div>
+      <div class="card-sub ${ec}">${efet>=95?'▲ acima meta 95%':'▼ abaixo meta 95%'}</div>
+      <div class="card-bar"><div class="card-fill" style="width:${Math.min(efet,100)}%;background:var(--${ec})"></div></div>
+    </div>`;
+}
+
+function filtrarCat(cat,btn){
+  filtroCAT=cat;
+  btn.closest('.filtros-bar').querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  expanded.clear();
+  renderAggCards();
+  renderAgg();
+}
+
+function sortAgg(col,btn){
+  sortCol=col;
+  btn.closest('.filtros-bar').querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  renderAgg();
+}
+
+function toggleAgg(idx){
+  if(expanded.has(idx)) expanded.delete(idx);
+  else expanded.add(idx);
+  renderAgg();
+}
+
+function rowPlacas(placas){
+  return placas.map(p=>`
+    <tr style="background:var(--surface2)">
+      <td style="padding-left:32px;border-left:3px solid var(--accent)">
+        <span class="chip" style="background:rgba(61,139,255,.15);border-color:rgba(61,139,255,.3);color:var(--accent)">${p.placa}</span>
+      </td>
+      <td colspan="2" style="color:var(--text2);font-size:11px;text-align:left;padding-left:8px">${p.motorista}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)">${p.embarques}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)">${p.entregas.toLocaleString('pt-BR')}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ok)">${fmt(p.vale_frete)}</td>
+      <td style="text-align:right"><span class="${cc(p.custo_pct,META_CUSTO)}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${p.custo_pct.toFixed(2).replace('.',',')}%</span></td>
+      <td style="text-align:right"><span class="${oc(p.ocupacao,META_OCUP)}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${p.ocupacao.toFixed(1).replace('.',',')}%</span></td>
+      <td style="text-align:right"><span class="${oc(p.efetividade,META_EFET)}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${p.efetividade.toFixed(1).replace('.',',')}%</span></td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">R$ ${p.rs_kg.toFixed(4).replace('.',',')}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text3)">R$ ${p.ticket.toFixed(2).replace('.',',')}</td>
+    </tr>
+  `).join('');
+}
+
+function scoreRisco(a){
+  // Custo: 50% — quanto acima da meta (pior = mais risco)
+  const sc = Math.min((a.custo_pct/META_CUSTO),2); // 1.0=na meta, >1=acima
+  const scoreCusto = sc<=1?100:sc<=1.15?75:sc<=1.3?40:10;
+  // Ocupação: 30% — quanto abaixo de 55% (pior = mais risco)
+  const so = a.ocupacao/META_OCUP;
+  const scoreOcup = so>=1?100:so>=0.85?75:so>=0.7?40:10;
+  // Efetividade: 20% — quanto abaixo de 95% (pior = mais risco)
+  const se = a.efetividade/META_EFET;
+  const scoreEfet = se>=1?100:se>=0.95?75:se>=0.9?40:10;
+  const total = Math.round(scoreCusto*0.5 + scoreOcup*0.3 + scoreEfet*0.2);
+  const nivel = total>=80?'ok':total>=55?'warn':'bad';
+  const label = total>=80?'Baixo':total>=55?'Médio':'Alto';
+  return {score:total, nivel, label};
+}
+
+function scoreTag(a){
+  const {score,nivel,label}=scoreRisco(a);
+  const cores={'ok':'var(--ok)','warn':'var(--warn)','bad':'var(--bad)'};
+  const bgs={'ok':'rgba(34,201,129,.12)','warn':'rgba(245,166,35,.12)','bad':'rgba(255,77,77,.12)'};
+  return `<div style="display:flex;flex-direction:column;align-items:center;gap:2px">
+    <div style="width:32px;height:32px;border-radius:50%;background:${bgs[nivel]};border:2px solid ${cores[nivel]};display:flex;align-items:center;justify-content:center;font-family:'JetBrains Mono',monospace;font-size:10px;font-weight:700;color:${cores[nivel]}">${score}</div>
+    <span style="font-size:8px;color:${cores[nivel]};text-transform:uppercase;letter-spacing:.05em">${label}</span>
+  </div>`;
+}
+function catTag(cat){
+  const map={'Van':'var(--accent)','Vulk':'#a855f7','Leve 3/4':'var(--ok)','Toco':'var(--warn)','Truck':'var(--bad)'};
+  const col=map[cat]||'var(--text3)';
+  return `<span style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid ${col};color:${col};font-family:'JetBrains Mono',monospace;opacity:.85">${cat}</span>`;
+}
+
+function aggCatDom(a){
+  // Determinar categoria dominante pelas placas
+  const cats=a.placas.map(p=>PLACA_CAT[p.placa]||'Van');
+  const freq={};
+  cats.forEach(c=>freq[c]=(freq[c]||0)+1);
+  return Object.entries(freq).sort((a,b)=>b[1]-a[1])[0]?.[0]||'Van';
+}
+
+function aggMatchesCat(a){
+  if(filtroCAT==='Todas') return true;
+  return a.placas.some(p=>PLACA_CAT[p.placa]===filtroCAT);
+}
+
+function renderAgg(){
+  let sorted=[...AGREGADOS].sort((a,b)=>b[sortCol]-a[sortCol]);
+  if(filtroCAT!=='Todas') sorted=sorted.filter(aggMatchesCat);
+  const tb=document.getElementById('agg-tbody');
+  if(!tb)return;
+  tb.innerHTML=sorted.map((a,i)=>{
+    const ccCls=cc(a.custo_pct,META_CUSTO);
+    const ocCls=oc(a.ocupacao,META_OCUP);
+    const ecCls=oc(a.efetividade,META_EFET);
+    const nome=a.nome.length>36?a.nome.substring(0,35)+'…':a.nome;
+    const isExp=expanded.has(i);
+    const canExp=a.multi_placa;
+    const catDom=aggCatDom(a);
+    const expandBtn=canExp
+      ?`<span onclick="toggleAgg(${i})" style="cursor:pointer;font-size:10px;color:var(--accent);margin-left:6px;user-select:none">${isExp?'▲ recolher':'▼ '+a.placas.length+' placas'}</span>`
+      :`<span class="chip" style="font-size:9px;margin-left:6px">${a.placas[0].placa}</span>`;
+    const mainRow=`<tr style="cursor:${canExp?'pointer':'default'}" onclick="${canExp?'toggleAgg('+i+')':''}">
+      <td style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px;width:28px">${i+1}</td>
+      <td>
+        <div class="reg-nome" title="${a.nome}" style="display:flex;align-items:center;flex-wrap:wrap;gap:4px">
+          ${nome}${expandBtn}
+        </div>
+        <div style="margin-top:3px">${catTag(catDom)}</div>
+      </td>
+      <td style="color:var(--text3);font-size:11px">${canExp?a.placas.length+' veíc.':''}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace">${a.embarques}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace">${a.entregas.toLocaleString('pt-BR')}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-weight:700;color:var(--ok)">${fmt(a.vale_frete)}</td>
+      <td style="text-align:right"><span class="${ccCls}" style="font-family:'JetBrains Mono',monospace">${a.custo_pct.toFixed(2).replace('.',',')}%</span></td>
+      <td style="text-align:right"><span class="${ocCls}" style="font-family:'JetBrains Mono',monospace">${a.ocupacao.toFixed(1).replace('.',',')}%</span></td>
+      <td style="text-align:right"><span class="${ecCls}" style="font-family:'JetBrains Mono',monospace">${a.efetividade.toFixed(1).replace('.',',')}%</span></td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;color:var(--text2)">R$ ${a.rs_kg.toFixed(4).replace('.',',')}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;color:var(--text2)">R$ ${a.ticket.toFixed(2).replace('.',',')}</td>
+      <td style="text-align:center;padding:6px 8px">${scoreTag(a)}</td>
+    </tr>`;
+    // Expandido: mostrar apenas placas da categoria filtrada
+    let placasFilt=a.placas;
+    if(filtroCAT!=='Todas') placasFilt=placasFilt.filter(p=>PLACA_CAT[p.placa]===filtroCAT);
+    return mainRow + (isExp && canExp ? rowPlacas(placasFilt) : '');
+  }).join('')||`<tr><td colspan="11" class="empty">Nenhum agregado nesta categoria.</td></tr>`;
+}
+renderAggCards();renderAgg();
+
+
+// ── ROTAS ──
+const ROTAS_DATA=[
+{rota:"Porto Alegre Rota 20 Centro (Tarde)",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:229,nf:3245623.5,vf:100015.64,vf_dist:100015.64,vf_transf:0.0,custo:3.08,ocup:62.5,serv:2286,ped:37.13,nnfs:2480,cids:["Porto Alegre"]},
+{rota:"Caxias do Sul Linha 1",cd:"CD Caxias do Sul",reg:"Região Serra",faixa:"Até 75 km",meta:4.5,op:"Cross",emb:59,nf:1019109.94,vf:59194.65,vf_dist:44068.63,vf_transf:15126.02,custo:5.81,ocup:48.8,serv:473,ped:466.54,nnfs:547,cids:["Caxias do Sul"]},
+{rota:"Pelotas",cd:"CD Pelotas",reg:"Região Sul",faixa:"Até 75 km",meta:4.8,op:"Marfoods",emb:52,nf:765538.96,vf:54747.89,vf_dist:41246.01,vf_transf:13501.88,custo:7.15,ocup:35.4,serv:798,ped:0.74,nnfs:896,cids:["Pelotas","Capão do Leão"]},
+{rota:"Rio Grande",cd:"CD Pelotas",reg:"Região Sul",faixa:"76 - 150 km",meta:5.5,op:"Marfoods",emb:41,nf:517586.87,vf:38296.02,vf_dist:29167.3,vf_transf:9128.72,custo:7.4,ocup:34.6,serv:556,ped:156.4,nnfs:627,cids:["Rio Grande"]},
+{rota:"Bage",cd:"CD Pelotas",reg:"Região Extremo Sul",faixa:"301 - 600 km",meta:8.5,op:"Marfoods",emb:18,nf:286453.04,vf:32563.52,vf_dist:27511.32,vf_transf:5052.2,custo:11.37,ocup:44.9,serv:257,ped:0.0,nnfs:283,cids:["Bagé"]},
+{rota:"Chui",cd:"CD Pelotas",reg:"Região Extremo Sul",faixa:"301 - 600 km",meta:8.5,op:"Marfoods",emb:8,nf:280027.97,vf:24551.49,vf_dist:19612.61,vf_transf:4938.88,custo:8.77,ocup:52.6,serv:213,ped:0.0,nnfs:219,cids:["Santa Vitoria do Palmar","Chui"]},
+{rota:"Canoas",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:67,nf:877844.56,vf:23235.23,vf_dist:23235.23,vf_transf:0.0,custo:2.65,ocup:63.7,serv:381,ped:11.45,nnfs:427,cids:["Canoas"]},
+{rota:"Charqueadas",cd:"CD Sapucaia",reg:"Região Carbonífera",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:12,nf:243206.23,vf:22217.8,vf_dist:22217.8,vf_transf:0.0,custo:9.14,ocup:41.3,serv:175,ped:0.0,nnfs:203,cids:["Charqueadas","São Jerônimo","General Câmara"]},
+{rota:"Lajeado",cd:"CD Sapucaia",reg:"Região Central",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:16,nf:366635.82,vf:19894.21,vf_dist:19894.21,vf_transf:0.0,custo:5.43,ocup:57.5,serv:297,ped:599.85,nnfs:318,cids:["Poço das Antas","Paverama","Taquari","Teutonia","Westfália","Bom Retiro do Sul","Estrela","Lajeado","Roca Sales","Cruzeiro do Sul","Arroio do Meio","Encantado","Travesseiro","Santa Clara do Sul","Marques de Souza"]},
+{rota:"Guaiba",cd:"CD Sapucaia",reg:"Região Carbonífera",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:34,nf:524747.27,vf:19586.06,vf_dist:19586.06,vf_transf:0.0,custo:3.73,ocup:68.6,serv:275,ped:2.67,nnfs:325,cids:["Guaiba","Eldorado do Sul"]},
+{rota:"Veranopolis",cd:"CD Sapucaia",reg:"Região Serra Interior",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:7,nf:339476.24,vf:18844.51,vf_dist:18844.51,vf_transf:0.0,custo:5.55,ocup:115.4,serv:204,ped:461.82,nnfs:229,cids:["Veranopolis","Cotiporã","Vila Flores","Fagundes Varela","Nova Prata","Nova Bassano","Nova Araçá","Paraí"]},
+{rota:"Alvorada",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:28,nf:870074.72,vf:17307.59,vf_dist:17307.59,vf_transf:0.0,custo:1.99,ocup:78.8,serv:119,ped:0.0,nnfs:110,cids:["Alvorada"]},
+{rota:"Novo Hamburgo",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Cross",emb:38,nf:448635.5,vf:15024.74,vf_dist:15024.74,vf_transf:0.0,custo:3.35,ocup:53.5,serv:160,ped:8.97,nnfs:153,cids:["Novo Hamburgo"]},
+{rota:"Farroupilha",cd:"CD Caxias do Sul",reg:"Região Serra",faixa:"Até 75 km",meta:4.5,op:"Marfoods",emb:14,nf:158618.85,vf:14526.53,vf_dist:12172.25,vf_transf:2354.28,custo:9.16,ocup:38.5,serv:72,ped:31.24,nnfs:75,cids:["Farroupilha"]},
+{rota:"Acegua",cd:"CD Pelotas",reg:"Região Extremo Sul",faixa:"301 - 600 km",meta:8.5,op:"Marfoods",emb:9,nf:89509.56,vf:14387.84,vf_dist:12809.16,vf_transf:1578.69,custo:16.07,ocup:40.7,serv:81,ped:0.0,nnfs:89,cids:["Pinheiro Machado","Candiota","Acegua"]},
+{rota:"Guaporé",cd:"CD Sapucaia",reg:"Região Serra Interior",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:9,nf:294984.98,vf:14337.7,vf_dist:14337.7,vf_transf:0.0,custo:4.86,ocup:86.0,serv:145,ped:226.54,nnfs:172,cids:["Dois Lajeados","Guaporé","Vespaziano Correa","Serafina Corrêa","Casca","Vila Maria","Domingos do Sul"]},
+{rota:"Litoral - Capão",cd:"CD Sapucaia",reg:"Região Litoral Norte",faixa:"151 - 300 km",meta:5.0,op:"Marfoods",emb:15,nf:297481.52,vf:14244.8,vf_dist:14244.8,vf_transf:0.0,custo:4.79,ocup:58.8,serv:251,ped:503.06,nnfs:286,cids:["Xangri-lá","Capão da Canoa"]},
+{rota:"Litoral - Tramandai",cd:"CD Sapucaia",reg:"Região Litoral Norte",faixa:"151 - 300 km",meta:5.0,op:"Marfoods",emb:27,nf:221671.45,vf:13647.84,vf_dist:13647.84,vf_transf:0.0,custo:6.16,ocup:61.7,serv:225,ped:550.7,nnfs:265,cids:["Tramandaí","Imbé"]},
+{rota:"Taquara",cd:"CD Sapucaia",reg:"Região Vale dos Sinos",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:18,nf:374584.36,vf:12459.21,vf_dist:12459.21,vf_transf:0.0,custo:3.33,ocup:61.0,serv:159,ped:147.38,nnfs:164,cids:["Parobé","Taquara","Igrejinha","Três Coroas","Rolante"]},
+{rota:"Canguçu",cd:"CD Pelotas",reg:"Região Sul",faixa:"76 - 150 km",meta:5.5,op:"Marfoods",emb:7,nf:176394.9,vf:12173.74,vf_dist:9062.65,vf_transf:3111.09,custo:6.9,ocup:85.2,serv:148,ped:156.4,nnfs:197,cids:["Canguçu"]},
+{rota:"Esteio",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:37,nf:398485.47,vf:11398.57,vf_dist:11398.57,vf_transf:0.0,custo:2.86,ocup:65.4,serv:166,ped:1.01,nnfs:198,cids:["Sapucaia do Sul","Esteio"]},
+{rota:"São Leopoldo",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:27,nf:357755.65,vf:11166.37,vf_dist:11166.37,vf_transf:0.0,custo:3.12,ocup:69.1,serv:217,ped:0.0,nnfs:249,cids:["São Leopoldo"]},
+{rota:"Bento",cd:"CD Caxias do Sul",reg:"Região Serra",faixa:"76 - 150 km",meta:5.5,op:"Brockers",emb:24,nf:146049.76,vf:10024.7,vf_dist:7856.97,vf_transf:2167.73,custo:6.86,ocup:38.1,serv:88,ped:0.0,nnfs:102,cids:["Pinto Bandeira","Bento Gonçalves"]},
+{rota:"Jaguarao",cd:"CD Pelotas",reg:"Região Extremo Sul",faixa:"301 - 600 km",meta:8.5,op:"Marfoods",emb:5,nf:123431.37,vf:9971.53,vf_dist:7794.56,vf_transf:2176.97,custo:8.08,ocup:62.9,serv:107,ped:0.0,nnfs:114,cids:["Arroio Grande","Jaguarao"]},
+{rota:"Soledade",cd:"CD Sapucaia",reg:"Região Central",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:4,nf:150017.19,vf:9651.25,vf_dist:9651.25,vf_transf:0.0,custo:6.43,ocup:59.2,serv:88,ped:202.02,nnfs:103,cids:["Putinga","Ilopolis","Arvorezinha","Fontoura Xavier","Anta Gorda","Soledade"]},
+{rota:"São Lourenço",cd:"CD Pelotas",reg:"Região Sul",faixa:"76 - 150 km",meta:5.5,op:"Marfoods",emb:7,nf:103839.34,vf:9506.35,vf_dist:7674.92,vf_transf:1831.42,custo:9.15,ocup:34.7,serv:106,ped:231.71,nnfs:109,cids:["São Lourenço do Sul","Cristal"]},
+{rota:"Vacaria",cd:"CD Caxias do Sul",reg:"Região Serra Interior",faixa:"151 - 300 km",meta:5.5,op:"Marfoods",emb:8,nf:203097.91,vf:9444.15,vf_dist:6429.7,vf_transf:3014.46,custo:4.65,ocup:60.5,serv:51,ped:180.33,nnfs:50,cids:["Antonio Prado","Ipê","Vacaria"]},
+{rota:"Dois Irmãos",cd:"CD Sapucaia",reg:"Região Vale dos Sinos",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:16,nf:198074.14,vf:9113.15,vf_dist:9113.15,vf_transf:0.0,custo:4.6,ocup:61.4,serv:107,ped:47.52,nnfs:131,cids:["Estância Velha","Lindolfo Collor","Ivoti","Dois Irmãos","Morro Reuter","São José do Hortêncio","Nova Petrópolis"]},
+{rota:"Camaquã",cd:"CD Pelotas",reg:"Região Sul",faixa:"151 - 300 km",meta:5.5,op:"Marfoods",emb:4,nf:106426.94,vf:8993.64,vf_dist:7116.58,vf_transf:1877.06,custo:8.45,ocup:49.8,serv:94,ped:0.0,nnfs:107,cids:["Camaquã","Arambaré","Sentinela do Sul","Tapes","Barra do Ribeiro"]},
+{rota:"Santa Cruz",cd:"CD Sapucaia",reg:"Região Central",faixa:"151 - 300 km",meta:5.0,op:"Cross",emb:5,nf:207430.79,vf:8330.28,vf_dist:8330.28,vf_transf:0.0,custo:4.02,ocup:66.1,serv:61,ped:308.07,nnfs:70,cids:["Venancio Aires","Rio Pardo","Santa Cruz do Sul","Pantano Grande","Vera Cruz"]},
+{rota:"Sapiranga",cd:"CD Sapucaia",reg:"Região Vale dos Sinos",faixa:"76 - 150 km",meta:5.0,op:"Cross",emb:16,nf:194117.85,vf:7588.26,vf_dist:7588.26,vf_transf:0.0,custo:3.91,ocup:54.4,serv:75,ped:84.51,nnfs:92,cids:["Campo Bom","Araricá","Sapiranga","Nova Hartz"]},
+{rota:"São Jose do Norte",cd:"CD Sapucaia",reg:"Região Litoral Sul",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:4,nf:84183.1,vf:7462.72,vf_dist:7462.72,vf_transf:0.0,custo:8.86,ocup:90.0,serv:104,ped:99.62,nnfs:113,cids:["Bojuru","São Jose do Norte"]},
+{rota:"Litoral - Torres",cd:"CD Sapucaia",reg:"Região Litoral Norte",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:12,nf:113404.33,vf:7364.04,vf_dist:7364.04,vf_transf:0.0,custo:6.49,ocup:46.5,serv:81,ped:351.31,nnfs:82,cids:["Três Forquilhas","Terra de Areia","Arroio do Sal","Três Cachoeiras","Torres"]},
+{rota:"Cachoeirinha",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:19,nf:246163.58,vf:6994.24,vf_dist:6994.24,vf_transf:0.0,custo:2.84,ocup:64.9,serv:120,ped:41.78,nnfs:120,cids:["Cachoeirinha"]},
+{rota:"Litoral - Osório",cd:"CD Sapucaia",reg:"Região Litoral Norte",faixa:"151 - 300 km",meta:5.0,op:"Marfoods",emb:20,nf:131905.73,vf:6944.06,vf_dist:6944.06,vf_transf:0.0,custo:5.26,ocup:70.6,serv:100,ped:291.39,nnfs:87,cids:["Santo Antônio da Patrulha","Osório"]},
+{rota:"Gravatai",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"Até 75 km",meta:2.8,op:"Marfoods",emb:26,nf:313392.57,vf:6752.57,vf_dist:6752.57,vf_transf:0.0,custo:2.15,ocup:69.8,serv:136,ped:2.22,nnfs:150,cids:["Gravataí"]},
+{rota:"Mostardas",cd:"CD Sapucaia",reg:"Região Litoral Sul",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:12,nf:79968.97,vf:6603.59,vf_dist:6603.59,vf_transf:0.0,custo:8.26,ocup:63.4,serv:95,ped:67.99,nnfs:118,cids:["Bacupari","Palmares do Sul","Mostardas"]},
+{rota:"Butia",cd:"CD Sapucaia",reg:"Região Carbonífera",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:14,nf:124463.79,vf:6148.82,vf_dist:6148.82,vf_transf:0.0,custo:4.94,ocup:50.6,serv:113,ped:0.0,nnfs:127,cids:["Arroio dos Ratos","Butia","Minas do Leão"]},
+{rota:"Canela",cd:"CD Sapucaia",reg:"Região Serra",faixa:"151 - 300 km",meta:5.0,op:"Brockers",emb:10,nf:107567.88,vf:5864.13,vf_dist:5864.13,vf_transf:0.0,custo:5.45,ocup:68.5,serv:68,ped:146.32,nnfs:78,cids:["Canela","São Francisco de Paula"]},
+{rota:"Flores",cd:"CD Caxias do Sul",reg:"Região Serra Interior",faixa:"Até 75 km",meta:4.5,op:"Marfoods",emb:8,nf:101785.48,vf:5788.97,vf_dist:4278.24,vf_transf:1510.74,custo:5.69,ocup:45.2,serv:63,ped:0.69,nnfs:78,cids:["Flores da Cunha","São Marcos"]},
+{rota:"Tavares",cd:"CD Sapucaia",reg:"Região Litoral Sul",faixa:"301 - 600 km",meta:4.0,op:"Marfoods",emb:4,nf:67448.73,vf:5657.45,vf_dist:5657.45,vf_transf:0.0,custo:8.39,ocup:63.4,serv:79,ped:49.33,nnfs:67,cids:["Tavares"]},
+{rota:"Montenegro",cd:"CD Sapucaia",reg:"Região Central",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:16,nf:121354.91,vf:5348.34,vf_dist:5348.34,vf_transf:0.0,custo:4.41,ocup:75.4,serv:116,ped:122.87,nnfs:116,cids:["Nova Santa Rita","Capela de Santana","Montenegro","Triunfo"]},
+{rota:"Litoral - Cidreira",cd:"CD Sapucaia",reg:"Região Litoral Norte",faixa:"151 - 300 km",meta:5.0,op:"Marfoods",emb:12,nf:135146.71,vf:5345.58,vf_dist:5345.58,vf_transf:0.0,custo:3.96,ocup:89.8,serv:79,ped:100.08,nnfs:81,cids:["Capivari do Sul","Quintão","Aguas Claras","Cidreira","Balneário Pinhal","Magistério"]},
+{rota:"Viamão",cd:"CD Sapucaia",reg:"Região Metropolitana",faixa:"76 - 150 km",meta:5.0,op:"Cross",emb:22,nf:179207.96,vf:4875.68,vf_dist:4875.68,vf_transf:0.0,custo:2.72,ocup:65.9,serv:71,ped:16.86,nnfs:89,cids:["Viamão"]},
+{rota:"Vale Real",cd:"CD Sapucaia",reg:"Região Serra",faixa:"76 - 150 km",meta:5.0,op:"Marfoods",emb:12,nf:154790.57,vf:4755.89,vf_dist:4755.89,vf_transf:0.0,custo:3.07,ocup:85.1,serv:46,ped:166.67,nnfs:58,cids:["Portão","São Sebastião do Caí","Feliz","Bom Principio","Alto Feliz","Vale Real"]},
+{rota:"Gramado",cd:"CD Sapucaia",reg:"Região Serra",faixa:"151 - 300 km",meta:5.0,op:"Marfoods",emb:9,nf:68753.44,vf:4182.96,vf_dist:4182.96,vf_transf:0.0,custo:6.08,ocup:67.0,serv:55,ped:113.11,nnfs:60,cids:["Gramado","Santa Maria do Herval","Boa Vista do Herval"]},
+{rota:"Carlos Barbosa",cd:"CD Caxias do Sul",reg:"Região Serra",faixa:"76 - 150 km",meta:5.5,op:"Marfoods",emb:10,nf:38385.44,vf:3119.28,vf_dist:2549.55,vf_transf:569.73,custo:8.13,ocup:37.2,serv:27,ped:0.0,nnfs:31,cids:["São Pedro da Serra","Carlos Barbosa","Barão","Garibaldi","Salvador do Sul"]},
+{rota:"Cerrito",cd:"CD Pelotas",reg:"Região Sul",faixa:"76 - 150 km",meta:5.5,op:"Marfoods",emb:3,nf:25474.29,vf:2961.17,vf_dist:2511.88,vf_transf:449.29,custo:11.62,ocup:29.9,serv:34,ped:0.0,nnfs:48,cids:["Cerrito","Pedro Osório"]},
+{rota:"Kuhn",cd:"CD Sapucaia",reg:"Região Norte",faixa:"Acima de 600 km",meta:4.0,op:"Marfoods",emb:6,nf:96526.1,vf:2026.52,vf_dist:2026.52,vf_transf:0.0,custo:2.1,ocup:25.3,serv:31,ped:118.89,nnfs:36,cids:["Novo Cabrais","Candelária","Cachoeira do Sul","Marau","Segredo","Tio Hugo","Passo Fundo","Tapera","Restinga Seca","São Sepé","Carazinho","Caçapava do Sul","Getúlio Vargas","Júlio de Castilhos","Santa Bárbara do Sul","Santa Maria","Erechim","Sarandi","Cruz Alta","Tupanciretã","Panambi","Condor","Palmeira das Missões","São Gabriel","Ijuí","Entre-Ijuís","Santo Ângelo","Rosário do Sul","Santiago","Santa Rosa","Santana do Livramento","Alegrete","São Borja","Quaraí","Itaqui","Uruguaiana","Barra do Quaraí"]}
+];
+
+let filtroRotasReg='Todas', filtroRotasRaio='Todos', filtroRotasOp='Todas';
+let rotasExp=new Set();
+
+function filtroRotasSelect(sel){
+  filtroRotasReg=sel.value;
+  rotasExp.clear();
+  renderRotas();
+}
+
+function filtroRotas(tipo,val,btn){
+  if(tipo==='regiao') filtroRotasReg=val;
+  else if(tipo==='raio') filtroRotasRaio=val;
+  else if(tipo==='op') filtroRotasOp=val;
+  btn.closest('.filtros-bar').querySelectorAll('.filtro-btn').forEach(x=>x.classList.remove('active'));
+  btn.classList.add('active');
+  rotasExp.clear();
+  renderRotas();
+}
+
+function toggleRota(idx){
+  if(rotasExp.has(idx)) rotasExp.delete(idx);
+  else rotasExp.add(idx);
+  renderRotas();
+}
+
+function renderRotas(){
+  let dados=[...ROTAS_DATA];
+  if(filtroRotasReg!=='Todas') dados=dados.filter(r=>r.reg===filtroRotasReg);
+  if(filtroRotasRaio!=='Todos') dados=dados.filter(r=>r.faixa===filtroRotasRaio);
+  if(filtroRotasOp!=='Todas') dados=dados.filter(r=>r.op===filtroRotasOp);
+
+  const cnt=document.getElementById('rotas-count');
+  if(cnt) cnt.textContent=dados.length+' rota'+(dados.length!==1?'s':'');
+
+  const n=v=>(typeof v==='number'&&isFinite(v))?v:0;
+  const tot_vf=dados.reduce((s,r)=>s+n(r.vf),0);
+  const tot_nf=dados.reduce((s,r)=>s+n(r.nf),0);
+  const tot_emb=dados.reduce((s,r)=>s+n(r.emb),0);
+  const tot_serv=dados.reduce((s,r)=>s+n(r.serv),0);
+  const tot_ped=dados.reduce((s,r)=>s+n(r.ped),0);
+  const custo_med=tot_nf>0?tot_vf/tot_nf*100:0;
+  const el_vf=document.getElementById('rota-card-vf');
+  const el_emb=document.getElementById('rota-card-emb');
+  const el_custo=document.getElementById('rota-card-custo');
+  const el_serv=document.getElementById('rota-card-serv');
+  const el_ped=document.getElementById('rota-card-ped');
+  const el_rotas=document.getElementById('rota-card-n');
+  if(el_vf) el_vf.textContent=fmtK(tot_vf);
+  if(el_emb) el_emb.textContent=tot_emb.toLocaleString('pt-BR');
+  if(el_custo){el_custo.textContent=custo_med.toFixed(2).replace('.',',')+' %';el_custo.className='card-val '+(custo_med<=4.5?'ok':custo_med<=4.8?'warn':'bad');}
+  if(el_serv) el_serv.textContent=Math.round(tot_serv).toLocaleString('pt-BR');
+  if(el_ped) el_ped.textContent='R$ '+Math.round(tot_ped).toLocaleString('pt-BR');
+  if(el_rotas) el_rotas.textContent=dados.length;
+
+  const raioTag2=(r)=>{const c=r==='100KM'?'r100':r==='300KM'?'r300':r==='600KM'?'r600':'';return c?`<span class="raio-tag ${c}" style="font-size:9px;padding:1px 5px">${r}</span>`:r||'—'};
+  const faixaTag=(f)=>{
+    const map={'Até 75 km':['#22c981','r100'],'76 - 150 km':['#3d8bff','r300'],'151 - 300 km':['#f5a623','r300'],'301 - 600 km':['#ff4d4d','r600'],'Acima de 600 km':['#9b59b6','r600']};
+    const [cor]=map[f]||['#8b90a0'];
+    return `<span style="font-size:9px;padding:2px 6px;border-radius:4px;background:${cor}22;border:1px solid ${cor};color:${cor};font-family:'JetBrains Mono',monospace;white-space:nowrap">${f||'—'}</span>`;
+  };
+  const opTag=(op)=>{const c=op==='Marfoods'?'var(--accent)':op==='Brockers'?'var(--warn)':'var(--ok)';return `<span style="font-size:9px;padding:1px 6px;border-radius:4px;border:1px solid ${c};color:${c};font-family:'JetBrains Mono',monospace">${op||'—'}</span>`};
+
+  const tb=document.getElementById('rotas-tbody');
+  if(!tb) return;
+  tb.innerHTML=dados.map((r,i)=>{
+    const custo=n(r.custo),meta=n(r.meta)||4.5,ocup=n(r.ocup),efet=100;
+    const cls_c=custo<=meta?'pct-ok':custo<=meta*1.15?'pct-warn':'pct-bad';
+    const cls_o=ocup>=55?'pct-ok':ocup>=45?'pct-warn':'pct-bad';
+    const cids=r.cids||[];
+    const isExp=rotasExp.has(i);
+    const mainRow=`<tr style="cursor:pointer" onclick="toggleRota(${i})">
+      <td style="color:var(--text3);font-family:'JetBrains Mono',monospace;font-size:11px">${i+1}</td>
+      <td>
+        <div style="font-weight:600;font-size:12px;color:var(--text)">${r.rota||'—'}</div>
+        <div style="font-size:9px;color:var(--text3);margin-top:2px">${n(r.emb)} embarque${r.emb!==1?'s':''} · ${isExp?'▲ recolher':'▼ '+cids.length+' cidade'+(cids.length!==1?'s':'')}</div>
+      </td>
+      <td style="font-size:11px;color:var(--text2)">${r.cd||'—'}</td>
+      <td style="text-align:center">${opTag(r.op)}</td>
+      <td style="text-align:center">${faixaTag(r.faixa)}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px">${fmt(n(r.nf))}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--ok);font-weight:700">${fmt(n(r.vf))}</td>
+      <td style="text-align:right"><span class="${cls_c}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${custo.toFixed(2).replace('.',',')}%</span></td>
+      <td style="text-align:right"><span class="${cls_o}" style="font-family:'JetBrains Mono',monospace;font-size:11px">${ocup.toFixed(1).replace('.',',')}%</span></td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)">${Math.round(n(r.nnfs)).toLocaleString('pt-BR')}</td>
+      <td style="text-align:right;font-family:'JetBrains Mono',monospace;font-size:11px;color:var(--text2)">${Math.round(n(r.serv)).toLocaleString('pt-BR')}</td>
+    </tr>` + (isExp && cids.length>0 ? `<tr><td colspan="13" style="padding:0 0 4px 0">
+      <div style="background:var(--surface2);border-left:3px solid var(--accent);padding:.75rem 1rem">
+        <div style="font-size:9px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--accent);margin-bottom:.5rem">Cidades da rota</div>
+        <div style="display:flex;flex-wrap:wrap;gap:6px">
+          ${cids.map(c=>`<span style="background:var(--surface3);border:1px solid var(--border);border-radius:4px;padding:3px 8px;font-size:10px;color:var(--text2)">${c}</span>`).join('')}
+        </div>
+        ${n(r.ped)>0?`<div style="margin-top:.5rem;font-size:10px;color:var(--text3)">Pedágio: <span style="color:var(--warn);font-family:'JetBrains Mono',monospace">R$ ${n(r.ped).toFixed(2).replace('.',',')}</span></div>`:''}
+      </div>
+    </td></tr>` : '');
+    return mainRow;
+  }).join('')||'<tr><td colspan="13" class="empty">Nenhuma rota para os filtros selecionados.</td></tr>';
+}
+
+renderRotas();
+</script>
+</body>
+</html>
