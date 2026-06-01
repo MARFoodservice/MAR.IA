@@ -47,9 +47,10 @@ select:focus,input[type=date]:focus{border-color:var(--accent);}
   background:var(--bg);
   border-bottom:1px solid var(--border);
   padding:7px 16px;
-  display:grid;grid-template-columns:repeat(6,1fr);gap:8px;
+  display:grid;grid-template-columns:repeat(8,1fr);gap:6px;
 }
-@media(max-width:1100px){.cards-fixed{grid-template-columns:repeat(3,1fr);}}
+@media(max-width:1400px){.cards-fixed{grid-template-columns:repeat(4,1fr);}}
+@media(max-width:800px){.cards-fixed{grid-template-columns:repeat(2,1fr);}}
 .card{background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:9px 12px;}
 .card-label{font-size:9px;color:var(--text2);text-transform:uppercase;letter-spacing:.06em;margin-bottom:2px;}
 .card-value{font-size:17px;font-weight:700;line-height:1.2;}
@@ -143,6 +144,28 @@ tr:hover td{background:rgba(255,255,255,0.025);}
 @keyframes spin{to{transform:rotate(360deg);}}
 .empty{text-align:center;color:var(--text2);padding:18px;font-size:11px;}
 .sec-label{margin:4px 0 10px;font-size:10px;color:var(--text2);text-transform:uppercase;letter-spacing:.08em;font-weight:600;}
+
+/* ── NAVEGAÇÃO PÁGINAS ── */
+.page-section{display:none;}
+.page-section.active{display:block;}
+.nav-tabs{display:flex;gap:6px;margin-left:8px;}
+.nav-tab{background:transparent;color:var(--text2);border:1px solid var(--border);border-radius:6px;padding:5px 14px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;transition:all .2s;}
+.nav-tab:hover{border-color:var(--accent);color:var(--text);}
+.nav-tab.active{background:var(--accent);color:#fff;border-color:var(--accent);}
+.nav-tab.af-tab.active{background:var(--accent2);border-color:var(--accent2);}
+
+/* ── CARDS A FATURAR ── */
+.af-cards-row{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:14px;}
+@media(max-width:900px){.af-cards-row{grid-template-columns:repeat(2,1fr);}}
+
+/* ── BARRA META ── */
+.meta-bar-wrap{margin-top:3px;}
+.meta-bar-track{background:var(--bg3);border-radius:3px;height:5px;overflow:hidden;min-width:80px;}
+.meta-bar-fill{height:100%;border-radius:3px;transition:width .4s;}
+.meta-pct{font-size:9px;font-weight:700;margin-left:5px;white-space:nowrap;}
+.meta-ok{color:var(--green);}
+.meta-warn{color:var(--yellow);}
+.meta-low{color:#ef4444;}
 </style>
 </head>
 <body>
@@ -167,6 +190,10 @@ tr:hover td{background:rgba(255,255,255,0.025);}
     <div class="fg"><span class="fl">Cliente</span><select id="f-cli"><option value="">Todos</option></select></div>
     <button class="btn-reset" onclick="resetFilters()">↺ Limpar</button>
   </div>
+  <div class="nav-tabs">
+    <button class="nav-tab active" id="tab-vendas" onclick="switchPage('vendas')">📊 Vendas</button>
+    <button class="nav-tab af-tab" id="tab-afaturar" onclick="switchPage('afaturar')">🧾 A Faturar</button>
+  </div>
   <div class="sync-area">
     <div class="sync-badge"><span id="sync-dot"></span><span id="sync-txt">...</span></div>
     <div id="last-update"></div>
@@ -181,12 +208,41 @@ tr:hover td{background:rgba(255,255,255,0.025);}
   <div class="card cg"><div class="card-label">Clientes Atendidos</div><div class="card-value" id="c-cli">0</div><div class="card-sub">únicos no período</div></div>
   <div class="card cc2"><div class="card-label">Total de Pedidos</div><div class="card-value" id="c-ped">0</div><div class="card-sub" id="c-ped-itens">0 itens</div></div>
   <div class="card cy"><div class="card-label" id="card-dias-mes">Dias Úteis</div><div class="card-value" id="c-dias-uteis">–</div><div class="card-sub2" id="c-dias-falt"></div><div class="card-sub" id="c-dias-info"></div></div>
+  <!-- NOVO: Meta Valor -->
+  <div class="card" style="border-top:2px solid #a855f7;background:var(--bg2);">
+    <div class="card-label">🎯 Meta Mês (Valor)</div>
+    <div class="card-value" id="c-meta-val" style="font-size:14px;">–</div>
+    <div style="margin-top:4px;">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2);margin-bottom:2px;">
+        <span id="c-meta-real-lbl">Realizado</span><span id="c-meta-pct-lbl">–</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:5px;overflow:hidden;">
+        <div id="c-meta-bar" style="height:100%;border-radius:3px;width:0%;transition:width .5s;background:var(--green);"></div>
+      </div>
+    </div>
+    <div class="card-sub" id="c-meta-sub">–</div>
+  </div>
+  <!-- NOVO: Positivação -->
+  <div class="card" style="border-top:2px solid #06b6d4;background:var(--bg2);">
+    <div class="card-label">👥 Positivação Mês</div>
+    <div class="card-value" id="c-positiv-val" style="font-size:14px;">–</div>
+    <div style="margin-top:4px;">
+      <div style="display:flex;justify-content:space-between;font-size:9px;color:var(--text2);margin-bottom:2px;">
+        <span>Real / Meta acum.</span><span id="c-positiv-pct">–</span>
+      </div>
+      <div style="background:var(--bg3);border-radius:3px;height:5px;overflow:hidden;">
+        <div id="c-positiv-bar" style="height:100%;border-radius:3px;width:0%;transition:width .5s;background:var(--cyan);"></div>
+      </div>
+    </div>
+    <div class="card-sub" id="c-positiv-sub">–</div>
+  </div>
 </div>
 
 <!-- SPACER -->
 <div class="page-spacer" id="page-spacer"></div>
 
-<!-- MAIN -->
+<!-- PÁGINA: VENDAS -->
+<div class="page-section active" id="page-vendas">
 <div class="main">
 
   <!-- SEMANAS -->
@@ -254,13 +310,14 @@ tr:hover td{background:rgba(255,255,255,0.025);}
     <div class="ct">👑 Por Supervisor</div>
     <div class="tbl-scroll"><table id="t-sup"><thead><tr>
       <th onclick="srt('t-sup',0)">Supervisor</th>
-      <th class="num" onclick="srt('t-sup',1,'n')">Valor</th>
-      <th class="num" onclick="srt('t-sup',2,'n')">Pedidos</th>
-      <th class="num" onclick="srt('t-sup',3,'n')">Ticket Médio</th>
-      <th class="num" onclick="srt('t-sup',4,'n')">Clientes</th>
-      <th class="num" onclick="srt('t-sup',5,'n')">Ticket/Cliente</th>
-      <th class="num" onclick="srt('t-sup',6,'n')">Peso Liq.</th>
-      <th class="num" onclick="srt('t-sup',7,'n')">Vendedores</th>
+      <th class="num" onclick="srt('t-sup',1,'n')">Realizado</th>
+      <th class="num" onclick="srt('t-sup',2,'n')">Meta Prop.</th>
+      <th class="num" colspan="2">% Atingimento</th>
+      <th class="num" onclick="srt('t-sup',5,'n')">Posit. Real</th>
+      <th class="num" onclick="srt('t-sup',6,'n')">Posit. Meta</th>
+      <th class="num" onclick="srt('t-sup',7,'n')">Pedidos</th>
+      <th class="num" onclick="srt('t-sup',8,'n')">Ticket Médio</th>
+      <th class="num" onclick="srt('t-sup',9,'n')">Vendedores</th>
     </tr></thead><tbody id="tb-sup"></tbody></table></div>
   </div>
 
@@ -269,12 +326,14 @@ tr:hover td{background:rgba(255,255,255,0.025);}
     <div class="ct">👤 Por Vendedor <span class="expand-hint">(clique para ver pedidos)</span></div>
     <div class="tbl-scroll"><table id="t-vend"><thead><tr>
       <th onclick="srt('t-vend',0)">Vendedor</th>
-      <th class="num" onclick="srt('t-vend',1,'n')">Valor</th>
-      <th class="num" onclick="srt('t-vend',2,'n')">Pedidos</th>
-      <th class="num" onclick="srt('t-vend',3,'n')">Ticket</th>
-      <th class="num" onclick="srt('t-vend',4,'n')">Clientes</th>
-      <th class="num" onclick="srt('t-vend',5,'n')">Ticket/Cliente</th>
-      <th class="num" onclick="srt('t-vend',6,'n')">Peso Liq.</th>
+      <th class="num" onclick="srt('t-vend',1,'n')">Realizado</th>
+      <th class="num" onclick="srt('t-vend',2,'n')">Meta Prop.</th>
+      <th class="num" colspan="2">% Atingimento</th>
+      <th class="num" onclick="srt('t-vend',5,'n')">Posit. Real</th>
+      <th class="num" onclick="srt('t-vend',6,'n')">Posit. Meta</th>
+      <th class="num" onclick="srt('t-vend',7,'n')">Pedidos</th>
+      <th class="num" onclick="srt('t-vend',8,'n')">Ticket</th>
+      <th class="num" onclick="srt('t-vend',9,'n')">Peso Liq.</th>
     </tr></thead><tbody id="tb-vend"></tbody></table></div>
   </div>
 
@@ -371,6 +430,122 @@ tr:hover td{background:rgba(255,255,255,0.025);}
   </div>
 
 </div><!-- /main -->
+</div><!-- /page-vendas -->
+
+<!-- PÁGINA: A FATURAR -->
+<div class="page-section" id="page-afaturar">
+<div class="main">
+
+  <div class="sec-label" style="font-size:12px;color:var(--accent2);letter-spacing:.1em;margin-bottom:16px;">🧾 VENDAS A FATURAR</div>
+
+  <!-- CARDS RESUMO -->
+  <div class="af-cards-row">
+    <div class="card co">
+      <div class="card-label">Valor a Faturar</div>
+      <div class="card-value" id="af-total">R$ 0</div>
+      <div class="card-sub" id="af-total-sub">– itens</div>
+    </div>
+    <div class="card cp">
+      <div class="card-label">Pedidos a Faturar</div>
+      <div class="card-value" id="af-peds">0</div>
+      <div class="card-sub">pedidos distintos</div>
+    </div>
+    <div class="card cg">
+      <div class="card-label">Clientes a Faturar</div>
+      <div class="card-value" id="af-clis">0</div>
+      <div class="card-sub">clientes distintos</div>
+    </div>
+    <div class="card cc2">
+      <div class="card-label">Volume / Qtd</div>
+      <div class="card-value" id="af-qt">0</div>
+      <div class="card-sub">unidades / kg</div>
+    </div>
+  </div>
+
+  <!-- FILTROS -->
+  <div style="display:flex;gap:7px;flex-wrap:wrap;align-items:flex-end;margin-bottom:14px;background:var(--bg2);border:1px solid var(--border);border-radius:10px;padding:10px 12px;">
+    <div class="fg"><span class="fl">Filial</span><select id="af-f-fil"><option value="">Todas</option></select></div>
+    <div class="fg"><span class="fl">Supervisor</span><select id="af-f-sup"><option value="">Todos</option></select></div>
+    <div class="fg"><span class="fl">Vendedor</span><select id="af-f-vend"><option value="">Todos</option></select></div>
+    <div class="fg"><span class="fl">Departamento</span><select id="af-f-dep"><option value="">Todos</option></select></div>
+    <div class="fg"><span class="fl">Cliente</span><select id="af-f-cli"><option value="">Todos</option></select></div>
+    <button class="btn-reset" onclick="afReset()">↺ Limpar</button>
+  </div>
+
+  <!-- DEPTO + SUPERVISOR -->
+  <div class="g2" style="margin-bottom:14px;">
+    <div class="cc">
+      <div class="ct">🏢 Por Departamento</div>
+      <div class="tbl-scroll">
+        <table id="af-t-dep"><thead><tr>
+          <th onclick="srt('af-t-dep',0)">Departamento</th>
+          <th class="num" onclick="srt('af-t-dep',1,'n')">Valor</th>
+          <th class="num" onclick="srt('af-t-dep',2,'n')">Pedidos</th>
+          <th class="num" onclick="srt('af-t-dep',3,'n')">Clientes</th>
+          <th class="num" onclick="srt('af-t-dep',4,'n')">Qtd</th>
+        </tr></thead><tbody id="af-tb-dep"></tbody></table>
+      </div>
+    </div>
+    <div class="cc">
+      <div class="ct">👑 Por Supervisor</div>
+      <div class="tbl-scroll">
+        <table id="af-t-sup"><thead><tr>
+          <th onclick="srt('af-t-sup',0)">Supervisor</th>
+          <th class="num" onclick="srt('af-t-sup',1,'n')">Valor</th>
+          <th class="num" onclick="srt('af-t-sup',2,'n')">Pedidos</th>
+          <th class="num" onclick="srt('af-t-sup',3,'n')">Clientes</th>
+          <th class="num" onclick="srt('af-t-sup',4,'n')">Vendedores</th>
+        </tr></thead><tbody id="af-tb-sup"></tbody></table>
+      </div>
+    </div>
+  </div>
+
+  <!-- VENDEDOR -->
+  <div class="cc" style="margin-bottom:14px;">
+    <div class="ct">👤 Por Vendedor</div>
+    <div class="tbl-scroll">
+      <table id="af-t-vend"><thead><tr>
+        <th onclick="srt('af-t-vend',0)">Vendedor</th>
+        <th class="num" onclick="srt('af-t-vend',1,'n')">Valor</th>
+        <th class="num" onclick="srt('af-t-vend',2,'n')">Pedidos</th>
+        <th class="num" onclick="srt('af-t-vend',3,'n')">Clientes</th>
+        <th class="num" onclick="srt('af-t-vend',4,'n')">Qtd</th>
+      </tr></thead><tbody id="af-tb-vend"></tbody></table>
+    </div>
+  </div>
+
+  <!-- CLIENTES -->
+  <div class="cc" style="margin-bottom:14px;">
+    <div class="ct">🏪 Por Cliente</div>
+    <div class="tbl-scroll" style="max-height:420px;">
+      <table id="af-t-cli"><thead><tr>
+        <th onclick="srt('af-t-cli',0)">Cod</th>
+        <th onclick="srt('af-t-cli',1)">Cliente</th>
+        <th onclick="srt('af-t-cli',2)">Vendedor</th>
+        <th onclick="srt('af-t-cli',3)">Supervisor</th>
+        <th class="num" onclick="srt('af-t-cli',4,'n')">Valor</th>
+        <th class="num" onclick="srt('af-t-cli',5,'n')">Pedidos</th>
+        <th class="num" onclick="srt('af-t-cli',6,'n')">Qtd</th>
+      </tr></thead><tbody id="af-tb-cli"></tbody></table>
+    </div>
+  </div>
+
+  <!-- PREV FATURAMENTO -->
+  <div class="cc" style="margin-bottom:14px;">
+    <div class="ct">📅 Por Previsão de Faturamento</div>
+    <div class="tbl-scroll">
+      <table id="af-t-prev"><thead><tr>
+        <th onclick="srt('af-t-prev',0)">Previsão</th>
+        <th class="num" onclick="srt('af-t-prev',1,'n')">Valor</th>
+        <th class="num" onclick="srt('af-t-prev',2,'n')">Pedidos</th>
+        <th class="num" onclick="srt('af-t-prev',3,'n')">Clientes</th>
+      </tr></thead><tbody id="af-tb-prev"></tbody></table>
+    </div>
+  </div>
+
+  <div style="text-align:right;font-size:10px;color:var(--text2);margin-bottom:8px;" id="af-last-update"></div>
+</div><!-- /main af -->
+</div><!-- /page-afaturar -->
 
 <script>
 const SB_URL='https://ctbbyhjjskvgxodshhhc.supabase.co';
@@ -575,6 +750,70 @@ function renderCards(data){
   g('c-ticketcli').textContent=fmt(clis?total/clis:0);g('c-ticketcli-q').textContent=clis.toLocaleString()+' clientes';
   g('c-cli').textContent=clis.toLocaleString();
   g('c-ped').textContent=(peds||data.length).toLocaleString();g('c-ped-itens').textContent=data.length.toLocaleString()+' itens';
+  renderMetaCards(total, clis);
+}
+
+function renderMetaCards(realizado, clisReais){
+  if(!METAS.length) return;
+  const from=g('f-from').value, to=g('f-to').value;
+  if(!from||!to) return;
+  const ano=parseInt(from.slice(0,4)), mes=parseInt(from.slice(5,7));
+  const hoje=new Date();
+  const mesAtual=hoje.getFullYear()===ano&&(hoje.getMonth()+1)===mes;
+  const linhasMes=METAS.filter(r=>r.num_mes===mes&&r.num_ano===ano);
+  const porVendedor={};
+  linhasMes.forEach(r=>{
+    const k=r.codrca;const m=parseFloat(r.meta||0);const p=parseInt(r.positivacao||0);
+    if(!porVendedor[k]||m>porVendedor[k].meta) porVendedor[k]={meta:m,positivacao:p};
+  });
+  const metaValorMes=Object.values(porVendedor).reduce((s,v)=>s+v.meta,0);
+  const metaPositivMes=Object.values(porVendedor).reduce((s,v)=>s+v.positivacao,0);
+  if(metaValorMes>0){
+    const duMes=diasUteisMes(ano,mes);
+    const mesStart=ano+'-'+String(mes).padStart(2,'0')+'-01';
+    const last=new Date(ano,mes,0).getDate();
+    const mesEnd=ano+'-'+String(mes).padStart(2,'0')+'-'+String(last).padStart(2,'0');
+    const intFrom=from>mesStart?from:mesStart;
+    const intTo=to<mesEnd?to:mesEnd;
+    const metaProp=metaValorMes*(duMes>0?diasUteisRange(intFrom,intTo)/duMes:1);
+    const pct=realizado/metaProp*100;
+    const cor=pct>=100?'var(--green)':pct>=70?'var(--yellow)':'#ef4444';
+    g('c-meta-val').textContent=fmt(metaProp);
+    g('c-meta-real-lbl').textContent=fmt(realizado);
+    g('c-meta-pct-lbl').textContent=pct.toFixed(1)+'%';
+    g('c-meta-bar').style.width=Math.min(pct,100)+'%';
+    g('c-meta-bar').style.background=cor;
+    g('c-meta-sub').textContent='Meta mês: '+fmt(metaValorMes);
+  }
+  if(metaPositivMes>0){
+    const duMes=diasUteisMes(ano,mes);
+    const hojeStr=hoje.toISOString().slice(0,10);
+    // Usa meta acumulada por DU só se o período termina ANTES de hoje
+    // Se to >= hoje (mês todo ou futuro), compara com meta total do mês
+    const periodoFechado=to<hojeStr;
+    if(mesAtual&&periodoFechado){
+      // Período parcial passado: meta acumulada até o DU do "to"
+      const duAtual=getDuAtual(to)||1;
+      const metaAcum=getMetaPositivAcum(metaPositivMes,duAtual,duMes);
+      const pct=metaAcum>0?clisReais/metaAcum*100:0;
+      const cor=pct>=100?'var(--green)':pct>=70?'var(--yellow)':'#ef4444';
+      g('c-positiv-val').textContent=clisReais.toLocaleString()+' / '+metaAcum.toLocaleString();
+      g('c-positiv-pct').textContent=pct.toFixed(1)+'%';
+      g('c-positiv-bar').style.width=Math.min(pct,100)+'%';
+      g('c-positiv-bar').style.background=cor;
+      g('c-positiv-sub').textContent='Meta mês: '+metaPositivMes.toLocaleString()+' DU'+duAtual+'/'+duMes;
+    } else {
+      // Mês todo ou período futuro: compara com meta total do mês
+      const pct=clisReais/metaPositivMes*100;
+      const cor=pct>=100?'var(--green)':pct>=70?'var(--yellow)':'#ef4444';
+      g('c-positiv-val').textContent=clisReais.toLocaleString()+' / '+metaPositivMes.toLocaleString();
+      g('c-positiv-pct').textContent=pct.toFixed(1)+'%';
+      g('c-positiv-bar').style.width=Math.min(pct,100)+'%';
+      g('c-positiv-bar').style.background=cor;
+      const label=mesAtual?'Meta mês (total): ':'Meta mês: ';
+      g('c-positiv-sub').textContent=label+metaPositivMes.toLocaleString();
+    }
+  }
 }
 
 function renderWeeks(data){
@@ -735,10 +974,11 @@ function renderRamo(data){
 
 // ── SUPERVISOR ──
 function renderSupervisor(data){
+  const from=g('f-from').value,to=g('f-to').value;
   const m={};
   data.forEach(r=>{
     const k=r.codsupervisor!=null?r.codsupervisor:(r.supervisor||'N/A');
-    if(!m[k])m[k]={nome:r.supervisor||'N/A',val:0,peds:new Set(),clis:new Set(),vends:new Set(),pl:0};
+    if(!m[k])m[k]={nome:r.supervisor||'N/A',cod:r.codsupervisor,val:0,peds:new Set(),clis:new Set(),vends:new Set(),pl:0};
     m[k].val+=vf(r);m[k].pl+=parseFloat(r.peso_liquido||0);
     if(r.pedido!=null)m[k].peds.add(r.pedido);
     if(r.codcli!=null)m[k].clis.add(r.codcli);
@@ -746,25 +986,31 @@ function renderSupervisor(data){
   });
   const rows=Object.values(m).sort((a,b)=>b.val-a.val);
   const tb=g('tb-sup');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="8" class="empty">Sem dados</td></tr>';return;}
-  tb.innerHTML=rows.map(x=>`<tr>
-    <td>${x.nome}</td>
-    <td class="num vval" data-val="${x.val}">${fmt(x.val)}</td>
-    <td class="num" data-val="${x.peds.size}">${x.peds.size.toLocaleString()}</td>
-    <td class="num" data-val="${x.peds.size?x.val/x.peds.size:0}">${fmt(x.peds.size?x.val/x.peds.size:0)}</td>
-    <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
-    <td class="num" data-val="${x.clis.size?x.val/x.clis.size:0}">${fmt(x.clis.size?x.val/x.clis.size:0)}</td>
-    <td class="num" data-val="${x.pl}">${x.pl.toFixed(2)}</td>
-    <td class="num" data-val="${x.vends.size}">${x.vends.size}</td>
-  </tr>`).join('');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="10" class="empty">Sem dados</td></tr>';return;}
+  tb.innerHTML=rows.map(x=>{
+    const{meta,positivacao}=getMetaProporcional(x.cod,'supervisor',from,to);
+    const bar=metaBarHtml(x.val,meta);
+    return`<tr>
+      <td>${x.nome}</td>
+      <td class="num vval" data-val="${x.val}">${fmt(x.val)}</td>
+      <td class="num" data-val="${meta}">${meta>0?fmt(meta):'–'}</td>
+      <td class="num" colspan="2" data-val="${meta>0?x.val/meta:0}">${bar||'–'}</td>
+      <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
+      <td class="num" data-val="${positivacao}">${positivacao>0?positivacao:'–'}</td>
+      <td class="num" data-val="${x.peds.size}">${x.peds.size.toLocaleString()}</td>
+      <td class="num" data-val="${x.peds.size?x.val/x.peds.size:0}">${fmt(x.peds.size?x.val/x.peds.size:0)}</td>
+      <td class="num" data-val="${x.vends.size}">${x.vends.size}</td>
+    </tr>`;
+  }).join('');
 }
 
 // ── VENDEDOR com expand de pedidos ──
 function renderVendedor(data){
+  const from=g('f-from').value,to=g('f-to').value;
   const m={};
   data.forEach(r=>{
     const k=r.codrca!=null?r.codrca:(r.rca||'N/A');
-    if(!m[k])m[k]={nome:r.rca||'N/A',val:0,peds:new Set(),clis:new Set(),pl:0,itens:[]};
+    if(!m[k])m[k]={nome:r.rca||'N/A',cod:r.codrca,val:0,peds:new Set(),clis:new Set(),pl:0,itens:[]};
     m[k].val+=vf(r);m[k].pl+=parseFloat(r.peso_liquido||0);
     if(r.pedido!=null)m[k].peds.add(r.pedido);
     if(r.codcli!=null)m[k].clis.add(r.codcli);
@@ -772,10 +1018,12 @@ function renderVendedor(data){
   });
   const rows=Object.values(m).sort((a,b)=>b.val-a.val);
   const tb=g('tb-vend');
-  if(!rows.length){tb.innerHTML='<tr><td colspan="7" class="empty">Sem dados</td></tr>';return;}
+  if(!rows.length){tb.innerHTML='<tr><td colspan="10" class="empty">Sem dados</td></tr>';return;}
   let html='';
   rows.forEach((x,i)=>{
     const eid='evend-'+i;
+    const{meta,positivacao}=getMetaProporcional(x.cod,'rca',from,to);
+    const bar=metaBarHtml(x.val,meta);
     // agrupa por pedido
     const pm={};
     x.itens.forEach(r=>{
@@ -787,14 +1035,16 @@ function renderVendedor(data){
     html+=`<tr class="clickable-row" onclick="toggleExp('${eid}',this)">
       <td>▶ ${x.nome}</td>
       <td class="num vval" data-val="${x.val}">${fmt(x.val)}</td>
+      <td class="num" data-val="${meta}">${meta>0?fmt(meta):'–'}</td>
+      <td class="num" colspan="2" data-val="${meta>0?x.val/meta:0}">${bar||'–'}</td>
+      <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
+      <td class="num" data-val="${positivacao}">${positivacao>0?positivacao:'–'}</td>
       <td class="num" data-val="${x.peds.size}">${x.peds.size.toLocaleString()}</td>
       <td class="num" data-val="${x.peds.size?x.val/x.peds.size:0}">${fmt(x.peds.size?x.val/x.peds.size:0)}</td>
-      <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
-      <td class="num" data-val="${x.clis.size?x.val/x.clis.size:0}">${fmt(x.clis.size?x.val/x.clis.size:0)}</td>
       <td class="num" data-val="${x.pl}">${x.pl.toFixed(2)}</td>
     </tr>
     <tr class="expand-row" id="${eid}">
-      <td colspan="7" class="expand-cell"><div class="expand-inner">
+      <td colspan="10" class="expand-cell"><div class="expand-inner">
         <table id="etvend-${i}"><thead><tr>
           <th onclick="srt2('etvend-${i}',0,'n')">Pedido</th>
           <th onclick="srt2('etvend-${i}',1)">Data</th>
@@ -1223,8 +1473,315 @@ function buscaProd(){
   </tr>`).join('');
 }
 
+// ══════════════════════════════════════════════════════════
+// MÓDULO: METAS
+// ══════════════════════════════════════════════════════════
+let METAS=[];
+
+// Pesos históricos de positivação por DU (baseado em Fev/Mar/Abr 2026)
+// Representa a % de clientes únicos mensais que compram em cada DU
+const PESOS_POSITIV={
+  1:0.05553, 2:0.04679, 3:0.05570, 4:0.06653, 5:0.03765,
+  6:0.05573, 7:0.04098, 8:0.05222, 9:0.06851,10:0.03639,
+ 11:0.05644,12:0.04580,13:0.04851,14:0.06151,15:0.05037,
+ 16:0.04017,17:0.06093,18:0.03896,19:0.05750,20:0.02379,
+ 21:0.05800,22:0.04800
+};
+
+// Retorna o número do DU de uma data dentro do mês dela
+function getDuAtual(dateStr){
+  if(!dateStr) return null;
+  const d=new Date(dateStr+'T12:00:00');
+  const ano=d.getFullYear(), mes=d.getMonth()+1;
+  let du=0;
+  for(let day=1;day<=d.getDate();day++){
+    const s=`${ano}-${String(mes).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+    if(isUtil(s)) du++;
+  }
+  return du||null;
+}
+
+// Meta de positivação acumulada até o DU atual
+function getMetaPositivAcum(metaMes, duAtual, totalDuMes){
+  if(!metaMes||!duAtual) return 0;
+  // Soma pesos até duAtual, normalizando para o total de DU do mês
+  let soma=0;
+  for(let i=1;i<=duAtual;i++){
+    const p=PESOS_POSITIV[i]||0.045; // fallback média
+    soma+=p;
+  }
+  // Normaliza pelo total de pesos do mês
+  let somaTotal=0;
+  for(let i=1;i<=totalDuMes;i++) somaTotal+=PESOS_POSITIV[i]||0.045;
+  return Math.round(metaMes * (soma/somaTotal));
+}
+
+async function loadMetas(){
+  try{
+    const{data,error}=await sb.from('metas').select('*');
+    if(error)throw error;
+    METAS=data||[];
+  }catch(e){console.error('Metas erro:',e);}
+}
+
+// Calcula dias úteis entre duas datas (inclusive)
+function diasUteisRange(from,to){
+  let count=0,cur=new Date(from+'T12:00:00');
+  const end=new Date(to+'T12:00:00');
+  while(cur<=end){
+    const s=cur.toISOString().slice(0,10);
+    if(isUtil(s))count++;
+    cur.setDate(cur.getDate()+1);
+  }
+  return count;
+}
+
+// Dias úteis totais de um mês
+function diasUteisMes(ano,mes){
+  const last=new Date(ano,mes,0).getDate();
+  const from=`${ano}-${String(mes).padStart(2,'0')}-01`;
+  const to=`${ano}-${String(mes).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+  return diasUteisRange(from,to);
+}
+
+// Retorna meta proporcional ao período selecionado para um codrca ou codsupervisor
+// tipo: 'rca' | 'supervisor' | '_empresa_' (passa metaDireta)
+function getMetaProporcional(codKey,tipo,fromStr,toStr,metaDireta){
+  if(!fromStr||!toStr) return{meta:0,positivacao:0};
+  if(tipo!=='_empresa_'&&!METAS.length) return{meta:0,positivacao:0};
+
+  const fromD=new Date(fromStr+'T12:00:00');
+  const toD=new Date(toStr+'T12:00:00');
+
+  let metaTotal=0,positTotal=0;
+  let cur=new Date(fromD.getFullYear(),fromD.getMonth(),1);
+  while(cur<=toD){
+    const ano=cur.getFullYear();
+    const mes=cur.getMonth()+1;
+
+    let metaMes=0,positMes=0;
+    if(tipo==='_empresa_'){
+      metaMes=metaDireta||0;
+    } else {
+      const linhas=METAS.filter(r=>{
+        if(r.num_mes!==mes||r.num_ano!==ano)return false;
+        if(tipo==='rca')return r.codrca===codKey;
+        if(tipo==='supervisor')return r.codsupervisor===codKey;
+        return false;
+      });
+      if(linhas.length){
+        metaMes=linhas.reduce((s,r)=>s+parseFloat(r.meta||0),0);
+        positMes=linhas.reduce((s,r)=>s+parseInt(r.positivacao||0),0);
+      }
+    }
+
+    if(metaMes>0){
+      const duMes=diasUteisMes(ano,mes);
+      const mesStart=`${ano}-${String(mes).padStart(2,'0')}-01`;
+      const last=new Date(ano,mes,0).getDate();
+      const mesEnd=`${ano}-${String(mes).padStart(2,'0')}-${String(last).padStart(2,'0')}`;
+      const intFrom=fromStr>mesStart?fromStr:mesStart;
+      const intTo=toStr<mesEnd?toStr:mesEnd;
+      const duPeriodo=diasUteisRange(intFrom,intTo);
+      const prop=duMes>0?duPeriodo/duMes:0;
+      metaTotal+=metaMes*prop;
+      positTotal+=positMes*prop;
+    }
+    cur.setMonth(cur.getMonth()+1);
+  }
+  return{meta:metaTotal,positivacao:Math.round(positTotal)};
+}
+
+function metaBarHtml(realizado,meta){
+  if(!meta||meta<=0)return'';
+  const pct=Math.min(realizado/meta*100,150);
+  const pctLabel=(realizado/meta*100).toFixed(1)+'%';
+  const cls=pct>=100?'meta-ok':pct>=70?'meta-warn':'meta-low';
+  const barColor=pct>=100?'var(--green)':pct>=70?'var(--yellow)':'#ef4444';
+  return`<div class="meta-bar-wrap" style="display:flex;align-items:center;gap:4px;">
+    <div class="meta-bar-track" style="flex:1"><div class="meta-bar-fill" style="width:${Math.min(pct,100)}%;background:${barColor}"></div></div>
+    <span class="meta-pct ${cls}">${pctLabel}</span>
+  </div>`;
+}
+
+loadMetas();
 loadData();
 setInterval(loadData,10*60*1000);
+setInterval(loadMetas,30*60*1000);
+
+// ══════════════════════════════════════════════════════════
+// NAVEGAÇÃO ENTRE PÁGINAS
+// ══════════════════════════════════════════════════════════
+function switchPage(page){
+  document.querySelectorAll('.page-section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
+  document.getElementById('page-'+page).classList.add('active');
+  document.getElementById('tab-'+page).classList.add('active');
+  // Esconde/mostra cards fixos e filtros de data (não se aplicam ao A Faturar)
+  const isVendas = page==='vendas';
+  document.getElementById('cards-fixed').style.display = isVendas?'':'none';
+  // Ajusta spacer
+  adjustSpacer();
+  if(page==='afaturar' && AF_ALL.length===0) loadAfaturar();
+}
+
+// ══════════════════════════════════════════════════════════
+// MÓDULO: VENDAS A FATURAR
+// ══════════════════════════════════════════════════════════
+let AF_ALL=[];
+
+async function loadAfaturar(){
+  try{
+    // Período: hoje → último dia do mês corrente
+    const now=new Date();
+    const today=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(now.getDate()).padStart(2,'0');
+    const lastDay=new Date(now.getFullYear(),now.getMonth()+1,0).getDate();
+    const endOfMonth=now.getFullYear()+'-'+String(now.getMonth()+1).padStart(2,'0')+'-'+String(lastDay).padStart(2,'0');
+
+    let all=[],from=0,ps=1000;
+    while(true){
+      const{data,error}=await sb
+        .from('vendas_afaturar')
+        .select('codfilial,filial,prev_faturamento,pedido,codprod,descricao,codepto,departamento,qt,codrca,codsupervisor,supervisor,rca,codcli,cliente,valor_a_faturar')
+        .gte('prev_faturamento',today)
+        .lte('prev_faturamento',endOfMonth)
+        .range(from,from+ps-1);
+      if(error)throw error;
+      if(!data||data.length===0)break;
+      all=[...all,...data];
+      if(data.length<ps)break;
+      from+=ps;
+    }
+    AF_ALL=all;
+    afPopFilters();
+    afRender();
+    const el=document.getElementById('af-last-update');
+    if(el)el.textContent='Atualizado: '+new Date().toLocaleTimeString('pt-BR')+' · '+AF_ALL.length.toLocaleString()+' itens';
+  }catch(e){
+    console.error('AF erro:',e);
+    const el=document.getElementById('af-last-update');
+    if(el)el.textContent='Erro ao carregar: '+e.message;
+  }
+}
+
+function afGetF(){
+  const fil=g('af-f-fil').value,sup=g('af-f-sup').value,
+        vend=g('af-f-vend').value,dep=g('af-f-dep').value,
+        cli=g('af-f-cli').value;
+  return AF_ALL.filter(r=>{
+    if(fil&&r.filial!==fil)return false;
+    if(sup&&r.supervisor!==sup)return false;
+    if(vend&&r.rca!==vend)return false;
+    if(dep&&r.departamento!==dep)return false;
+    if(cli&&r.cliente!==cli)return false;
+    return true;
+  });
+}
+
+function afFill(id,opts){
+  const el=g(id),cur=el.value;
+  el.innerHTML='<option value="">Todos</option>';
+  opts.forEach(o=>{const op=document.createElement('option');op.value=op.textContent=o;el.appendChild(op);});
+  if(cur&&opts.includes(cur))el.value=cur;
+}
+
+function afPopFilters(){
+  afFill('af-f-fil',[...new Set(AF_ALL.map(r=>r.filial).filter(Boolean))].sort());
+  afFill('af-f-sup',[...new Set(AF_ALL.map(r=>r.supervisor).filter(Boolean))].sort());
+  afFill('af-f-vend',[...new Set(AF_ALL.map(r=>r.rca).filter(Boolean))].sort());
+  afFill('af-f-dep',[...new Set(AF_ALL.map(r=>r.departamento).filter(Boolean))].sort());
+  afFill('af-f-cli',[...new Set(AF_ALL.map(r=>r.cliente).filter(Boolean))].sort());
+}
+
+function afReset(){
+  ['af-f-fil','af-f-sup','af-f-vend','af-f-dep','af-f-cli'].forEach(id=>g(id).value='');
+  afRender();
+}
+
+['af-f-fil','af-f-vend','af-f-dep','af-f-cli'].forEach(id=>g(id).addEventListener('change',afRender));
+g('af-f-sup').addEventListener('change',()=>{
+  const v=g('af-f-sup').value;
+  afFill('af-f-vend',[...new Set((v?AF_ALL.filter(r=>r.supervisor===v):AF_ALL).map(r=>r.rca).filter(Boolean))].sort());
+  g('af-f-vend').value='';afRender();
+});
+
+const afv=r=>parseFloat(r.valor_a_faturar||0);
+const afqt=r=>parseFloat(r.qt||0);
+
+function afRender(){
+  const data=afGetF();
+  const total=data.reduce((s,r)=>s+afv(r),0);
+  const peds=new Set(data.map(r=>r.pedido).filter(x=>x!=null)).size;
+  const clis=new Set(data.map(r=>r.codcli).filter(x=>x!=null)).size;
+  const qt=data.reduce((s,r)=>s+afqt(r),0);
+  g('af-total').textContent=fmt(total);
+  g('af-total-sub').textContent=data.length.toLocaleString()+' itens';
+  g('af-peds').textContent=peds.toLocaleString();
+  g('af-clis').textContent=clis.toLocaleString();
+  g('af-qt').textContent=qt.toLocaleString('pt-BR',{maximumFractionDigits:0});
+
+  // Por Departamento
+  const mDep={};
+  data.forEach(r=>{
+    const k=r.departamento||'N/A';
+    if(!mDep[k])mDep[k]={val:0,peds:new Set(),clis:new Set(),qt:0};
+    mDep[k].val+=afv(r);mDep[k].qt+=afqt(r);
+    if(r.pedido!=null)mDep[k].peds.add(r.pedido);
+    if(r.codcli!=null)mDep[k].clis.add(r.codcli);
+  });
+  g('af-tb-dep').innerHTML=Object.entries(mDep).sort((a,b)=>b[1].val-a[1].val)
+    .map(([k,v])=>`<tr><td>${k}</td><td class="num vval">${fmt(v.val)}</td><td class="num">${v.peds.size}</td><td class="num">${v.clis.size}</td><td class="num">${v.qt.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sem dados</td></tr>';
+
+  // Por Supervisor
+  const mSup={};
+  data.forEach(r=>{
+    const k=r.codsupervisor!=null?r.codsupervisor:(r.supervisor||'N/A');
+    if(!mSup[k])mSup[k]={nome:r.supervisor||'N/A',val:0,peds:new Set(),clis:new Set(),vends:new Set()};
+    mSup[k].val+=afv(r);
+    if(r.pedido!=null)mSup[k].peds.add(r.pedido);
+    if(r.codcli!=null)mSup[k].clis.add(r.codcli);
+    if(r.codrca!=null)mSup[k].vends.add(r.codrca);
+  });
+  g('af-tb-sup').innerHTML=Object.values(mSup).sort((a,b)=>b.val-a.val)
+    .map(v=>`<tr><td>${v.nome}</td><td class="num vval">${fmt(v.val)}</td><td class="num">${v.peds.size}</td><td class="num">${v.clis.size}</td><td class="num">${v.vends.size}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sem dados</td></tr>';
+
+  // Por Vendedor
+  const mVend={};
+  data.forEach(r=>{
+    const k=r.codrca!=null?r.codrca:(r.rca||'N/A');
+    if(!mVend[k])mVend[k]={nome:r.rca||'N/A',val:0,peds:new Set(),clis:new Set(),qt:0};
+    mVend[k].val+=afv(r);mVend[k].qt+=afqt(r);
+    if(r.pedido!=null)mVend[k].peds.add(r.pedido);
+    if(r.codcli!=null)mVend[k].clis.add(r.codcli);
+  });
+  g('af-tb-vend').innerHTML=Object.values(mVend).sort((a,b)=>b.val-a.val)
+    .map(v=>`<tr><td>${v.nome}</td><td class="num vval">${fmt(v.val)}</td><td class="num">${v.peds.size}</td><td class="num">${v.clis.size}</td><td class="num">${v.qt.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="5" class="empty">Sem dados</td></tr>';
+
+  // Por Cliente
+  const mCli={};
+  data.forEach(r=>{
+    const k=r.codcli!=null?String(r.codcli):(r.cliente||'N/A');
+    if(!mCli[k])mCli[k]={cod:r.codcli||'-',nome:r.cliente||'N/A',vend:r.rca||'-',sup:r.supervisor||'-',val:0,peds:new Set(),qt:0};
+    mCli[k].val+=afv(r);mCli[k].qt+=afqt(r);
+    if(r.pedido!=null)mCli[k].peds.add(r.pedido);
+  });
+  g('af-tb-cli').innerHTML=Object.values(mCli).sort((a,b)=>b.val-a.val)
+    .map(v=>`<tr><td class="num">${v.cod}</td><td>${v.nome}</td><td>${v.vend}</td><td>${v.sup}</td><td class="num vval">${fmt(v.val)}</td><td class="num">${v.peds.size}</td><td class="num">${v.qt.toLocaleString('pt-BR',{maximumFractionDigits:0})}</td></tr>`).join('')||'<tr><td colspan="7" class="empty">Sem dados</td></tr>';
+
+  // Por Previsão de Faturamento
+  const mPrev={};
+  data.forEach(r=>{
+    const k=r.prev_faturamento?String(r.prev_faturamento).slice(0,10):'Sem previsão';
+    if(!mPrev[k])mPrev[k]={val:0,peds:new Set(),clis:new Set()};
+    mPrev[k].val+=afv(r);
+    if(r.pedido!=null)mPrev[k].peds.add(r.pedido);
+    if(r.codcli!=null)mPrev[k].clis.add(r.codcli);
+  });
+  g('af-tb-prev').innerHTML=Object.entries(mPrev).sort((a,b)=>a[0].localeCompare(b[0]))
+    .map(([k,v])=>`<tr><td>${k}</td><td class="num vval">${fmt(v.val)}</td><td class="num">${v.peds.size}</td><td class="num">${v.clis.size}</td></tr>`).join('')||'<tr><td colspan="4" class="empty">Sem dados</td></tr>';
+}
+
+setInterval(loadAfaturar,10*60*1000);
 </script>
 </body>
 </html>
