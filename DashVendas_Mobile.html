@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+  <script>
+  (function(){
+    try{
+      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
+      if(!a || !a.exp || Date.now() > a.exp){
+        location.replace('https://marfoodservice.github.io/MAR.IA/index_Hub.html');
+      }
+    }catch(e){
+      location.replace('https://marfoodservice.github.io/MAR.IA/index_Hub.html');
+    }
+  })();
+  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1.0,maximum-scale=1.0,user-scalable=no">
 <title>MAR Dashboard Mobile</title>
