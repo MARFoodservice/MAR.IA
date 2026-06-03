@@ -4,10 +4,10 @@
     try{
       var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
       if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index_Hub.html');
+        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
       }
     }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index_Hub.html');
+      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
     }
   })();
   </script>
