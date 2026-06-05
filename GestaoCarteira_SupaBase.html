@@ -1,16 +1,4 @@
 <html lang="pt-BR"><head>
-  <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>CarteiraPro — Gestão de Carteira</title>
@@ -1001,6 +989,9 @@ var FD_COMPRAS = (window.__FD_COMPRAS||{});
             style="background:var(--surf2);border:1px solid var(--brd);border-radius:8px;padding:7px 12px;color:var(--txt);font-size:12px;outline:none;width:180px"
             onfocus="this.style.borderColor='var(--acc)'" onblur="this.style.borderColor='var(--brd)'">
           <div id="rca-status-sheets" style="font-size:10px;color:var(--mut)">⏳ Carregando Sheets...</div>
+          <button onclick="abrirModalConexaoWA()" id="wa-status-btn" style="padding:5px 12px;font-size:10px;font-weight:700;border-radius:12px;background:rgba(37,211,102,.1);border:1px solid rgba(37,211,102,.3);color:#25D366;cursor:pointer;white-space:nowrap">
+            📱 Conectar WhatsApp
+          </button>
         </div>
       </div>
       <div id="rca-filtro-desc" style="margin-top:10px;padding:8px 12px;background:rgba(0,212,255,.05);border-radius:8px;border-left:3px solid var(--acc);font-size:11px;color:var(--mut);display:none"></div>
@@ -7614,60 +7605,266 @@ function gerarLinkWhatsApp(rcaNome, clientes, tel) {
   return 'https://web.whatsapp.com/send?text=' + encoded;
 }
 
-// ── URL da Evolution API ──
-var _EVOLUTION_API = 'https://plating-closure-cola.ngrok-free.dev/env/chat';
+// ── Evolution API config ──
+var _EVOLUTION_BASE = 'https://plating-closure-cola.ngrok-free.dev';
+// endpoint: /saaefc/{instance} — instância vem do cookie
+var _waConectado    = false;
 
-// ── Disparo via Evolution API — async/await padrão TI ──
-async function abrirWhatsApp(link, numero, clientes) {
-  if (numero && clientes) {
-    var mensagem = gerarMensagemWhatsApp(clientes, clientes._nomeRca || '');
-    try {
-      var response = await fetch(_EVOLUTION_API, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ numero: numero, message: mensagem })
-      });
-      var result = await response.text();
-      console.log('[Evolution API] resposta:', result);
-      toast('✅ Alerta enviado via WhatsApp!');
-    } catch(err) {
-      console.warn('[Evolution API] erro:', err, '— abrindo WhatsApp Web');
-      window.open(link, 'whatsapp_carteira');
-    }
-  } else {
-    window.open(link, 'whatsapp_carteira');
+// ── Verifica se já tem cookie instance (testa um ping) ──
+async function verificarConexaoWA() {
+  try {
+    var r = await fetch(_EVOLUTION_BASE + '/', { method: 'GET', credentials: 'include', mode: 'no-cors' });
+    // Se não lançou erro, assumimos que a sessão existe
+    // Lê cookie instance do domínio atual (só funciona se same-site)
+    var inst = getCookieInstance();
+    return inst;
+  } catch(e) { return null; }
+}
+
+function getCookieInstance() {
+  // 1. Tenta cookie direto
+  var match = document.cookie.match(/(?:^|;\s*)instance=([^;]+)/);
+  if (match) return decodeURIComponent(match[1]);
+  // 2. Fallback: localStorage (salvo via postMessage ou input manual)
+  try { var ls = localStorage.getItem('wa_instance'); if (ls) return ls; } catch(e) {}
+  return null;
+}
+
+// ── Modal de conexão WhatsApp ──
+function abrirModalConexaoWA(callbackAposConexao) {
+  // Fecha modal se já existe
+  var existing = document.getElementById('wa-modal-overlay');
+  if (existing) existing.remove();
+
+  var overlay = document.createElement('div');
+  overlay.id = 'wa-modal-overlay';
+  overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:9999;display:flex;align-items:center;justify-content:center';
+
+  var _instAtual = getCookieInstance();
+  var _instInfo = _instAtual
+    ? '<div style="background:rgba(37,211,102,.08);border:1px solid rgba(37,211,102,.25);border-radius:8px;padding:10px 12px;font-size:11px">'      + '<span style="color:#25D366">✅ Instância encontrada:</span> <strong style="color:var(--txt)">' + _instAtual + '</strong><br>'      + '<span style="color:var(--mut)">Já conectado. Se não funcionar, clique em Reconectar.</span></div>'
+    : '<p style="font-size:12px;color:var(--mut);margin:0">Para enviar alertas, faça login na plataforma e crie sua instância do WhatsApp.</p>';
+  overlay.innerHTML = '<div style="background:var(--surf);border:1px solid var(--brd);border-radius:16px;padding:32px;width:420px;max-width:90vw;display:flex;flex-direction:column;gap:14px">'
+    + '<div style="display:flex;align-items:center;gap:10px">'
+    + '<svg width="28" height="28" viewBox="0 0 24 24" fill="none"><path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413z" fill="#25D366"/><path d="M12 2C6.48 2 2 6.48 2 12c0 1.82.49 3.53 1.35 5.02L2 22l5.1-1.33C8.54 21.54 10.23 22 12 22c5.52 0 10-4.48 10-10S17.52 2 12 2zm0 18c-1.69 0-3.27-.46-4.63-1.26l-.33-.2-3.03.79.81-2.96-.22-.35C3.46 14.95 3 13.52 3 12 3 7.03 7.03 3 12 3s9 4.03 9 9-4.03 9-9 9z" fill="#25D366"/></svg>'
+    + '<span style="font-size:16px;font-weight:700;color:var(--txt)">Conectar WhatsApp</span>'
+    + '</div>'
+    + _instInfo
+    + '<button onclick="abrirPlataformaWA()" class="btn btn-ok" style="padding:12px;font-size:13px;font-weight:700">' + (_instAtual ? '🔄 Reconectar' : '🔗 Abrir plataforma de conexão') + '</button>'
+    + '<div id="wa-iframe-container" style="display:none;border-radius:8px;overflow:hidden;border:1px solid var(--brd)"><iframe id="wa-iframe" src="" style="width:100%;height:340px;border:none"></iframe></div>'
+    + '<div style="background:var(--surf2);border-radius:8px;padding:12px;font-size:11px;color:var(--mut)">'
+    + '<strong style="color:var(--txt)">Após conectar:</strong> volte aqui e clique em Verificar conexão.'
+    + '<br><br><span style="color:var(--txt)">Ou informe o nome da instância:</span>'
+    + '<div style="display:flex;gap:6px;margin-top:6px">'
+    + '<input id="wa-inst-input" placeholder="Ex: Lisandro_v1" style="flex:1;background:var(--surf);border:1px solid var(--brd);border-radius:6px;padding:6px 8px;color:var(--txt);font-size:11px;outline:none">'
+    + '<button onclick="salvarInstanciaManual()" class="btn btn-acc" style="padding:6px 12px;font-size:11px">Salvar</button>'
+    + '</div>'
+    + '</div>'
+    + '<button id="wa-verificar-btn" onclick="testarConexaoWA(\'' + (callbackAposConexao || '') + '\')" class="btn btn-acc" style="padding:10px;font-size:12px;font-weight:700">✅ Verificar conexão</button>'
+    + '<div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:1px;background:var(--brd)"></div><span style="font-size:10px;color:var(--mut)">ou</span><div style="flex:1;height:1px;background:var(--brd)"></div></div>'
+    + '<button onclick="enviarManualWA()" class="btn" style="padding:10px;font-size:12px;font-weight:700;background:rgba(255,255,255,.05);border:1px solid var(--brd);color:var(--txt)">📲 Enviar Manual (WhatsApp Web)</button>'
+    + '<button onclick="document.getElementById(\'wa-modal-overlay\').remove()" style="background:none;border:none;color:var(--mut);font-size:11px;cursor:pointer">Cancelar</button>'
+    + '</div>';
+
+  document.body.appendChild(overlay);
+  // Callback salvo para usar após verificação
+  window._waConectadoCallback = callbackAposConexao;
+}
+
+function enviarManualWA() {
+  var nome   = window._waPendingNome;
+  var numero = window._waPendingNumero;
+  var link   = window._waPendingLink;
+  if (!link && !numero) {
+    document.getElementById('wa-modal-overlay').remove();
+    toast('Clique no ícone do telefone de um RCA para enviar');
+    return;
+  }
+  var waLink = link || ('https://web.whatsapp.com/send?phone=' + (formatWhatsApp(numero)||''));
+  document.getElementById('wa-modal-overlay').remove();
+  window.open(waLink, 'whatsapp_carteira');
+  if (nome) {
+    if (!window._rcaEnviados) window._rcaEnviados = {};
+    window._rcaEnviados[nome + '_' + _rcaFiltro] = true;
+    document.querySelectorAll('[data-rca-nome="' + nome + '"]').forEach(function(el) {
+      el.style.opacity = '0.35';
+      el.style.filter = 'grayscale(1) brightness(0.5)';
+      el.style.cursor = 'default';
+      el.title = 'Já enviado ✅';
+    });
   }
 }
 
-// ── Envia e marca visualmente como cinza escuro ──
+function salvarInstanciaManual() {
+  var input = document.getElementById('wa-inst-input');
+  var nome = (input ? input.value : '').trim();
+  if (!nome) { toast('Digite o nome da instância'); return; }
+  try { localStorage.setItem('wa_instance', nome); } catch(e) {}
+  _waConectado = true;
+  var sb = document.getElementById('wa-status-btn');
+  if (sb) { sb.innerHTML = '✅ ' + nome; sb.style.background = 'rgba(37,211,102,.2)'; }
+  document.getElementById('wa-modal-overlay').remove();
+  toast('✅ Instância salva: ' + nome);
+  if (window._waPendingNome) {
+    rcaEnviarMarcado(window._waPendingNome, window._waPendingNumero, window._waPendingLink);
+    window._waPendingNome = null;
+  }
+}
+
+function abrirPlataformaWA() {
+  var container = document.getElementById('wa-iframe-container');
+  var iframe    = document.getElementById('wa-iframe');
+  if (container && iframe) {
+    iframe.src = _EVOLUTION_BASE + '/';
+    container.style.display = 'block';
+    var inst = getCookieInstance();
+    if (inst) _iniciarPollingConexao(inst);
+    // postMessage listener
+    window._waMessageListener = function(event) {
+      if (event.origin.indexOf('ngrok') < 0 && event.origin.indexOf('plating') < 0) return;
+      var d = event.data || {};
+      if (d.instance || d.status === 'connected') {
+        var instName = d.instance || d.name || '';
+        if (instName) { try{localStorage.setItem('wa_instance',instName);}catch(e){} _confirmarConexaoWA(instName); }
+      }
+    };
+    window.addEventListener('message', window._waMessageListener);
+  } else {
+    window.open(_EVOLUTION_BASE + '/', '_blank');
+  }
+}
+
+function _iniciarPollingConexao(inst) {
+  if (window._waPollingTimer) clearInterval(window._waPollingTimer);
+  window._waPollingCount = 0;
+  window._waPollingTimer = setInterval(async function() {
+    window._waPollingCount++;
+    if (window._waPollingCount > 22) { clearInterval(window._waPollingTimer); return; }
+    try {
+      var r = await fetch(_EVOLUTION_BASE + '/saaefc/' + encodeURIComponent(inst), {
+        method: 'POST', credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ number: '00000000000', text: 'ping' })
+      });
+      if (r.status === 200 || r.status === 500) {
+        clearInterval(window._waPollingTimer);
+        _confirmarConexaoWA(inst);
+      }
+    } catch(e) {}
+  }, 4000);
+}
+
+function _confirmarConexaoWA(instName) {
+  if (window._waPollingTimer) clearInterval(window._waPollingTimer);
+  if (window._waMessageListener) window.removeEventListener('message', window._waMessageListener);
+  try { localStorage.setItem('wa_instance', instName); } catch(e) {}
+  _waConectado = true;
+  var sb = document.getElementById('wa-status-btn');
+  if (sb) { sb.innerHTML = '✅ ' + instName; sb.style.background = 'rgba(37,211,102,.2)'; }
+  var overlay = document.getElementById('wa-modal-overlay');
+  if (overlay) { overlay.style.transition='opacity .3s'; overlay.style.opacity='0'; setTimeout(function(){ if(overlay.parentNode) overlay.remove(); },300); }
+  toast('✅ WhatsApp conectado: ' + instName + '!');
+  if (window._waPendingNome) {
+    rcaEnviarMarcado(window._waPendingNome, window._waPendingNumero, window._waPendingLink);
+    window._waPendingNome = null;
+  }
+}
+
+async function testarConexaoWA(callback) {
+  var btn = document.getElementById('wa-verificar-btn');
+  if (!btn && event) btn = event.target;
+  if (btn) { btn.textContent = '⏳ Verificando...'; btn.disabled = true; }
+  var inst = getCookieInstance();
+  if (!inst) {
+    if (btn) { btn.textContent = '✅ Verificar conexão'; btn.disabled = false; }
+    toast('⚠️ Digite o nome da instância e clique Salvar');
+    return;
+  }
+  try {
+    var r = await fetch(_EVOLUTION_BASE + '/saaefc/' + encodeURIComponent(inst), {
+      method: 'POST', credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ number: '00000000000', text: 'ping' })
+    });
+    if (r.status === 200 || r.status === 500) {
+      _confirmarConexaoWA(inst);
+    } else {
+      throw new Error('Status: ' + r.status);
+    }
+  } catch(e) {
+    if (btn) { btn.textContent = '✅ Verificar conexão'; btn.disabled = false; }
+    toast('❌ Não conectado — verifique a instância');
+  }
+}
+
+// ── Disparo via Evolution API com credentials (cookie instance) ──
 async function rcaEnviarMarcado(nome, numero, link) {
   var clientes = window._rcaClientesCache ? window._rcaClientesCache[nome] : null;
-  // Passa o nome do RCA diretamente para a geração da mensagem
   var mensagem = gerarMensagemWhatsApp(clientes || [], nome);
   var wa = formatWhatsApp(numero);
+
+  // Lê instância do cookie
+  var instance = getCookieInstance();
+  if (!instance) {
+    window._waPendingNome   = nome;
+    window._waPendingNumero = numero;
+    window._waPendingLink   = link;
+    abrirModalConexaoWA();
+    return;
+  }
+
+  var apiUrl = _EVOLUTION_BASE + '/saaefc/' + encodeURIComponent(instance);
+  console.log('[Evolution API] POST', apiUrl, '— numero:', wa);
+
   try {
-    var response = await fetch(_EVOLUTION_API, {
+    var response = await fetch(apiUrl, {
       method: 'POST',
+      credentials: 'include',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ numero: wa, message: mensagem })
+      body: JSON.stringify({ number: wa, text: mensagem })
     });
+
+    if (response.status === 401 || response.status === 403) {
+      window._waPendingNome   = nome;
+      window._waPendingNumero = numero;
+      window._waPendingLink   = link;
+      abrirModalConexaoWA();
+      return;
+    }
+
     var result = await response.text();
     console.log('[Evolution API] resposta:', result);
-    toast('✅ Alerta enviado via WhatsApp!');
+    toast('✅ Alerta enviado para ' + nome.split(' ')[0] + '!');
+
   } catch(err) {
-    console.warn('[Evolution API] erro:', err, '— abrindo WhatsApp Web');
+    console.warn('[Evolution API] erro:', err);
+    // Se não conectado, abre modal
+    if (!_waConectado) {
+      window._waPendingNome   = nome;
+      window._waPendingNumero = numero;
+      window._waPendingLink   = link;
+      abrirModalConexaoWA();
+      return;
+    }
+    // Fallback WhatsApp Web
     window.open(link, 'whatsapp_carteira');
+    return;
   }
-  // Persiste estado de enviado
+
+  // Marca como enviado
   if (!window._rcaEnviados) window._rcaEnviados = {};
   window._rcaEnviados[nome + '_' + _rcaFiltro] = true;
-  // Atualiza visual: cinza escuro
   document.querySelectorAll('[data-rca-nome="' + nome + '"]').forEach(function(el) {
     el.style.opacity = '0.35';
     el.style.filter = 'grayscale(1) brightness(0.5)';
     el.style.cursor = 'default';
     el.title = 'Já enviado ✅';
   });
+}
+
+// ── Fallback abrirWhatsApp (usado pelo link web) ──
+function abrirWhatsApp(link) {
+  window.open(link, 'whatsapp_carteira');
 }
 
 // ── Ordena tabela ──
@@ -7840,6 +8037,13 @@ function refreshViewRelatorioRCAs() {
     return;
   }
   setRcaFiltro(_rcaFiltro);
+  // Auto-detecta instância existente no cookie
+  var _instExist = getCookieInstance();
+  if (_instExist) {
+    _waConectado = true;
+    var _sb = document.getElementById('wa-status-btn');
+    if (_sb) { _sb.innerHTML = '✅ ' + _instExist; _sb.style.background = 'rgba(37,211,102,.2)'; }
+  }
   if (!_rcaSheetsLoaded) loadRcaSheets();
   else renderRelatorioRCAs();
 }
