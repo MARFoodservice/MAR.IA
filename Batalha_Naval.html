@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1378,16 +1366,21 @@ function getCoverage(client) {
   const obrig = MIX_CONFIG[ramo] || new Set();
   const grupos = GRUPOS_CONFIG[ramo] || [];
   const expandidos = EXPANDIDOS_CONFIG[ramo] || {};
+  const gruposProd = GRUPOS_PROD_CONFIG[ramo] || {};
 
   const subsEmGrupo = new Set(grupos.flatMap(g => g.subcategorias));
-  const subsExpandidas = new Set(Object.keys(expandidos));
+  const subsExpandidas = new Set([...Object.keys(expandidos), ...Object.keys(gruposProd)]);
   const compSet = new Set(client.subcategorias);
+  const clientProds = client.produtos || {};
 
   // Itens individuais obrigatórios (fora de grupos e expandidos)
   const individuais = [...obrig].filter(s => !subsEmGrupo.has(s) && !subsExpandidas.has(s));
 
+  // Total de itens: individuais + grupos subcats + produtos individuais + grupos de produtos
+  const totalGruposProd = Object.values(gruposProd).reduce((a, arr) => a + arr.length, 0);
   const totalItens = individuais.length + grupos.length
-    + Object.values(expandidos).reduce((a, s) => a + (s instanceof Set ? s.size : s.size || 0), 0);
+    + Object.values(expandidos).reduce((a, s) => a + (s instanceof Set ? s.size : 0), 0)
+    + totalGruposProd;
 
   if (totalItens === 0) return null;
 
@@ -1396,17 +1389,25 @@ function getCoverage(client) {
   // Individuais
   individuais.forEach(sub => { if (compSet.has(sub)) hits++; });
 
-  // Grupos: 1 grupo = 1 item; cumprido se qualquer sub do grupo foi comprada
+  // Grupos de subcategorias: cumprido se qualquer sub foi comprada
   grupos.forEach(g => {
     if (g.subcategorias.some(sub => compSet.has(sub))) hits++;
   });
 
-  // Expandidos: cada produto obrigatório = 1 item
+  // Produtos individuais expandidos: cada produto = 1 item
   Object.entries(expandidos).forEach(([sub, prods]) => {
-    const clientProds = client.produtos?.[sub];
-    const clientProdsSet = clientProds instanceof Set ? clientProds : new Set(clientProds ? Object.keys(clientProds) : []);
+    const cp = clientProds[sub] instanceof Set ? clientProds[sub] : new Set();
     const prodSet = prods instanceof Set ? prods : new Set(prods);
-    prodSet.forEach(prod => { if (clientProdsSet.has(prod)) hits++; });
+    prodSet.forEach(prod => { if (cp.has(prod)) hits++; });
+  });
+
+  // Grupos de produtos: cada grupo = 1 item; cumprido se qualquer produto do grupo foi comprado
+  Object.entries(gruposProd).forEach(([sub, gps]) => {
+    const cp = clientProds[sub] instanceof Set ? clientProds[sub] : new Set();
+    gps.forEach(g => {
+      const prodSet = new Set(g.subs instanceof Set ? [...g.subs] : (Array.isArray(g.subs) ? g.subs : []));
+      if (prodSet.size > 0 && [...prodSet].some(prod => cp.has(prod))) hits++;
+    });
   });
 
   return Math.round((hits / totalItens) * 100);
@@ -1571,7 +1572,8 @@ function renderDetail() {
   const tipoTag = {
     individual: '',
     grupo: '<span style="font-size:9px;background:rgba(139,92,246,0.2);color:#c4b5fd;padding:1px 4px;border-radius:3px;font-weight:700;">G</span> ',
-    produto: '<span style="font-size:9px;background:rgba(245,166,35,0.2);color:#f5a623;padding:1px 4px;border-radius:3px;font-weight:700;">P</span> '
+    produto: '<span style="font-size:9px;background:rgba(245,166,35,0.2);color:#f5a623;padding:1px 4px;border-radius:3px;font-weight:700;">P</span> ',
+    grupo_prod: '<span style="font-size:9px;background:rgba(245,166,35,0.15);color:#f5a623;padding:1px 4px;border-radius:3px;font-weight:700;">GP</span> '
   };
 
   const mixRows = itensComStatus.length === 0
@@ -1808,19 +1810,32 @@ function getItensObrig(ramo) {
   const obrig = MIX_CONFIG[ramo] || new Set();
   const grupos = GRUPOS_CONFIG[ramo] || [];
   const expandidos = EXPANDIDOS_CONFIG[ramo] || {};
+  const gruposProd = GRUPOS_PROD_CONFIG[ramo] || {};
+
   const subsEmGrupo = new Set(grupos.flatMap(g => g.subcategorias));
-  const subsExpandidas = new Set(Object.keys(expandidos));
+  const subsExpandidas = new Set([...Object.keys(expandidos), ...Object.keys(gruposProd)]);
   const individuais = [...obrig].filter(s => !subsEmGrupo.has(s) && !subsExpandidas.has(s));
 
   const itensObrig = [];
   individuais.forEach(sub => itensObrig.push({ label: sub, tipo: 'individual', key: sub }));
   grupos.forEach(g => itensObrig.push({ label: g.nome_grupo, tipo: 'grupo', key: '__g__' + g.nome_grupo, subs: g.subcategorias }));
+
+  // Produtos individuais expandidos
   Object.entries(expandidos).forEach(([sub, prods]) => {
     const prodSet = prods instanceof Set ? prods : new Set(prods);
     prodSet.forEach(prod => itensObrig.push({ label: prod, tipo: 'produto', key: '__p__' + prod, sub }));
   });
 
-  return { itensObrig, obrig, grupos, expandidos };
+  // Grupos de produtos — cada grupo = 1 item obrigatório
+  Object.entries(gruposProd).forEach(([sub, gps]) => {
+    gps.forEach(g => {
+      // g.subs pode ser Set ou Array — normaliza para Set de strings
+      const prodSet = new Set(g.subs instanceof Set ? [...g.subs] : (Array.isArray(g.subs) ? g.subs : []));
+      itensObrig.push({ label: g.nome, tipo: 'grupo_prod', key: '__gp__' + sub + '__' + g.nome, sub, prodSet });
+    });
+  });
+
+  return { itensObrig, obrig, grupos, expandidos, gruposProd };
 }
 
 function clienteComprouItem(c, item) {
@@ -1831,6 +1846,12 @@ function clienteComprouItem(c, item) {
   if (item.tipo === 'produto') {
     const cp = clientProds[item.sub] instanceof Set ? clientProds[item.sub] : new Set();
     return cp.has(item.label);
+  }
+  if (item.tipo === 'grupo_prod') {
+    const cp = clientProds[item.sub] instanceof Set ? clientProds[item.sub] : new Set();
+    const prodSet = new Set(item.prodSet instanceof Set ? [...item.prodSet] : (Array.isArray(item.prodSet) ? item.prodSet : []));
+    if (prodSet.size === 0) return false; // grupo vazio = não cumprido
+    return [...prodSet].some(prod => cp.has(prod));
   }
   return false;
 }
@@ -1941,10 +1962,12 @@ function renderConfigPage() {
     subsSet.forEach(sub => { if (!(sub in ramoSubMap[r])) ramoSubMap[r][sub] = 0; });
   });
 
-  // Garante ramos com mix configurado apareçam mesmo sem clientes no período
-  Object.keys(MIX_CONFIG).filter(r => MIX_CONFIG[r].size > 0).forEach(r => {
-    if (!ramoSubMap[r]) ramoSubMap[r] = {};
+  // Garante ramos de GRUPOS_CONFIG, EXPANDIDOS_CONFIG e GRUPOS_PROD_CONFIG também apareçam
+  // (mesmo que ALL_CLIENTS ainda não tenha carregado)
+  [GRUPOS_CONFIG, EXPANDIDOS_CONFIG, GRUPOS_PROD_CONFIG].forEach(cfg => {
+    Object.keys(cfg).forEach(r => { if (!ramoSubMap[r]) ramoSubMap[r] = {}; });
   });
+
   const ramos = [...new Set([...Object.keys(ramoSubMap)])].sort();
 
   const container = document.getElementById('configList');
@@ -1956,8 +1979,10 @@ function renderConfigPage() {
 
     // Subcategorias que fazem parte de algum grupo (não aparecem individualmente)
     const subsEmGrupo = new Set(grupos.flatMap(g => g.subcategorias));
+    // Grupos de produtos desta subcategoria (definido aqui para uso em todo o ramo)
+    const gruposProdRamo = GRUPOS_PROD_CONFIG[ramo] || {};
     // Subcategorias expandidas (não aparecem como item único)
-    const subsExpandidas = new Set(Object.keys(expandidos));
+    const subsExpandidas = new Set([...Object.keys(expandidos), ...Object.keys(gruposProdRamo)]);
 
     // Conta obrigatórios: individuais + grupos + expandidos
     const totalObrig = [...obrig].filter(s => !subsEmGrupo.has(s) && !subsExpandidas.has(s)).length
@@ -1981,19 +2006,28 @@ function renderConfigPage() {
     ` : '';
 
     // Seção expandidos existentes
-    const expandidosHTML = Object.keys(expandidos).length ? `
+    const todasSubsExp = new Set([...Object.keys(expandidos), ...Object.keys(gruposProdRamo)]);
+
+    const expandidosHTML = todasSubsExp.size ? `
       <div class="config-section-title">🔍 Subcategorias Expandidas por Produto</div>
-      ${Object.entries(expandidos).map(([sub, prods]) => `
-        <div class="expandido-item">
-          <div>
-            <div style="display:flex;align-items:center;gap:6px;">
+      ${[...todasSubsExp].map(sub => {
+        const prodsIndiv = expandidos[sub] || new Set();
+        const gpsSub = gruposProdRamo[sub] || [];
+        const totalProds = prodsIndiv.size + gpsSub.reduce((a,g) => a + g.subs.size, 0);
+        const listIndiv = prodsIndiv.size ? `<div class="grupo-subs" style="margin-top:3px;"><strong style="color:var(--foam);font-size:10px;">INDIVIDUAIS:</strong> ${[...prodsIndiv].join(' · ')}</div>` : '';
+        const listGps = gpsSub.map(g => `<div class="grupo-subs" style="margin-top:3px;"><strong style="color:#c4b5fd;font-size:10px;">GRUPO ${g.nome}:</strong> ${[...g.subs].join(' · ')}</div>`).join('');
+        return `<div class="expandido-item">
+          <div style="flex:1;">
+            <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
               <span style="font-weight:600;font-size:13px;">${sub}</span>
-              <span class="expandido-tag">EXPANDIDO · ${prods.size} produtos</span>
+              <span class="expandido-tag">EXPANDIDO · ${totalProds} produto${totalProds!==1?'s':''}</span>
+              ${gpsSub.length ? `<span style="font-size:9px;background:rgba(139,92,246,0.2);color:#c4b5fd;padding:1px 6px;border-radius:3px;font-weight:700;">${gpsSub.length} grupo${gpsSub.length!==1?'s':''}</span>` : ''}
             </div>
-            <div class="grupo-subs">${[...prods].join(' · ')}</div>
+            ${listIndiv}${listGps}
           </div>
           <button class="btn-delete-small" onclick="deletarExpandido('${ramo}','${sub}')">✕ Remover</button>
-        </div>`).join('')}
+        </div>`;
+      }).join('')}
     ` : '';
 
     // Lista subcategorias individuais (fora de grupos e não expandidas)
