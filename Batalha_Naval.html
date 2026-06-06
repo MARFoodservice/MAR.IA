@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -785,6 +773,25 @@
   .rank-bar-mini { height: 6px; background: rgba(255,255,255,0.07); border-radius: 99px; overflow: hidden; }
   .rank-bar-mini-fill { height: 100%; border-radius: 99px; }
 
+  /* AUTOCOMPLETE SUBCATEGORIA */
+  .sub-autocomplete-wrap { position: relative; flex: 1; }
+  .sub-autocomplete-list {
+    position: fixed; z-index: 9999;
+    background: var(--navy-mid); border: 1px solid var(--foam);
+    border-radius: 6px;
+    max-height: 240px; overflow-y: auto;
+    box-shadow: 0 8px 24px rgba(0,0,0,0.6);
+    min-width: 320px;
+  }
+  .sub-autocomplete-item {
+    padding: 8px 12px; font-size: 12px; cursor: pointer;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.12s;
+  }
+  .sub-autocomplete-item:last-child { border-bottom: none; }
+  .sub-autocomplete-item:hover { background: rgba(91,196,245,0.1); color: var(--foam); }
+  .sub-autocomplete-item .sub-ac-ramo { font-size:10px; color: var(--text-dim); margin-left:6px; }
+
   /* SCROLLBAR */
   ::-webkit-scrollbar { width: 6px; }
   ::-webkit-scrollbar-track { background: transparent; }
@@ -1069,7 +1076,6 @@ let configChanged = false;
 let MES_ATUAL_CLIENTS = []; // clientes do mês atual (para comparativo)
 let CONFIG_CLIENTS = [];    // clientes do período da aba configurar mix
 let RANKING_CLIENTS = [];   // clientes do período do ranking
-let BENCHMARK_180 = {};     // { ramo: { subcategoria: Set(codcli) } } — últimos 180 dias
 
 // Relação supervisor → RCAs (preenchida com dados reais)
 let supervisorRCAMap = {};
@@ -1131,17 +1137,13 @@ async function loadData() {
   const de = document.getElementById('filterDe').value;
   const ate = document.getElementById('filterAte').value;
 
+  // Mês atual automático
   const hoje = new Date();
   const mesAtualDe = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}-01`;
   const proximoMes = new Date(hoje.getFullYear(), hoje.getMonth()+1, 1);
   const mesAtualAte = proximoMes.toISOString().slice(0,10);
 
-  const d180 = new Date(hoje); d180.setDate(d180.getDate() - 180);
-  const bench180De = d180.toISOString().slice(0,10);
-  const bench180Ate = hoje.toISOString().slice(0,10);
-
   const BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,cliente,rca,codrca,supervisor,codsupervisor,ramo,codramo,subcategoria,codsubcategoria,descricao,total,dtmov&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE`;
-  const BENCH_BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,ramo,subcategoria&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE&dtmov=gte.${bench180De}&dtmov=lte.${bench180Ate}`;
 
   try {
     let urlFiltrado = BASE;
@@ -1153,15 +1155,15 @@ async function loadData() {
     }
     urlFiltrado += '&limit=50000';
 
+    // Mês atual (só busca se período filtrado != mês atual)
     const periodoEhMesAtual = de === mesAtualDe;
-    const urlMesAtual = BASE + `&dtmov=gte.${mesAtualDe}&dtmov=lt.${mesAtualAte}&limit=50000`;
+    let urlMesAtual = BASE + `&dtmov=gte.${mesAtualDe}&dtmov=lt.${mesAtualAte}&limit=50000`;
 
-    // Busca principal e mês atual em paralelo
     const fetches = [fetch(urlFiltrado, { headers: HEADERS })];
     if (!periodoEhMesAtual) fetches.push(fetch(urlMesAtual, { headers: HEADERS }));
+
     const resps = await Promise.all(fetches);
-    const jsons = await Promise.all(resps.map(r => r.json()));
-    const [rowsFiltrado, rowsMesAtual] = jsons;
+    const [rowsFiltrado, rowsMesAtual] = await Promise.all(resps.map(r => r.json()));
 
     setDbStatus('connected', `${rowsFiltrado.length} registros carregados`);
     processData(rowsFiltrado);
@@ -1171,28 +1173,6 @@ async function loadData() {
     } else {
       MES_ATUAL_CLIENTS = ALL_CLIENTS;
     }
-
-    // Benchmark 180 dias com paginação — busca até não ter mais dados
-    BENCHMARK_180 = {};
-    const PAGE = 50000;
-    let offset = 0;
-    let totalBenchRows = 0;
-    while (true) {
-      const url = BENCH_BASE + `&limit=${PAGE}&offset=${offset}`;
-      const r = await fetch(url, { headers: { ...HEADERS, 'Prefer': 'count=none' } });
-      const rows = await r.json();
-      if (!Array.isArray(rows) || rows.length === 0) break;
-      rows.forEach(r => {
-        if (!r.ramo || !r.subcategoria || !r.codcli) return;
-        if (!BENCHMARK_180[r.ramo]) BENCHMARK_180[r.ramo] = {};
-        if (!BENCHMARK_180[r.ramo][r.subcategoria]) BENCHMARK_180[r.ramo][r.subcategoria] = new Set();
-        BENCHMARK_180[r.ramo][r.subcategoria].add(String(r.codcli));
-      });
-      totalBenchRows += rows.length;
-      if (rows.length < PAGE) break;
-      offset += PAGE;
-    }
-    setDbStatus('connected', `${rowsFiltrado.length} reg. filtrados · ${totalBenchRows} benchmark 180d`);
 
     hideLoading();
   } catch (err) {
@@ -1562,21 +1542,12 @@ function renderDetail() {
           <span style="font-size:12px;font-weight:600;color:${item.hit ? '#2ecc71' : '#ff4d4d'};">${tipoTag[item.tipo]}${item.label}</span>
         </div>`).join('');
 
-  // ---- COLUNA 2: MAIS VENDIDOS — últimos 180 dias (empresa inteira por ramo) ----
-  const hoje180 = new Date();
-  const d180b = new Date(hoje180); d180b.setDate(d180b.getDate() - 180);
-  const fmt180 = d => `${String(d.getDate()).padStart(2,'0')}/${String(d.getMonth()+1).padStart(2,'0')}/${d.getFullYear()}`;
-  const benchLabel = `${fmt180(d180b)} → ${fmt180(hoje180)}`;
-
-  const ramoMapBench = (BENCHMARK_180 && BENCHMARK_180[ramo]) || {};
-  const subRanked = Object.entries(ramoMapBench)
-    .map(([sub, cliSet]) => [sub, cliSet.size])
-    .sort((a, b) => b[1] - a[1]);
-
-  const todosClisBench = new Set();
-  Object.values(ramoMapBench).forEach(s => s.forEach(id => todosClisBench.add(id)));
-  const totalBenchmark = todosClisBench.size;
-
+  // ---- COLUNA 2: MAIS VENDIDOS NA SUBCATEGORIA (todos os outros clientes do ramo) ----
+  // Ranking de subcategorias mais compradas entre todos os clientes do ramo filtrado
+  const clientesRamo = filteredClients.filter(cl => cl.ramo === ramo);
+  const subRanking = {};
+  clientesRamo.forEach(cl => cl.subcategorias.forEach(s => { subRanking[s] = (subRanking[s]||0)+1; }));
+  const subRanked = Object.entries(subRanking).sort((a,b) => b[1]-a[1]);
   const obrigSet = new Set([
     ...(MIX_CONFIG[ramo] || []),
     ...(GRUPOS_CONFIG[ramo]||[]).flatMap(g=>g.subcategorias),
@@ -1586,7 +1557,7 @@ function renderDetail() {
   const rankRows = subRanked.slice(0, 20).map(([sub, cnt], i) => {
     const comprou = compSet.has(sub);
     const isObrig = obrigSet.has(sub);
-    const pctRank = totalBenchmark > 0 ? Math.round((cnt/totalBenchmark)*100) : 0;
+    const pctRank = clientesRamo.length > 0 ? Math.round((cnt/clientesRamo.length)*100) : 0;
     const color = comprou ? '#2ecc71' : isObrig ? '#ff4d4d' : 'var(--text)';
     const obrigDot = isObrig ? `<span style="width:5px;height:5px;border-radius:50%;background:var(--foam);display:inline-block;margin-left:4px;vertical-align:middle;"></span>` : '';
     return `<div style="display:flex;align-items:center;gap:6px;padding:5px 0;border-bottom:1px solid rgba(255,255,255,0.04);">
@@ -1644,7 +1615,7 @@ function renderDetail() {
           <div class="num" style="font-size:24px;color:${progressColor};">${pct!==null?pct+'%':'—'}</div><div class="lbl">Cobertura</div>
         </div>
         <div class="cov-card blue" style="min-width:80px;text-align:center;padding:8px 12px;">
-          <div class="num" style="font-size:24px;">${subRanked.length}</div><div class="lbl">+ Vendidos 180d</div>
+          <div class="num" style="font-size:24px;">${subRanked.length}</div><div class="lbl">+ Vendidos</div>
         </div>
         <div class="cov-card blue" style="min-width:80px;text-align:center;padding:8px 12px;">
           <div class="num" style="font-size:24px;">${todasSubs.length}</div><div class="lbl">Subcats compradas</div>
@@ -1660,7 +1631,7 @@ function renderDetail() {
       </div>
       <!-- COL 2 -->
       <div style="padding:14px 16px;overflow-y:auto;border-right:1px solid var(--border);">
-        <div class="cliente-section-title">🏆 Mix + vendido — 180 dias (${benchLabel}) — ${totalBenchmark} clientes · top 20 <span style="font-size:10px;font-weight:400;">● = obrig.</span></div>
+        <div class="cliente-section-title">🏆 Mix + vendido na subcategoria — ${subRanked.length}/20 <span style="font-size:10px;font-weight:400;">● = obrig.</span></div>
         ${rankRows}
       </div>
       <!-- COL 3 -->
@@ -1906,8 +1877,6 @@ function gerarBlocoCards(ramo, clientes) {
 // ============================================
 function renderConfigPage() {
   const source = CONFIG_CLIENTS.length > 0 ? CONFIG_CLIENTS : ALL_CLIENTS;
-  const ramos = [...new Set(source.map(c => c.ramo))].sort();
-
   const ramoSubMap = {};
   source.forEach(c => {
     if (!ramoSubMap[c.ramo]) ramoSubMap[c.ramo] = {};
@@ -1916,6 +1885,18 @@ function renderConfigPage() {
       ramoSubMap[c.ramo][sub]++;
     });
   });
+
+  // Garante subcategorias adicionadas manualmente (0 compras) também apareçam
+  Object.entries(MIX_CONFIG).forEach(([r, subsSet]) => {
+    if (!ramoSubMap[r]) ramoSubMap[r] = {};
+    subsSet.forEach(sub => { if (!(sub in ramoSubMap[r])) ramoSubMap[r][sub] = 0; });
+  });
+
+  // Garante ramos com mix configurado apareçam mesmo sem clientes no período
+  Object.keys(MIX_CONFIG).filter(r => MIX_CONFIG[r].size > 0).forEach(r => {
+    if (!ramoSubMap[r]) ramoSubMap[r] = {};
+  });
+  const ramos = [...new Set([...Object.keys(ramoSubMap)])].sort();
 
   const container = document.getElementById('configList');
   container.innerHTML = ramos.map(ramo => {
@@ -1973,7 +1954,7 @@ function renderConfigPage() {
         <div class="subcategoria-item ${obrig.has(sub) ? 'obrigatorio' : ''}">
           <div>
             <div class="sub-name">${sub}</div>
-            <div class="sub-stats">${cnt} cliente${cnt !== 1 ? 's' : ''} compraram</div>
+            <div class="sub-stats">${cnt > 0 ? `${cnt} cliente${cnt !== 1 ? 's' : ''} compraram` : '<span style="color:#f5a623;font-size:10px;">✏️ Adicionada manualmente</span>'}</div>
           </div>
           <div style="display:flex;gap:6px;align-items:center;">
             <button class="btn-acao purple" onclick="abrirModalUnificar('${ramo}','${sub}')">🔗 Unificar</button>
@@ -1982,6 +1963,7 @@ function renderConfigPage() {
               onclick="toggleSubcategoria('${ramo}', '${sub}', this)">
               ${obrig.has(sub) ? '✓ Obrigatório' : '+ Adicionar'}
             </button>
+            ${cnt === 0 ? `<button class="btn-delete-small" onclick="excluirSubcategoriaManual('${ramo}','${sub}')">✕</button>` : ''}
           </div>
         </div>`).join('');
 
@@ -2000,7 +1982,14 @@ function renderConfigPage() {
           <div class="config-section-title">📋 Subcategorias Individuais</div>
           <div class="subcategoria-list">${subsHTML}</div>
           <div class="add-sub-form">
-            <input type="text" placeholder="Adicionar subcategoria manualmente..." id="customSub-${ramo.replace(/[^a-z0-9]/gi,'_')}">
+            <div class="sub-autocomplete-wrap">
+              <input type="text" class="sub-ac-input" placeholder="🔍 Buscar ou digitar subcategoria..."
+                id="customSub-${ramo.replace(/[^a-z0-9]/gi,'_')}"
+                autocomplete="off"
+                oninput="filtrarAutocompleteSub('${ramo}')"
+                onkeydown="if(event.key==='Enter') addCustomSub('${ramo}')">
+              <div class="sub-autocomplete-list" id="acList-${ramo.replace(/[^a-z0-9]/gi,'_')}" style="display:none;"></div>
+            </div>
             <button class="btn-add" onclick="addCustomSub('${ramo}')">+ Adicionar</button>
           </div>
         </div>
@@ -2154,6 +2143,69 @@ async function toggleSubcategoria(ramo, sub, btn) {
   btn.disabled = false;
 }
 
+// Coleta todas as subcategorias existentes no faturamento (de qualquer ramo)
+function getTodasSubsGlobal() {
+  const todas = new Set();
+  ALL_CLIENTS.forEach(c => c.subcategorias.forEach(s => todas.add(s)));
+  // Também de CONFIG_CLIENTS se disponível
+  if (CONFIG_CLIENTS.length > 0) CONFIG_CLIENTS.forEach(c => c.subcategorias.forEach(s => todas.add(s)));
+  return todas;
+}
+
+function filtrarAutocompleteSub(ramo) {
+  const key = ramo.replace(/[^a-z0-9]/gi,'_');
+  const input = document.getElementById('customSub-' + key);
+  const listEl = document.getElementById('acList-' + key);
+  const busca = input.value.trim().toUpperCase();
+
+  if (!busca) { listEl.style.display = 'none'; return; }
+
+  // Subcategorias já presentes neste ramo
+  const jaExistentes = new Set(Object.keys((function(){
+    const source = CONFIG_CLIENTS.length > 0 ? CONFIG_CLIENTS : ALL_CLIENTS;
+    const m = {};
+    source.filter(c => c.ramo === ramo).forEach(c => c.subcategorias.forEach(s => { m[s] = 1; }));
+    // também do MIX_CONFIG
+    if (MIX_CONFIG[ramo]) MIX_CONFIG[ramo].forEach(s => { m[s] = 1; });
+    return m;
+  })()));
+
+  const todas = getTodasSubsGlobal();
+  const sugestoes = [...todas]
+    .filter(s => s.includes(busca) && !jaExistentes.has(s))
+    .sort()
+    .slice(0, 30);
+
+  if (!sugestoes.length) { listEl.style.display = 'none'; return; }
+
+  listEl.innerHTML = sugestoes.map(s => {
+    const ramosOnde = [...new Set(ALL_CLIENTS.filter(c => c.subcategorias.includes(s)).map(c => c.ramo))].slice(0,3).join(', ');
+    return `<div class="sub-autocomplete-item" onmousedown="selecionarAutocompleteSub('${ramo}','${s.replace(/'/g,"\'")}')">${s}<span class="sub-ac-ramo">${ramosOnde ? '· '+ramosOnde : ''}</span></div>`;
+  }).join('');
+
+  // Posiciona usando fixed baseado na posição real do input na tela
+  const rect = input.getBoundingClientRect();
+  listEl.style.top = (rect.bottom + 2) + 'px';
+  listEl.style.left = rect.left + 'px';
+  listEl.style.width = rect.width + 'px';
+  listEl.style.display = 'block';
+}
+
+function selecionarAutocompleteSub(ramo, sub) {
+  const key = ramo.replace(/[^a-z0-9]/gi,'_');
+  const input = document.getElementById('customSub-' + key);
+  const listEl = document.getElementById('acList-' + key);
+  input.value = sub;
+  listEl.style.display = 'none';
+}
+
+// Fecha autocomplete ao clicar fora
+document.addEventListener('click', e => {
+  if (!e.target.closest('.sub-autocomplete-wrap')) {
+    document.querySelectorAll('.sub-autocomplete-list').forEach(el => el.style.display = 'none');
+  }
+});
+
 async function addCustomSub(ramo) {
   const key = ramo.replace(/[^a-z0-9]/gi,'_');
   const input = document.getElementById('customSub-' + key);
@@ -2174,6 +2226,33 @@ async function addCustomSub(ramo) {
 }
 
 function showSaveBanner() {} // não usado mais — operações são imediatas
+
+function excluirSubcategoriaManual(ramo, sub) {
+  // Usa modal próprio em vez de confirm() — funciona em file://
+  document.getElementById('modalContent').innerHTML = `
+    <div class="modal-title">🗑️ Excluir Subcategoria</div>
+    <div class="modal-desc" style="margin-bottom:20px;">
+      Deseja excluir <strong style="color:var(--foam);">${sub}</strong> do ramo <strong>${ramo}</strong>?
+      <br><span style="font-size:11px;color:var(--text-dim);">Esta subcategoria foi adicionada manualmente e não possui compras registradas.</span>
+    </div>
+    <div class="modal-actions">
+      <button class="btn-modal-cancel" onclick="fecharModal()">Cancelar</button>
+      <button class="btn-modal-ok" style="background:#ff4d4d;" onclick="confirmarExcluirSub('${ramo.replace(/'/g,"\\'")}','${sub.replace(/'/g,"\\'")}')">✕ Excluir</button>
+    </div>`;
+  document.getElementById('modalOverlay').classList.remove('hidden');
+}
+
+async function confirmarExcluirSub(ramo, sub) {
+  fecharModal();
+  try {
+    await deleteMix(ramo, sub);
+    if (MIX_CONFIG[ramo]) MIX_CONFIG[ramo].delete(sub);
+    renderConfigPage();
+    applyFilters();
+  } catch(e) {
+    alert('Erro ao excluir: ' + e.message);
+  }
+}
 
 // ============================================
 // UI HELPERS
