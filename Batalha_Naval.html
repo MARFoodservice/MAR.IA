@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1084,6 +1072,7 @@ let selectedClient = null;
 let MIX_CONFIG = {};        // { ramo: Set(subcategorias) }
 let GRUPOS_CONFIG = {};     // { ramo: [ {nome_grupo, subcategorias:[]} ] }
 let EXPANDIDOS_CONFIG = {}; // { ramo: { subcategoria: Set(descprod) } }
+let GRUPOS_PROD_CONFIG = {}; // { ramo: { subcategoria: [{nome, subs:Set}] } }
 let configChanged = false;
 let MES_ATUAL_CLIENTS = []; // clientes do mês atual (para comparativo)
 let CONFIG_CLIENTS = [];    // clientes do período da aba configurar mix
@@ -2100,6 +2089,20 @@ async function carregarConfig() {
       if (!EXPANDIDOS_CONFIG[r.ramo][r.subcategoria]) EXPANDIDOS_CONFIG[r.ramo][r.subcategoria] = new Set();
       EXPANDIDOS_CONFIG[r.ramo][r.subcategoria].add(r.descprod);
     });
+
+    // Grupos de produtos expandidos
+    try {
+      const r4 = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent('Batalha Naval_Grupos_Produtos')}?select=ramo,subcategoria,nome_grupo,produtos&limit=2000`, { headers: HEADERS });
+      if (r4.ok) {
+        const gps = await r4.json();
+        GRUPOS_PROD_CONFIG = {};
+        gps.forEach(r => {
+          if (!GRUPOS_PROD_CONFIG[r.ramo]) GRUPOS_PROD_CONFIG[r.ramo] = {};
+          if (!GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria]) GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria] = [];
+          GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria].push({ nome: r.nome_grupo, subs: new Set(r.produtos || []) });
+        });
+      }
+    } catch(e) { GRUPOS_PROD_CONFIG = {}; }
   } catch(e) {
     console.warn('Erro ao carregar config:', e.message);
   }
@@ -2297,19 +2300,30 @@ document.addEventListener('keydown', e => { if (e.key === 'Escape') fecharModal(
 // subcategorias juntar + nome do grupo
 // ============================================
 function abrirModalUnificar(ramo, subInicial) {
-  // Subcategorias disponíveis do ramo (fora de grupos existentes)
   const grupos = GRUPOS_CONFIG[ramo] || [];
   const subsEmGrupo = new Set(grupos.flatMap(g => g.subcategorias));
   const expandidos = EXPANDIDOS_CONFIG[ramo] || {};
   const subsExpandidas = new Set(Object.keys(expandidos));
 
+  // Coleta subcategorias de TODAS as fontes
   const ramoSubMap = {};
+
+  // 1. De ALL_CLIENTS
   ALL_CLIENTS.filter(c => c.ramo === ramo).forEach(c => {
-    c.subcategorias.forEach(sub => {
-      if (!ramoSubMap[sub]) ramoSubMap[sub] = 0;
-      ramoSubMap[sub]++;
-    });
+    c.subcategorias.forEach(sub => { ramoSubMap[sub] = (ramoSubMap[sub] || 0) + 1; });
   });
+
+  // 2. De CONFIG_CLIENTS (período de análise da aba)
+  if (CONFIG_CLIENTS.length > 0) {
+    CONFIG_CLIENTS.filter(c => c.ramo === ramo).forEach(c => {
+      c.subcategorias.forEach(sub => { if (!ramoSubMap[sub]) ramoSubMap[sub] = 0; });
+    });
+  }
+
+  // 3. Do MIX_CONFIG (incluindo manuais com 0 compras)
+  if (MIX_CONFIG[ramo]) {
+    MIX_CONFIG[ramo].forEach(sub => { if (!(sub in ramoSubMap)) ramoSubMap[sub] = 0; });
+  }
 
   const subs = Object.entries(ramoSubMap)
     .filter(([sub]) => !subsEmGrupo.has(sub) && !subsExpandidas.has(sub))
@@ -2320,7 +2334,7 @@ function abrirModalUnificar(ramo, subInicial) {
   document.getElementById('modalContent').innerHTML = `
     <div class="modal-title">🔗 Unificar Subcategorias</div>
     <div class="modal-desc">Selecione as subcategorias que formam 1 item só. Dê um nome ao grupo.</div>
-    <input class="modal-input" id="modalNomeGrupo" placeholder="Nome do grupo (ex: BATATA)" value="${subInicial}">
+    <input class="modal-input" id="modalNomeGrupo" placeholder="Nome do grupo (ex: QUEIJO MUSSARELA)" value="${subInicial}">
     <input class="modal-input" id="modalBuscaSub" placeholder="🔍 Buscar subcategoria..." oninput="filtrarModalSubs()" style="margin-bottom:8px;">
     <div class="modal-sub-list" id="modalSubList">
       ${subs.map(([sub, cnt]) => `
@@ -2328,7 +2342,7 @@ function abrirModalUnificar(ramo, subInicial) {
           onclick="toggleModalSub('${sub.replace(/'/g, "\\'")}')">
           <div class="check" style="${_modalCtx.selecionadas.has(sub) ? 'background:var(--foam);border-color:var(--foam)' : ''}"></div>
           <span class="modal-sub-name">${sub}</span>
-          <span class="modal-sub-cnt">${cnt} clientes</span>
+          <span class="modal-sub-cnt">${cnt > 0 ? cnt + ' cli' : '✏️ manual'}</span>
         </div>`).join('')}
     </div>
     <div class="modal-actions">
@@ -2403,15 +2417,11 @@ async function deletarGrupo(ramo, nomeGrupo) {
 // ============================================
 async function abrirModalExpandir(ramo, sub) {
   document.getElementById('modalContent').innerHTML = `
-    <div class="modal-title">🔍 Expandir por Produto</div>
-    <div class="modal-desc">Carregando produtos de <strong>${sub}</strong>...</div>`;
+    <div class="modal-title">🔍 Expandir: ${sub}</div>
+    <div class="modal-desc">Carregando produtos...</div>`;
   abrirModal();
 
-  // Busca codcli dos clientes do ramo filtrado para limitar os produtos relevantes
-  const codclis = ALL_CLIENTS.filter(c => c.ramo === ramo).map(c => c.codNum);
-
   try {
-    // Busca produtos da subcategoria na mat_produtos
     const url = `${SUPABASE_URL}/rest/v1/mat_produtos?select=descprod,fat,qt&subcategoria=eq.${encodeURIComponent(sub)}&order=fat.desc&limit=500`;
     const resp = await fetch(url, { headers: HEADERS });
     if (!resp.ok) throw new Error(await resp.text());
@@ -2419,13 +2429,12 @@ async function abrirModalExpandir(ramo, sub) {
 
     if (!prods.length) {
       document.getElementById('modalContent').innerHTML = `
-        <div class="modal-title">🔍 Expandir por Produto</div>
-        <div class="modal-desc" style="color:var(--alert);">Nenhum produto encontrado para esta subcategoria.</div>
+        <div class="modal-title">🔍 Expandir: ${sub}</div>
+        <div class="modal-desc" style="color:var(--alert);">Nenhum produto encontrado.</div>
         <div class="modal-actions"><button class="btn-modal-cancel" onclick="fecharModal()">Fechar</button></div>`;
       return;
     }
 
-    // Agrupa por descprod (soma fat/qt de todos clientes)
     const prodMap = {};
     prods.forEach(p => {
       if (!prodMap[p.descprod]) prodMap[p.descprod] = { fat: 0, qt: 0 };
@@ -2434,22 +2443,59 @@ async function abrirModalExpandir(ramo, sub) {
     });
     const prodList = Object.entries(prodMap).sort((a,b) => b[1].fat - a[1].fat);
 
-    const jaObrigatorios = EXPANDIDOS_CONFIG[ramo]?.[sub] || new Set();
-    _modalCtx = { ramo, sub, tipo: 'expandir', selecionadas: new Set([...jaObrigatorios]) };
+    // Carrega estado atual: individuais e grupos de produtos
+    const jaIndividuais = EXPANDIDOS_CONFIG[ramo]?.[sub] || new Set();
+    const gruposProd = GRUPOS_PROD_CONFIG[ramo]?.[sub] || [];
+
+    _modalCtx = {
+      ramo, sub, tipo: 'expandir',
+      selecionadas: new Set([...jaIndividuais]),   // produtos individuais obrigatórios
+      gruposProd: gruposProd.map(g => ({ ...g, subs: new Set(g.subs) }))  // grupos de produtos
+    };
 
     const fmt = v => v >= 1000 ? 'R$' + (v/1000).toFixed(1) + 'K' : 'R$' + v.toFixed(0);
 
     document.getElementById('modalContent').innerHTML = `
       <div class="modal-title">🔍 Expandir: ${sub}</div>
-      <div class="modal-desc">Marque os produtos que devem ser obrigatórios individualmente.</div>
-      <div class="modal-sub-list" id="modalProdList">
-        ${prodList.map(([desc, info]) => `
-          <div class="modal-sub-item ${_modalCtx.selecionadas.has(desc) ? 'selected' : ''}"
-            onclick="toggleModalProd('${desc.replace(/'/g,"\\'")}')">
-            <div class="check" style="${_modalCtx.selecionadas.has(desc) ? 'background:var(--foam);border-color:var(--foam)' : ''}"></div>
-            <span class="modal-sub-name" style="font-size:12px;">${desc}</span>
-            <span class="modal-sub-cnt">${fmt(info.fat)}</span>
-          </div>`).join('')}
+      <div style="display:flex;gap:8px;margin-bottom:10px;">
+        <button id="tabIndividual" class="toggle-btn active" onclick="mudarTabExpandir('individual')" style="flex:1;text-align:center;">📌 Produtos Individuais</button>
+        <button id="tabGrupoProd" class="toggle-btn" onclick="mudarTabExpandir('grupo')" style="flex:1;text-align:center;">🔗 Grupo de Produtos</button>
+      </div>
+      <div id="expandirTabIndividual">
+        <div class="modal-desc" style="margin-bottom:8px;">Marque produtos obrigatórios individualmente. Cada um conta como 1 item.</div>
+        <input class="modal-input" id="modalBuscaProd" placeholder="🔍 Buscar produto..." oninput="filtrarModalProds()" style="margin-bottom:6px;">
+        <div class="modal-sub-list" id="modalProdList">
+          ${prodList.map(([desc, info]) => `
+            <div class="modal-sub-item ${_modalCtx.selecionadas.has(desc) ? 'selected' : ''}"
+              onclick="toggleModalProd('${desc.replace(/'/g,"\\'")}')">
+              <div class="check" style="${_modalCtx.selecionadas.has(desc) ? 'background:var(--foam);border-color:var(--foam)' : ''}"></div>
+              <span class="modal-sub-name" style="font-size:12px;">${desc}</span>
+              <span class="modal-sub-cnt">${fmt(info.fat)}</span>
+            </div>`).join('')}
+        </div>
+      </div>
+      <div id="expandirTabGrupo" style="display:none;">
+        <div class="modal-desc" style="margin-bottom:8px;">Crie um grupo de produtos — basta comprar qualquer 1 para cumprimento. O grupo conta como 1 item obrigatório.</div>
+        <input class="modal-input" id="modalNomeGrupoProd" placeholder="Nome do grupo (ex: FRANGO INTEIRO)" style="margin-bottom:6px;">
+        <input class="modal-input" id="modalBuscaProd2" placeholder="🔍 Buscar produto..." oninput="filtrarModalProds2()" style="margin-bottom:6px;">
+        <div class="modal-sub-list" id="modalProdList2" style="max-height:200px;">
+          ${prodList.map(([desc, info]) => `
+            <div class="modal-sub-item"
+              onclick="toggleModalGrupoProd('${desc.replace(/'/g,"\\'")}')">
+              <div class="check gp-check"></div>
+              <span class="modal-sub-name" style="font-size:12px;">${desc}</span>
+              <span class="modal-sub-cnt">${fmt(info.fat)}</span>
+            </div>`).join('')}
+        </div>
+        <div style="margin-top:8px;font-size:11px;color:var(--text-dim);">Grupos criados:</div>
+        <div id="gruposProdCriados" style="margin-top:6px;display:flex;flex-direction:column;gap:4px;">
+          ${_modalCtx.gruposProd.map((g,i) => `
+            <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:6px;padding:6px 10px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
+              <span><strong style="color:#c4b5fd;">${g.nome}</strong>: ${[...g.subs].join(', ')}</span>
+              <button class="btn-delete-small" onclick="_modalCtx.gruposProd.splice(${i},1);renderGruposProdCriados()">✕</button>
+            </div>`).join('')}
+        </div>
+        <button class="btn-add" style="margin-top:8px;width:100%;" onclick="adicionarGrupoProd()">+ Criar Grupo de Produtos</button>
       </div>
       <div class="modal-actions">
         <button class="btn-modal-cancel" onclick="fecharModal()">Cancelar</button>
@@ -2460,6 +2506,65 @@ async function abrirModalExpandir(ramo, sub) {
       <div class="modal-title">Erro</div><div class="modal-desc">${e.message}</div>
       <div class="modal-actions"><button class="btn-modal-cancel" onclick="fecharModal()">Fechar</button></div>`;
   }
+}
+
+function mudarTabExpandir(tab) {
+  const isInd = tab === 'individual';
+  document.getElementById('expandirTabIndividual').style.display = isInd ? '' : 'none';
+  document.getElementById('expandirTabGrupo').style.display = isInd ? 'none' : '';
+  document.getElementById('tabIndividual').classList.toggle('active', isInd);
+  document.getElementById('tabGrupoProd').classList.toggle('active', !isInd);
+}
+
+function filtrarModalProds() {
+  const busca = document.getElementById('modalBuscaProd')?.value.toLowerCase().trim() || '';
+  document.querySelectorAll('#modalProdList .modal-sub-item').forEach(el => {
+    el.style.display = el.querySelector('.modal-sub-name').textContent.toLowerCase().includes(busca) ? '' : 'none';
+  });
+}
+
+function filtrarModalProds2() {
+  const busca = document.getElementById('modalBuscaProd2')?.value.toLowerCase().trim() || '';
+  document.querySelectorAll('#modalProdList2 .modal-sub-item').forEach(el => {
+    el.style.display = el.querySelector('.modal-sub-name').textContent.toLowerCase().includes(busca) ? '' : 'none';
+  });
+}
+
+let _gpSelecionados = new Set();
+
+function toggleModalGrupoProd(desc) {
+  if (_gpSelecionados.has(desc)) _gpSelecionados.delete(desc);
+  else _gpSelecionados.add(desc);
+  document.querySelectorAll('#modalProdList2 .modal-sub-item').forEach(el => {
+    const name = el.querySelector('.modal-sub-name').textContent;
+    const sel = _gpSelecionados.has(name);
+    el.classList.toggle('selected', sel);
+    el.querySelector('.gp-check').style.background = sel ? 'var(--foam)' : '';
+    el.querySelector('.gp-check').style.borderColor = sel ? 'var(--foam)' : '';
+  });
+}
+
+function adicionarGrupoProd() {
+  const nome = document.getElementById('modalNomeGrupoProd').value.trim().toUpperCase();
+  if (!nome) { alert('Digite um nome para o grupo.'); return; }
+  if (_gpSelecionados.size < 1) { alert('Selecione ao menos 1 produto.'); return; }
+  _modalCtx.gruposProd.push({ nome, subs: new Set([..._gpSelecionados]) });
+  _gpSelecionados.clear();
+  document.getElementById('modalNomeGrupoProd').value = '';
+  document.querySelectorAll('#modalProdList2 .modal-sub-item').forEach(el => {
+    el.classList.remove('selected');
+    el.querySelector('.gp-check').style.background = '';
+    el.querySelector('.gp-check').style.borderColor = '';
+  });
+  renderGruposProdCriados();
+}
+
+function renderGruposProdCriados() {
+  document.getElementById('gruposProdCriados').innerHTML = _modalCtx.gruposProd.map((g,i) => `
+    <div style="background:rgba(139,92,246,0.1);border:1px solid rgba(139,92,246,0.3);border-radius:6px;padding:6px 10px;font-size:11px;display:flex;justify-content:space-between;align-items:center;">
+      <span><strong style="color:#c4b5fd;">${g.nome}</strong>: ${[...g.subs].join(', ')}</span>
+      <button class="btn-delete-small" onclick="_modalCtx.gruposProd.splice(${i},1);renderGruposProdCriados()">✕</button>
+    </div>`).join('');
 }
 
 function filtrarModalSubs() {
@@ -2485,34 +2590,56 @@ function toggleModalProd(desc) {
 async function salvarExpandido() {
   const { ramo, sub } = _modalCtx;
   const prodsSelecionados = [..._modalCtx.selecionadas];
+  const gruposProd = _modalCtx.gruposProd || [];
 
-  if (!prodsSelecionados.length) { alert('Selecione ao menos 1 produto.'); return; }
+  if (!prodsSelecionados.length && !gruposProd.length) {
+    alert('Selecione ao menos 1 produto individual ou crie 1 grupo de produtos.');
+    return;
+  }
 
   try {
-    // Deleta registros anteriores desta subcategoria
+    // Deleta produtos individuais anteriores
     await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(PRODS_TABLE)}?ramo=eq.${encodeURIComponent(ramo)}&subcategoria=eq.${encodeURIComponent(sub)}`,
       { method: 'DELETE', headers: HEADERS });
 
-    // Insere novos — usa hash do descprod como codprod para evitar conflito de unique constraint
     const hashStr = s => s.split('').reduce((a,c) => (Math.imul(31,a) + c.charCodeAt(0)) | 0, 0);
-    const inserts = prodsSelecionados.map(desc => ({
-      ramo, subcategoria: sub, codprod: Math.abs(hashStr(desc)), descprod: desc
-    }));
-    const resp = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(PRODS_TABLE)}`, {
-      method: 'POST',
-      headers: { ...HEADERS, 'Prefer': 'return=minimal' },
-      body: JSON.stringify(inserts)
-    });
-    if (!resp.ok) throw new Error(await resp.text());
+
+    // Insere produtos individuais
+    if (prodsSelecionados.length) {
+      const inserts = prodsSelecionados.map(desc => ({
+        ramo, subcategoria: sub, codprod: Math.abs(hashStr(desc)), descprod: desc
+      }));
+      const r = await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(PRODS_TABLE)}`, {
+        method: 'POST',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify(inserts)
+      });
+      if (!r.ok) throw new Error(await r.text());
+    }
 
     if (!EXPANDIDOS_CONFIG[ramo]) EXPANDIDOS_CONFIG[ramo] = {};
     EXPANDIDOS_CONFIG[ramo][sub] = new Set(prodsSelecionados);
 
-    // Remove subcategoria individual do MIX (agora está expandida)
-    if (MIX_CONFIG[ramo]?.has(sub)) {
-      await deleteMix(ramo, sub);
-      MIX_CONFIG[ramo].delete(sub);
+    // Salva grupos de produtos (tabela separada)
+    const GPTABLE = 'Batalha Naval_Grupos_Produtos';
+    await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(GPTABLE)}?ramo=eq.${encodeURIComponent(ramo)}&subcategoria=eq.${encodeURIComponent(sub)}`,
+      { method: 'DELETE', headers: HEADERS });
+
+    if (gruposProd.length) {
+      const gpInserts = gruposProd.map(g => ({
+        ramo, subcategoria: sub, nome_grupo: g.nome, produtos: [...g.subs]
+      }));
+      await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(GPTABLE)}`, {
+        method: 'POST',
+        headers: { ...HEADERS, 'Prefer': 'return=minimal' },
+        body: JSON.stringify(gpInserts)
+      });
     }
+
+    if (!GRUPOS_PROD_CONFIG[ramo]) GRUPOS_PROD_CONFIG[ramo] = {};
+    GRUPOS_PROD_CONFIG[ramo][sub] = gruposProd.map(g => ({ nome: g.nome, subs: new Set(g.subs) }));
+
+    // FIX 3: NÃO remove subcategoria do MIX_CONFIG — ela permanece disponível como item separado
 
     fecharModal();
     renderConfigPage();
