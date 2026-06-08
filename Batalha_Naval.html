@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -2746,9 +2734,16 @@ async function salvarExpandido() {
 async function deletarExpandido(ramo, sub) {
   if (!confirm(`Remover expansão de "${sub}"? Os produtos voltarão como subcategoria individual.`)) return;
   try {
+    const GPTABLE = 'Batalha Naval_Grupos_Produtos';
+    // Deleta produtos individuais expandidos
     await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(PRODS_TABLE)}?ramo=eq.${encodeURIComponent(ramo)}&subcategoria=eq.${encodeURIComponent(sub)}`,
       { method: 'DELETE', headers: HEADERS });
+    // Deleta grupos de produtos da mesma subcategoria
+    await fetch(`${SUPABASE_URL}/rest/v1/${encodeURIComponent(GPTABLE)}?ramo=eq.${encodeURIComponent(ramo)}&subcategoria=eq.${encodeURIComponent(sub)}`,
+      { method: 'DELETE', headers: HEADERS });
+    // Limpa state local
     if (EXPANDIDOS_CONFIG[ramo]) delete EXPANDIDOS_CONFIG[ramo][sub];
+    if (GRUPOS_PROD_CONFIG[ramo]) delete GRUPOS_PROD_CONFIG[ramo][sub];
     renderConfigPage();
     applyFilters();
   } catch(e) {
