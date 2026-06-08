@@ -233,8 +233,9 @@ const SB_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZ
 const sb=supabase.createClient(SB_URL,SB_KEY);
 
 let currentUser=null,userInfo=null;
-let ALL_CLIENTS=[],MIX_CONFIG={},GRUPOS_CONFIG={},EXPANDIDOS_CONFIG={};
+let ALL_CLIENTS=[],MIX_CONFIG={},GRUPOS_CONFIG={},EXPANDIDOS_CONFIG={},GRUPOS_PROD_CONFIG={};
 let BENCHMARK={},BENCHMARK_TOTAL={};
+let BENCHMARK_180={}; // { ramo: [ {sub, count} ] } calculado dos últimos 180 dias do faturamento real
 let selectedClient=null;
 let VIEW='ramos'; // ramos | col1 | col2 | col3
 
@@ -279,20 +280,31 @@ async function initApp(){
 }
 
 async function loadConfig(){
-  const [mix,grupos,exp]=await Promise.all([
+  const [mix,grupos,exp,gruposProd]=await Promise.all([
     sb.from('Batalha Naval_Mix Obrigatorio').select('ramo,subcategoria').limit(5000),
     sb.from('Batalha Naval_Grupos').select('ramo,nome_grupo,subcategorias').limit(1000),
-    sb.from('Batalha Naval_Produtos_Obrigatorios').select('ramo,subcategoria,descprod').limit(5000)
+    sb.from('Batalha Naval_Produtos_Obrigatorios').select('ramo,subcategoria,descprod').limit(5000),
+    sb.from('Batalha Naval_Grupos_Produtos').select('ramo,subcategoria,nome_grupo,produtos').limit(5000)
   ]);
+
   MIX_CONFIG={};
   (mix.data||[]).forEach(r=>{if(!MIX_CONFIG[r.ramo])MIX_CONFIG[r.ramo]=new Set();MIX_CONFIG[r.ramo].add(r.subcategoria);});
+
   GRUPOS_CONFIG={};
   (grupos.data||[]).forEach(r=>{if(!GRUPOS_CONFIG[r.ramo])GRUPOS_CONFIG[r.ramo]=[];GRUPOS_CONFIG[r.ramo].push(r);});
+
   EXPANDIDOS_CONFIG={};
   (exp.data||[]).forEach(r=>{
     if(!EXPANDIDOS_CONFIG[r.ramo])EXPANDIDOS_CONFIG[r.ramo]={};
     if(!EXPANDIDOS_CONFIG[r.ramo][r.subcategoria])EXPANDIDOS_CONFIG[r.ramo][r.subcategoria]=new Set();
     EXPANDIDOS_CONFIG[r.ramo][r.subcategoria].add(r.descprod);
+  });
+
+  GRUPOS_PROD_CONFIG={};
+  (gruposProd.data||[]).forEach(r=>{
+    if(!GRUPOS_PROD_CONFIG[r.ramo])GRUPOS_PROD_CONFIG[r.ramo]={};
+    if(!GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria])GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria]=[];
+    GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria].push({nome:r.nome_grupo,subs:new Set(r.produtos||[])});
   });
 }
 
@@ -311,21 +323,92 @@ async function loadBenchmark(){
   (total.data||[]).forEach(r=>{BENCHMARK_TOTAL[r.ramo]=parseInt(r.total_clientes)||1;});
 }
 
+async function carregarBenchmark180(){
+  // Paginação do faturamento dos últimos 180 dias (toda empresa) para calcular BENCHMARK_180
+  const hoje=new Date();
+  const de180=new Date(hoje);de180.setDate(de180.getDate()-180);
+  const deStr=fmtDate(de180);
+  const ateStr=fmtDate(new Date(hoje.getTime()+86400000));
+  const PAGE=50000;
+  let offset=0;
+  const mapa={}; // ramo -> { sub -> Set(codcli) }
+  while(true){
+    const {data,error}=await sb.from('faturamento')
+      .select('codcli,ramo,subcategoria')
+      .eq('filial','MAR FOODSERVICE').eq('codoper','S').gt('total',0)
+      .gte('dtmov',deStr).lt('dtmov',ateStr)
+      .range(offset,offset+PAGE-1);
+    if(error||!data||!data.length)break;
+    data.forEach(r=>{
+      if(!r.ramo||!r.subcategoria)return;
+      if(!mapa[r.ramo])mapa[r.ramo]={};
+      if(!mapa[r.ramo][r.subcategoria])mapa[r.ramo][r.subcategoria]=new Set();
+      mapa[r.ramo][r.subcategoria].add(r.codcli);
+    });
+    if(data.length<PAGE)break;
+    offset+=PAGE;
+  }
+  // Converter para array ordenado por contagem, igual ao BENCHMARK
+  const novo={};
+  Object.entries(mapa).forEach(([ramo,subs])=>{
+    novo[ramo]=Object.entries(subs)
+      .map(([sub,clisSet])=>({sub,count:clisSet.size}))
+      .sort((a,b)=>b.count-a.count);
+  });
+  BENCHMARK_180=novo;
+  // Se tiver cliente selecionado na col2, re-renderizar silenciosamente
+  if(selectedClient&&(VIEW==='col2'))renderAll();
+}
+
 async function loadData(){
   document.getElementById('main-panel').innerHTML='<div class="loading"><div class="spinner"></div><span>Carregando...</span></div>';
+
+  // SEGURANÇA: filtrar estritamente pelo codrca do usuário logado
+  // Sem userInfo não carrega nada
+  if(!userInfo?.codrca){
+    document.getElementById('main-panel').innerHTML='<div class="empty">Usuário sem vínculo de RCA. Contate o administrador.</div>';
+    return;
+  }
+
   const de=document.getElementById('mix-de').value;
   const ate=document.getElementById('mix-ate').value;
   const ateD=new Date(ate);ateD.setDate(ateD.getDate()+1);
-  const {data,error}=await sb.from('faturamento')
+
+  let query=sb.from('faturamento')
     .select('codcli,cliente,ramo,rca,codrca,subcategoria,descricao,total,supervisor')
     .eq('filial','MAR FOODSERVICE').eq('codoper','S').gt('total',0)
-    .gte('dtmov',de).lt('dtmov',fmtDate(ateD)).limit(50000);
+    .gte('dtmov',de).lt('dtmov',fmtDate(ateD));
+
+  if(userInfo.is_supervisor){
+    // Supervisor vê todos os RCAs da sua equipe
+    // Buscar lista de codrca do supervisor
+    const {data:equipe}=await sb.from('Batalha Naval_Vendedor_Usuario')
+      .select('codrca')
+      .eq('codsupervisor',userInfo.codrca);
+    const rcas=(equipe||[]).map(e=>e.codrca);
+    rcas.push(userInfo.codrca); // inclui o próprio supervisor
+    if(rcas.length===1){
+      query=query.eq('codrca',rcas[0]);
+    } else {
+      query=query.in('codrca',rcas);
+    }
+  } else {
+    // Vendedor vê somente os próprios clientes
+    query=query.eq('codrca',userInfo.codrca);
+  }
+
+  query=query.limit(50000);
+
+  const {data,error}=await query;
   if(error){document.getElementById('main-panel').innerHTML='<div class="empty">Erro ao carregar.</div>';return;}
   processData(data||[]);
   populateRamos();
   selectedClient=null;VIEW='ramos';
   renderAll();
+  // Carregar benchmark 180 dias em background (não bloqueia a tela)
+  carregarBenchmark180();
 }
+
 async function reloadData(){selectedClient=null;VIEW='ramos';await loadData();}
 
 function processData(rows){
@@ -365,12 +448,42 @@ function getFiltered(){
 
 function getItens(ramo){
   const itens=[];
+  // Grupos de subcategorias (tipo=grupo) — as subcats deles são excluídas do individual
   const grupos=GRUPOS_CONFIG[ramo]||[];
   const grupSubs=new Set(grupos.flatMap(g=>g.subcategorias||[]));
+
+  // Expandidos de produtos individuais
+  const expandidos=EXPANDIDOS_CONFIG[ramo]||{};
+  // Grupos de produtos
+  const gruposProdRamo=GRUPOS_PROD_CONFIG[ramo]||{};
+
+  // subsExpandidas: subcategorias que têm produtos avulsos OU grupos_prod
+  // NOTA: subcategoria permanece disponível como item individual mesmo que tenha expansão
+  const subsExpandidas=new Set([...Object.keys(expandidos),...Object.keys(gruposProdRamo)]);
+
   const mixSet=MIX_CONFIG[ramo]||new Set();
-  mixSet.forEach(sub=>{if(grupSubs.has(sub))return;if(EXPANDIDOS_CONFIG[ramo]?.[sub])return;itens.push({tipo:'individual',sub});});
+
+  // Itens individuais: excluir subcats de grupos de subcats E subcats que têm grupos_prod
+  // (pois os grupo_prod já aparecem como itens individuais com nome_grupo)
+  mixSet.forEach(sub=>{
+    if(grupSubs.has(sub))return; // faz parte de um grupo de subcats
+    if(gruposProdRamo[sub])return; // tem grupos_prod → aparece via grupo_prod abaixo
+    itens.push({tipo:'individual',sub});
+  });
+
+  // Grupos de subcategorias
   grupos.forEach(g=>itens.push({tipo:'grupo',nome:g.nome_grupo,subs:g.subcategorias||[]}));
-  if(EXPANDIDOS_CONFIG[ramo])Object.entries(EXPANDIDOS_CONFIG[ramo]).forEach(([sub,prods])=>{prods.forEach(prod=>itens.push({tipo:'expandido',sub,prod}));});
+
+  // Produtos individuais expandidos
+  Object.entries(expandidos).forEach(([sub,prods])=>{
+    prods.forEach(prod=>itens.push({tipo:'expandido',sub,prod}));
+  });
+
+  // Grupos de produtos (tipo=grupo_prod)
+  Object.entries(gruposProdRamo).forEach(([sub,gps])=>{
+    gps.forEach(gp=>itens.push({tipo:'grupo_prod',sub,nome:gp.nome,subs:gp.subs}));
+  });
+
   return itens;
 }
 
@@ -381,6 +494,13 @@ function getCoverage(c){
     if(item.tipo==='individual'&&c.subcats.has(item.sub))ok++;
     else if(item.tipo==='grupo'&&item.subs.some(s=>c.subcats.has(s)))ok++;
     else if(item.tipo==='expandido'){const p=c.produtos[item.sub];if(p&&p.has(item.prod))ok++;}
+    else if(item.tipo==='grupo_prod'){
+      const p=c.produtos[item.sub];
+      if(p&&item.subs&&item.subs.size>0){
+        const prodSet=new Set(item.subs instanceof Set?[...item.subs]:(Array.isArray(item.subs)?item.subs:[]));
+        if(prodSet.size>0&&[...prodSet].some(prod=>p.has(prod)))ok++;
+      }
+    }
   });
   return Math.round((ok/itens.length)*100);
 }
@@ -414,7 +534,7 @@ function renderRamos(clients){
     const covs=cls.map(c=>getCoverage(c)).filter(v=>v!==null);
     const avgCov=covs.length?Math.round(covs.reduce((a,b)=>a+b,0)/covs.length):null;
     const avgSubs=cls.length?(cls.reduce((a,c)=>a+c.subcats.size,0)/cls.length).toFixed(1):0;
-    const temConfig=!!(MIX_CONFIG[ramo]?.size||GRUPOS_CONFIG[ramo]?.length);
+    const temConfig=!!(MIX_CONFIG[ramo]?.size||GRUPOS_CONFIG[ramo]?.length||Object.keys(GRUPOS_PROD_CONFIG[ramo]||{}).length||EXPANDIDOS_CONFIG[ramo]&&Object.keys(EXPANDIDOS_CONFIG[ramo]).length);
     return{ramo,count:cls.length,avgCov,avgSubs,temConfig};
   }).filter(r=>r.temConfig).sort((a,b)=>(b.avgCov||0)-(a.avgCov||0));
 
@@ -481,10 +601,19 @@ function renderColuna(col){
     if(item.tipo==='individual'&&c.subcats.has(item.sub))ok++;
     else if(item.tipo==='grupo'&&item.subs.some(s=>c.subcats.has(s)))ok++;
     else if(item.tipo==='expandido'){const p=c.produtos[item.sub];if(p&&p.has(item.prod))ok++;}
+    else if(item.tipo==='grupo_prod'){
+      const p=c.produtos[item.sub];
+      if(p&&item.subs&&item.subs.size>0){
+        const prodSet=new Set(item.subs instanceof Set?[...item.subs]:(Array.isArray(item.subs)?item.subs:[]));
+        if(prodSet.size>0&&[...prodSet].some(prod=>p.has(prod)))ok++;
+      }
+    }
   });
   const falta=itens.length-ok;
-  const benchItems=BENCHMARK[c.ramo]||[];
-  const benchTotal=BENCHMARK_TOTAL[c.ramo]||1;
+  // col2 usa BENCHMARK_180 (faturamento real 180 dias toda empresa)
+  const bench180Items=BENCHMARK_180[c.ramo]||[];
+  const benchItems=bench180Items.length?bench180Items:(BENCHMARK[c.ramo]||[]);
+  const benchTotal=bench180Items.length?(bench180Items[0]?.count||1):(BENCHMARK_TOTAL[c.ramo]||1);
   const mixObrigSet=MIX_CONFIG[c.ramo]||new Set();
   const subcats=[...c.subcats].sort();
 
@@ -519,7 +648,13 @@ function renderColuna(col){
       let comprou=false,label='',tag='';
       if(item.tipo==='individual'){comprou=c.subcats.has(item.sub);label=item.sub;}
       else if(item.tipo==='grupo'){comprou=item.subs.some(s=>c.subcats.has(s));label=item.nome;tag='<span class="tag-g">Grupo</span>';}
-      else{const p=c.produtos[item.sub];comprou=p&&p.has(item.prod);label=item.prod;tag='<span class="tag-p">Produto</span>';}
+      else if(item.tipo==='expandido'){const p=c.produtos[item.sub];comprou=p&&p.has(item.prod);label=item.prod;tag='<span class="tag-p">Produto</span>';}
+      else if(item.tipo==='grupo_prod'){
+        const p=c.produtos[item.sub];
+        const prodSet=new Set(item.subs instanceof Set?[...item.subs]:(Array.isArray(item.subs)?item.subs:[]));
+        comprou=p&&prodSet.size>0&&[...prodSet].some(prod=>p.has(prod));
+        label=item.nome;tag='<span class="tag-g">gp</span>';
+      }
       return`<div class="mix-row ${comprou?'ok':'nok'}"><span class="mix-ico">${comprou?'✅':'🔴'}</span><span class="mix-lbl">${esc(label)}</span>${tag}</div>`;
     }).join(''):'<div class="empty">Sem mix configurado.</div>';
     const fraseMix=itens.length?`<div class="resumo-frase">Você vendeu <strong>${ok} item${ok!==1?'s':''}</strong> dos <strong>${itens.length} obrigatórios</strong> para esse cliente.</div>`:'';
@@ -534,7 +669,9 @@ function renderColuna(col){
       return`<div class="bench-row"><span class="bench-pos">${i+1}.</span><span class="bench-sub${isObrig?' obrig':''}">${esc(item.sub)}${isObrig?' <span class="dot">●</span>':''}</span><span class="bench-count">${item.count} cli</span><span class="bench-pct">${pctVal}%</span>${vendeu?'<span class="dot-vendeu">●</span>':''}</div>`;
     }).join('')||'<div class="empty">Sem dados globais.</div>';
     const fraseBench=benchTop.length?`<div class="resumo-frase">Dos <strong>${benchTop.length} itens</strong> mais vendidos neste ramo, você vendeu <strong>${vendeuNoBench}</strong> para esse cliente.</div>`:'';
-    content=`<div class="col-title">🏆 MIX + VENDIDO — 180 DIAS (${(()=>{const d=new Date();d.setDate(d.getDate()-180);return d.toLocaleDateString('pt-BR')})()}→${new Date().toLocaleDateString('pt-BR')}) — ${BENCHMARK_TOTAL[c.ramo]||0} CLI · TOP 20 · ● = OBRIG.</div>`+benchRows+fraseBench;
+    const bench180Status=bench180Items.length?'':`<div class="resumo-frase" style="color:var(--gold)">⏳ Carregando dados 180 dias…</div>`;
+    const d180=new Date();d180.setDate(d180.getDate()-180);
+    content=`<div class="col-title">🏆 MIX + VENDIDO — 180 DIAS (${d180.toLocaleDateString('pt-BR')}→${new Date().toLocaleDateString('pt-BR')}) · TOP 20 · ● = OBRIG.</div>`+bench180Status+benchRows+fraseBench;
   } else {
     const compradasRows=subcats.map(sub=>{
       const isObrig=mixObrigSet.has(sub);
