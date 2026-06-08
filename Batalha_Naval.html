@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-   <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1068,7 +1056,7 @@
 // SUPABASE CONFIG
 // ============================================
 const SUPABASE_URL = 'https://ctbbyhjjskvgxodshhhc.supabase.co';
-const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzA1Mzg4OCwiZXhwIjoyMDkyNjI5ODg4fQ.G-hmmsc93l5WkkI0CTS789i4Y5R3JFRiRgdC0ca3X5c';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTM4ODgsImV4cCI6MjA5MjYyOTg4OH0.WyWB0pMUrK1tJAYSdKygNrcyaJzcS0dYNsYgPPsj-jU';
 const HEADERS = {
   'apikey': SUPABASE_KEY,
   'Authorization': 'Bearer ' + SUPABASE_KEY,
@@ -2938,7 +2926,8 @@ function irParaVendedor(rca) {
 })();
 
 // ===== GESTÃO DE USUÁRIOS =====
-const SYNC_SERVICE_KEY = SUPABASE_KEY; // usa a service_role key já definida no arquivo
+// service_role key — usada SOMENTE para criar/sincronizar usuários via Auth Admin API
+const SYNC_SERVICE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6InNlcnZpY2Vfcm9sZSIsImlhdCI6MTc3NzA1Mzg4OCwiZXhwIjoyMDkyNjI5ODg4fQ.G-hmmsc93l5WkkI0CTS789i4Y5R3JFRiRgdC0ca3X5c';
 
 function syncLog(msg, tipo='info') {
   const div = document.getElementById('sync-log');
