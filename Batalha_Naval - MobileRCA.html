@@ -280,32 +280,52 @@ async function initApp(){
 }
 
 async function loadConfig(){
+  // Pega o JWT da sessão autenticada para usar como Bearer token
+  // Isso garante role 'authenticated' no Supabase (GRANT SELECT TO authenticated)
+  const {data:{session}}=await sb.auth.getSession();
+  const token=session?.access_token||SB_KEY; // fallback para anon key se não tiver sessão
+
+  async function cfgGet(table,params){
+    const r=await fetch(`${SB_URL}/rest/v1/${encodeURIComponent(table)}?${params}`,
+      {headers:{'apikey':SB_KEY,'Authorization':'Bearer '+token}});
+    if(!r.ok){
+      console.warn('[BN] cfgGet erro',table,r.status,await r.text().catch(()=>''));
+      return [];
+    }
+    return r.json();
+  }
+
   const [mix,grupos,exp,gruposProd]=await Promise.all([
-    sb.from('Batalha Naval_Mix Obrigatorio').select('ramo,subcategoria').limit(5000),
-    sb.from('Batalha Naval_Grupos').select('ramo,nome_grupo,subcategorias').limit(1000),
-    sb.from('Batalha Naval_Produtos_Obrigatorios').select('ramo,subcategoria,descprod').limit(5000),
-    sb.from('Batalha Naval_Grupos_Produtos').select('ramo,subcategoria,nome_grupo,produtos').limit(5000)
+    cfgGet('Batalha Naval_Mix Obrigatorio','select=ramo,subcategoria&limit=5000'),
+    cfgGet('Batalha Naval_Grupos','select=ramo,nome_grupo,subcategorias&limit=1000'),
+    cfgGet('Batalha Naval_Produtos_Obrigatorios','select=ramo,subcategoria,descprod&limit=5000'),
+    cfgGet('Batalha Naval_Grupos_Produtos','select=ramo,subcategoria,nome_grupo,produtos&limit=5000')
   ]);
 
   MIX_CONFIG={};
-  (mix.data||[]).forEach(r=>{if(!MIX_CONFIG[r.ramo])MIX_CONFIG[r.ramo]=new Set();MIX_CONFIG[r.ramo].add(r.subcategoria);});
+  mix.forEach(r=>{if(!MIX_CONFIG[r.ramo])MIX_CONFIG[r.ramo]=new Set();MIX_CONFIG[r.ramo].add(r.subcategoria);});
 
   GRUPOS_CONFIG={};
-  (grupos.data||[]).forEach(r=>{if(!GRUPOS_CONFIG[r.ramo])GRUPOS_CONFIG[r.ramo]=[];GRUPOS_CONFIG[r.ramo].push(r);});
+  grupos.forEach(r=>{if(!GRUPOS_CONFIG[r.ramo])GRUPOS_CONFIG[r.ramo]=[];GRUPOS_CONFIG[r.ramo].push(r);});
 
   EXPANDIDOS_CONFIG={};
-  (exp.data||[]).forEach(r=>{
+  exp.forEach(r=>{
     if(!EXPANDIDOS_CONFIG[r.ramo])EXPANDIDOS_CONFIG[r.ramo]={};
     if(!EXPANDIDOS_CONFIG[r.ramo][r.subcategoria])EXPANDIDOS_CONFIG[r.ramo][r.subcategoria]=new Set();
     EXPANDIDOS_CONFIG[r.ramo][r.subcategoria].add(r.descprod);
   });
 
   GRUPOS_PROD_CONFIG={};
-  (gruposProd.data||[]).forEach(r=>{
+  gruposProd.forEach(r=>{
     if(!GRUPOS_PROD_CONFIG[r.ramo])GRUPOS_PROD_CONFIG[r.ramo]={};
     if(!GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria])GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria]=[];
     GRUPOS_PROD_CONFIG[r.ramo][r.subcategoria].push({nome:r.nome_grupo,subs:new Set(r.produtos||[])});
   });
+
+  console.log('[BN] config carregada | token role:',token===SB_KEY?'anon':'authenticated');
+  console.log('[BN] MIX:',Object.keys(MIX_CONFIG).length,'ramos');
+  console.log('[BN] GRUPOS_PROD:',Object.entries(GRUPOS_PROD_CONFIG).map(([r,s])=>r+' -> '+Object.values(s).flat().length+' grupos'));
+  console.log('[BN] GRUPOS_PROD raw count:',gruposProd.length,'registros do Supabase');
 }
 
 async function loadBenchmark(){
@@ -618,7 +638,7 @@ function renderColuna(col){
   const subcats=[...c.subcats].sort();
 
   // Header comum
-  const nomeBreve=c.cliente?c.cliente.split(' ').slice(0,2).join(' '):'—';
+  const nomeBreve=c.cliente||'—'; // nome completo — CSS faz ellipsis se necessário
   const header=`
     <div class="cli-header">
       <div class="cli-header-top">
