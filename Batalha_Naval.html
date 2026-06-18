@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-   <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1655,6 +1643,9 @@ function applyFilters() {
   const cliente = document.getElementById('filterCliente').value.toLowerCase().trim();
   const cov = document.getElementById('filterCoverage').value;
 
+  // Para compatibilidade com renderCardsMixObrigatorio: supervisor único quando só 1 selecionado
+  const supervisor = _msSelectedSups.size === 1 ? [..._msSelectedSups][0] : (_msSelectedSups.size === 0 ? '' : '__multi__');
+
   filteredClients = ALL_CLIENTS.filter(c => {
     if (_msSelectedSups.size > 0 && !_msSelectedSups.has(c.supervisor)) return false;
     if (rca && c.rca !== rca) return false;
@@ -1688,10 +1679,12 @@ function applyFilters() {
   // Página Mix Obrigatório
   if (currentTab === 'painel') {
     // Mostra cards quando: ramo selecionado OU supervisor/rca filtrados (e nenhum cliente selecionado)
-    const temContexto = ramo || supervisor || rca;
+    const temContexto = ramo || _msSelectedSups.size > 0 || rca;
     if (temContexto && !selectedClient) {
       const ramoEfetivo = ramo || null;
-      renderCardsMixObrigatorio(ramoEfetivo, supervisor, rca);
+      // Para renderCardsMixObrigatorio: passa supervisor único ou null (multi não filtra o painel de cards)
+      const supParaCards = _msSelectedSups.size === 1 ? [..._msSelectedSups][0] : null;
+      renderCardsMixObrigatorio(ramoEfetivo, supParaCards, rca);
     } else if (!selectedClient) {
       document.getElementById('detailPanel').innerHTML = `
         <div class="empty-state"><span class="icon">🎯</span>
@@ -2344,12 +2337,12 @@ async function recarregarConfig() {
 function voltarResumo() {
   selectedClient = null;
   document.querySelectorAll('.client-item').forEach(el => el.classList.remove('active'));
-  const supervisor = document.getElementById('filterSupervisor').value;
   const rca = document.getElementById('filterRCA').value;
   const ramo = document.getElementById('filterRamo').value;
-  const temContexto = ramo || supervisor || rca;
+  const supParaCards = _msSelectedSups.size === 1 ? [..._msSelectedSups][0] : null;
+  const temContexto = ramo || _msSelectedSups.size > 0 || rca;
   if (temContexto) {
-    renderCardsMixObrigatorio(ramo || null, supervisor, rca);
+    renderCardsMixObrigatorio(ramo || null, supParaCards, rca);
   } else {
     document.getElementById('detailPanel').innerHTML = `
       <div class="empty-state"><span class="icon">🎯</span>
