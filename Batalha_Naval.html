@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-   <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -756,10 +744,89 @@
     padding: 14px 20px;
     background: rgba(255,255,255,0.04);
     border-bottom: 1px solid var(--border);
-    display: flex; justify-content: space-between; align-items: center;
+    display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 10px;
   }
   .ranking-card-title { font-family: 'Rajdhani', sans-serif; font-size: 16px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--foam); }
   .ranking-card-subtitle { font-size: 11px; color: var(--text-dim); }
+
+  /* ---- RANK FILTERS ---- */
+  .rank-filters { display: flex; gap: 10px; flex-wrap: wrap; align-items: flex-end; }
+  .rank-filter-group { display: flex; flex-direction: column; gap: 3px; }
+  .rank-filter-group label { font-size: 9px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; }
+  .rank-filter-input {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 5px;
+    color: var(--text); font-size: 12px; padding: 5px 8px; outline: none; width: 90px;
+    transition: border-color 0.2s;
+  }
+  .rank-filter-input:focus { border-color: var(--foam); }
+  .rank-filter-btn {
+    background: rgba(91,196,245,0.12); border: 1px solid rgba(91,196,245,0.3); border-radius: 5px;
+    color: var(--foam); font-size: 11px; font-weight: 700; padding: 5px 10px; cursor: pointer;
+    transition: all 0.2s; white-space: nowrap; align-self: flex-end;
+  }
+  .rank-filter-btn:hover { background: rgba(91,196,245,0.25); }
+
+  /* ---- MULTI-SELECT SUPERVISOR ---- */
+  .ms-wrapper { position: relative; min-width: 240px; max-width: 340px; }
+  .ms-trigger {
+    background: rgba(255,255,255,0.05); border: 1px solid var(--border); border-radius: 6px;
+    color: var(--text); font-family: 'Barlow', sans-serif; font-size: 13px;
+    padding: 7px 32px 7px 10px; cursor: pointer; display: flex; align-items: center;
+    justify-content: space-between; user-select: none; transition: border-color 0.2s;
+    min-height: 36px; white-space: nowrap; overflow: hidden;
+  }
+  .ms-trigger:hover, .ms-trigger.open { border-color: var(--foam); }
+  .ms-trigger-arrow {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    font-size: 10px; color: var(--text-dim); pointer-events: none;
+  }
+  .ms-dropdown {
+    position: absolute; top: calc(100% + 6px); left: 0;
+    min-width: 320px; width: max-content; max-width: 420px;
+    z-index: 9999;
+    background: #0f1e35; border: 1px solid rgba(91,196,245,0.5);
+    border-radius: 10px; overflow: hidden;
+    box-shadow: 0 12px 40px rgba(0,0,0,0.7);
+    display: none;
+  }
+  .ms-dropdown.open { display: block; }
+  .ms-search {
+    display: block; width: 100%; padding: 10px 14px;
+    background: rgba(255,255,255,0.04);
+    border: none; border-bottom: 1px solid rgba(91,196,245,0.15);
+    color: var(--text); font-family: 'Barlow', sans-serif; font-size: 13px; outline: none;
+    box-sizing: border-box;
+  }
+  .ms-search::placeholder { color: var(--text-dim); }
+  .ms-options { max-height: 260px; overflow-y: auto; padding: 4px 0; }
+  .ms-options::-webkit-scrollbar { width: 4px; }
+  .ms-options::-webkit-scrollbar-track { background: transparent; }
+  .ms-options::-webkit-scrollbar-thumb { background: rgba(91,196,245,0.3); border-radius: 2px; }
+  .ms-option {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 14px; cursor: pointer; font-size: 13px;
+    color: var(--text); white-space: nowrap;
+    transition: background 0.12s;
+  }
+  .ms-option:hover { background: rgba(91,196,245,0.1); }
+  .ms-option input[type=checkbox] {
+    accent-color: var(--foam); width: 15px; height: 15px;
+    flex-shrink: 0; cursor: pointer; margin: 0;
+  }
+  .ms-option span { overflow: hidden; text-overflow: ellipsis; }
+  .ms-option.select-all {
+    border-bottom: 1px solid rgba(91,196,245,0.15);
+    font-weight: 700; color: var(--foam); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.5px;
+    padding: 10px 14px;
+    margin-bottom: 2px;
+  }
+  .ms-tag {
+    display: inline-block; background: rgba(91,196,245,0.15);
+    border: 1px solid rgba(91,196,245,0.3); border-radius: 3px;
+    padding: 2px 7px; font-size: 11px; color: var(--foam);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 220px;
+  }
 
   .rank-table { width: 100%; border-collapse: collapse; }
   .rank-table th { padding: 8px 12px; font-size: 10px; font-weight: 700; color: var(--text-dim); text-transform: uppercase; letter-spacing: 1px; background: rgba(0,0,0,0.15); border-bottom: 1px solid var(--border); text-align: left; white-space: nowrap; }
@@ -846,11 +913,24 @@
 
 <!-- FILTERS BAR (compartilhada entre painel e ramo) -->
 <div class="filters-bar" id="sharedFilters">
-  <div class="filter-group" style="max-width:200px">
+  <div class="filter-group" style="max-width:300px">
     <label>Supervisor</label>
-    <select id="filterSupervisor">
-      <option value="">Todos os supervisores</option>
-    </select>
+    <div class="ms-wrapper" id="msSupervisorWrapper">
+      <div class="ms-trigger" id="msSupervisorTrigger" onclick="toggleMsDropdown('Supervisor')">
+        <span id="msSupervisorLabel">Todos os supervisores</span>
+        <span class="ms-trigger-arrow" id="msSupervisorArrow">▾</span>
+      </div>
+      <div class="ms-dropdown" id="msSupervisorDropdown">
+        <input class="ms-search" type="text" placeholder="🔍  Buscar supervisor..." oninput="filterMsOptions('Supervisor', this.value)">
+        <div class="ms-options" id="msSupervisorOptions">
+          <label class="ms-option select-all">
+            <input type="checkbox" id="msSupervisorAll" onchange="toggleMsAll('Supervisor', this.checked)"> <span>Selecionar todos</span>
+          </label>
+        </div>
+      </div>
+    </div>
+    <!-- hidden select mantido para compatibilidade com populateFilters -->
+    <select id="filterSupervisor" style="display:none"></select>
   </div>
   <div class="filter-group" style="max-width:220px">
     <label>Representante (RCA)</label>
@@ -971,7 +1051,24 @@
             <div class="ranking-card-title">👔 Ranking de Supervisores</div>
             <div class="ranking-card-subtitle">Cobertura média do mix por supervisor</div>
           </div>
-          <div id="rankSupCount" style="font-size:11px;color:var(--text-dim);"></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <div id="rankSupCount" style="font-size:11px;color:var(--text-dim);"></div>
+            <div class="rank-filters">
+              <div class="rank-filter-group">
+                <label>Mín. Clientes</label>
+                <input type="number" class="rank-filter-input" id="supMinClientes" placeholder="0" min="0" oninput="renderRanking()">
+              </div>
+              <div class="rank-filter-group">
+                <label>Mín. Mix %</label>
+                <input type="number" class="rank-filter-input" id="supMinPct" placeholder="0" min="0" max="100" oninput="renderRanking()">
+              </div>
+              <div class="rank-filter-group">
+                <label>Máx. Mix %</label>
+                <input type="number" class="rank-filter-input" id="supMaxPct" placeholder="100" min="0" max="100" oninput="renderRanking()">
+              </div>
+              <button class="rank-filter-btn" onclick="limparFiltrosRank('sup')">✕ Limpar</button>
+            </div>
+          </div>
         </div>
         <table class="rank-table" id="rankSupTable">
           <thead>
@@ -993,7 +1090,24 @@
             <div class="ranking-card-title" id="rankVendTitle">👤 Ranking de Vendedores</div>
             <div class="ranking-card-subtitle" id="rankVendSubtitle">Cobertura média do mix por vendedor</div>
           </div>
-          <div id="rankVendCount" style="font-size:11px;color:var(--text-dim);"></div>
+          <div style="display:flex;flex-direction:column;align-items:flex-end;gap:8px;">
+            <div id="rankVendCount" style="font-size:11px;color:var(--text-dim);"></div>
+            <div class="rank-filters">
+              <div class="rank-filter-group">
+                <label>Mín. Clientes</label>
+                <input type="number" class="rank-filter-input" id="vendMinClientes" placeholder="0" min="0" oninput="renderVendedoresRanking(_rankSupSelecionado)">
+              </div>
+              <div class="rank-filter-group">
+                <label>Mín. Mix %</label>
+                <input type="number" class="rank-filter-input" id="vendMinPct" placeholder="0" min="0" max="100" oninput="renderVendedoresRanking(_rankSupSelecionado)">
+              </div>
+              <div class="rank-filter-group">
+                <label>Máx. Mix %</label>
+                <input type="number" class="rank-filter-input" id="vendMaxPct" placeholder="100" min="0" max="100" oninput="renderVendedoresRanking(_rankSupSelecionado)">
+              </div>
+              <button class="rank-filter-btn" onclick="limparFiltrosRank('vend')">✕ Limpar</button>
+            </div>
+          </div>
         </div>
         <table class="rank-table" id="rankVendTable">
           <thead>
@@ -1304,19 +1418,124 @@ function processDataSilent(rows) {
 }
 
 // ============================================
+// MULTI-SELECT SUPERVISOR
+// ============================================
+let _msSelectedSups = new Set(); // Set vazio = todos
+
+function toggleMsDropdown(name) {
+  const trigger = document.getElementById(`ms${name}Trigger`);
+  const dropdown = document.getElementById(`ms${name}Dropdown`);
+  const arrow = document.getElementById(`ms${name}Arrow`);
+  const isOpen = dropdown.classList.contains('open');
+  // Fechar qualquer outro aberto
+  document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+  document.querySelectorAll('.ms-trigger.open').forEach(t => t.classList.remove('open'));
+  document.querySelectorAll('.ms-trigger-arrow').forEach(a => a.textContent = '▾');
+  if (!isOpen) {
+    dropdown.classList.add('open');
+    trigger.classList.add('open');
+    if (arrow) arrow.textContent = '▴';
+    dropdown.querySelector('.ms-search')?.focus();
+  }
+}
+
+// Fechar ao clicar fora ou pressionar Escape
+document.addEventListener('click', e => {
+  if (!e.target.closest('.ms-wrapper')) {
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger.open').forEach(t => t.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger-arrow').forEach(a => a.textContent = '▾');
+  }
+});
+document.addEventListener('keydown', e => {
+  if (e.key === 'Escape') {
+    document.querySelectorAll('.ms-dropdown.open').forEach(d => d.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger.open').forEach(t => t.classList.remove('open'));
+    document.querySelectorAll('.ms-trigger-arrow').forEach(a => a.textContent = '▾');
+  }
+});
+
+function buildMsOptions(name, items) {
+  const container = document.getElementById(`ms${name}Options`);
+  const selectAll = container.querySelector('.select-all');
+  container.innerHTML = '';
+  container.appendChild(selectAll);
+  items.forEach(item => {
+    const lbl = document.createElement('label');
+    lbl.className = 'ms-option';
+    lbl.dataset.value = item;
+    const chk = document.createElement('input');
+    chk.type = 'checkbox';
+    chk.value = item;
+    chk.checked = _msSelectedSups.size === 0 || _msSelectedSups.has(item);
+    chk.onchange = () => onMsChange(name);
+    const span = document.createElement('span');
+    span.textContent = item;
+    lbl.appendChild(chk);
+    lbl.appendChild(span);
+    container.appendChild(lbl);
+  });
+  updateMsAllCheckbox(name);
+  updateMsLabel(name, items);
+}
+
+function filterMsOptions(name, busca) {
+  const b = busca.toLowerCase();
+  document.querySelectorAll(`#ms${name}Options .ms-option:not(.select-all)`).forEach(el => {
+    el.style.display = el.dataset.value.toLowerCase().includes(b) ? '' : 'none';
+  });
+}
+
+function toggleMsAll(name, checked) {
+  document.querySelectorAll(`#ms${name}Options .ms-option:not(.select-all) input`).forEach(chk => {
+    if (chk.closest('.ms-option').style.display !== 'none') chk.checked = checked;
+  });
+  onMsChange(name);
+}
+
+function onMsChange(name) {
+  const checks = [...document.querySelectorAll(`#ms${name}Options .ms-option:not(.select-all) input`)];
+  const checked = checks.filter(c => c.checked).map(c => c.value);
+  const all = checks.map(c => c.value);
+  // Se todos marcados ou nenhum = "todos"
+  if (checked.length === all.length || checked.length === 0) {
+    _msSelectedSups = new Set();
+  } else {
+    _msSelectedSups = new Set(checked);
+  }
+  updateMsAllCheckbox(name);
+  updateMsLabel(name, all);
+  applyFilters();
+}
+
+function updateMsAllCheckbox(name) {
+  const checks = [...document.querySelectorAll(`#ms${name}Options .ms-option:not(.select-all) input`)];
+  const checked = checks.filter(c => c.checked);
+  const el = document.getElementById(`ms${name}All`);
+  if (!el) return;
+  el.checked = checked.length === checks.length;
+  el.indeterminate = checked.length > 0 && checked.length < checks.length;
+}
+
+function updateMsLabel(name, allItems) {
+  const lbl = document.getElementById(`ms${name}Label`);
+  if (!lbl) return;
+  if (_msSelectedSups.size === 0 || _msSelectedSups.size === allItems.length) {
+    lbl.innerHTML = 'Todos os supervisores';
+  } else if (_msSelectedSups.size === 1) {
+    lbl.innerHTML = `<span class="ms-tag">${[..._msSelectedSups][0]}</span>`;
+  } else {
+    lbl.innerHTML = `<span class="ms-tag">${_msSelectedSups.size} supervisores</span>`;
+  }
+}
+
+// ============================================
 // POPULATE FILTERS
 // ============================================
 function populateFilters() {
-  // Supervisores
-  const supSel = document.getElementById('filterSupervisor');
-  const curSup = supSel.value;
-  supSel.innerHTML = '<option value="">Todos os supervisores</option>';
-  Object.keys(supervisorRCAMap).sort().forEach(s => {
-    const opt = document.createElement('option');
-    opt.value = s; opt.textContent = s;
-    supSel.appendChild(opt);
-  });
-  supSel.value = curSup;
+  // Supervisores — alimenta o multi-select
+  const supervisores = Object.keys(supervisorRCAMap).sort();
+  buildMsOptions('Supervisor', supervisores);
 
   // RCAs (todos inicialmente)
   populateRCAFilter('');
@@ -1352,16 +1571,6 @@ function populateRCAFilter(supervisor) {
   });
   rcaSel.value = curRCA;
 }
-
-document.getElementById('filterSupervisor').addEventListener('change', function() {
-  populateRCAFilter(this.value);
-  const rcaSel = document.getElementById('filterRCA');
-  const sup = this.value;
-  if (sup && supervisorRCAMap[sup] && !supervisorRCAMap[sup].includes(rcaSel.value)) {
-    rcaSel.value = '';
-  }
-  applyFilters();
-});
 
 document.getElementById('filterRCA').addEventListener('change', applyFilters);
 document.getElementById('filterRamo').addEventListener('change', function() {
@@ -1429,14 +1638,13 @@ function getCoverage(client) {
 }
 
 function applyFilters() {
-  const supervisor = document.getElementById('filterSupervisor').value;
   const rca = document.getElementById('filterRCA').value;
   const ramo = document.getElementById('filterRamo').value;
   const cliente = document.getElementById('filterCliente').value.toLowerCase().trim();
   const cov = document.getElementById('filterCoverage').value;
 
   filteredClients = ALL_CLIENTS.filter(c => {
-    if (supervisor && c.supervisor !== supervisor) return false;
+    if (_msSelectedSups.size > 0 && !_msSelectedSups.has(c.supervisor)) return false;
     if (rca && c.rca !== rca) return false;
     if (ramo && c.ramo !== ramo) return false;
     if (cliente && !c.nome.toLowerCase().includes(cliente) && !String(c.cod).includes(cliente)) return false;
@@ -2811,6 +3019,26 @@ function usarPeriodoFiltro() {
   renderRanking();
 }
 
+function limparFiltrosRank(tipo) {
+  if (tipo === 'sup') {
+    document.getElementById('supMinClientes').value = '';
+    document.getElementById('supMinPct').value = '';
+    document.getElementById('supMaxPct').value = '';
+  } else {
+    document.getElementById('vendMinClientes').value = '';
+    document.getElementById('vendMinPct').value = '';
+    document.getElementById('vendMaxPct').value = '';
+  }
+  renderRanking();
+}
+
+function getRankFilters(tipo) {
+  const minCli = parseFloat(document.getElementById(`${tipo}MinClientes`)?.value) || 0;
+  const minPct = parseFloat(document.getElementById(`${tipo}MinPct`)?.value) || 0;
+  const maxPct = parseFloat(document.getElementById(`${tipo}MaxPct`)?.value);
+  return { minCli, minPct, maxPct: isNaN(maxPct) ? 100 : maxPct };
+}
+
 function popularFiltroRankingSup() {
   const sel = document.getElementById('rankingFilterSup');
   const cur = sel.value;
@@ -2876,6 +3104,7 @@ let _rankSupSelecionado = null;
 function renderRanking() {
   const supFiltro = document.getElementById('rankingFilterSup')?.value || '';
   const clientes = RANKING_CLIENTS.length > 0 ? RANKING_CLIENTS : ALL_CLIENTS;
+  const f = getRankFilters('sup');
 
   // ---- SUPERVISORES ----
   const supMap = {};
@@ -2885,12 +3114,21 @@ function renderRanking() {
     supMap[s].push(c);
   });
 
-  const supRows = Object.entries(supMap).map(([sup, cls]) => {
+  let supRows = Object.entries(supMap).map(([sup, cls]) => {
     const m = calcRankMetrics(cls);
     return { key: sup, label: sup, ...m, selected: sup === _rankSupSelecionado };
   }).sort((a,b) => (b.cov||0) - (a.cov||0));
 
-  document.getElementById('rankSupCount').textContent = `${supRows.length} supervisores`;
+  // Aplicar filtros inteligentes
+  supRows = supRows.filter(r => {
+    if (r.total < f.minCli) return false;
+    const pct = r.cov !== null ? r.cov : 0;
+    if (pct < f.minPct) return false;
+    if (pct > f.maxPct) return false;
+    return true;
+  });
+
+  document.getElementById('rankSupCount').textContent = `${supRows.length} supervisor${supRows.length !== 1 ? 'es' : ''}`;
   renderRankRows(document.getElementById('rankSupBody'), supRows, 'selecionarSupRanking');
 
   // ---- VENDEDORES ----
@@ -2923,17 +3161,27 @@ function renderVendedoresRanking(supFiltro) {
     rcaMap[r].clientes.push(c);
   });
 
-  const vendRows = Object.entries(rcaMap).map(([rca, data]) => {
+  let vendRows = Object.entries(rcaMap).map(([rca, data]) => {
     const m = calcRankMetrics(data.clientes);
     return { key: rca, label: rca, sub: supFiltro ? null : data.supervisor, ...m };
   }).sort((a,b) => (b.cov||0) - (a.cov||0));
+
+  // Aplicar filtros inteligentes de vendedor
+  const f = getRankFilters('vend');
+  vendRows = vendRows.filter(r => {
+    if (r.total < f.minCli) return false;
+    const pct = r.cov !== null ? r.cov : 0;
+    if (pct < f.minPct) return false;
+    if (pct > f.maxPct) return false;
+    return true;
+  });
 
   const title = supFiltro ? `👤 Vendedores — ${supFiltro}` : '👤 Ranking de Vendedores';
   document.getElementById('rankVendTitle').textContent = title;
   document.getElementById('rankVendSubtitle').textContent = supFiltro
     ? `${vendRows.length} vendedor${vendRows.length !== 1 ? 'es' : ''} deste supervisor`
     : 'Cobertura média do mix por vendedor';
-  document.getElementById('rankVendCount').textContent = `${vendRows.length} vendedores`;
+  document.getElementById('rankVendCount').textContent = `${vendRows.length} vendedor${vendRows.length !== 1 ? 'es' : ''}`;
   renderRankRows(document.getElementById('rankVendBody'), vendRows, 'irParaVendedor');
 }
 
