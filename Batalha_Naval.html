@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-      <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -866,7 +854,7 @@
   </div>
   <div class="filter-group">
     <label>Buscar Cliente</label>
-    <input type="text" id="filterCliente" placeholder="Nome do cliente...">
+    <input type="text" id="filterCliente" placeholder="Nome ou código do cliente...">
   </div>
   <div class="filter-group" style="max-width:145px">
     <label>De</label>
@@ -955,6 +943,9 @@
             <option value="2025">2025</option>
             <option value="2026" selected>2026</option>
           </select>
+        </div>
+        <div style="align-self:flex-end;">
+          <button onclick="usarPeriodoFiltro()" style="background:rgba(91,196,245,0.15);border:1px solid rgba(91,196,245,0.4);border-radius:6px;color:var(--foam);padding:7px 12px;font-size:11px;font-weight:700;cursor:pointer;white-space:nowrap;" title="Usa exatamente o mesmo período e dados do filtro da aba Mix Obrigatório">📅 Usar período do filtro</button>
         </div>
         <div style="align-self:flex-end;">
           <div id="rankingStatus" style="font-size:11px;color:var(--text-dim);padding-bottom:8px;"></div>
@@ -1436,7 +1427,7 @@ function applyFilters() {
     if (supervisor && c.supervisor !== supervisor) return false;
     if (rca && c.rca !== rca) return false;
     if (ramo && c.ramo !== ramo) return false;
-    if (cliente && !c.nome.toLowerCase().includes(cliente)) return false;
+    if (cliente && !c.nome.toLowerCase().includes(cliente) && !String(c.cod).includes(cliente)) return false;
     if (cov) {
       const pct = getCoverage(c);
       if (pct === null) return true;
@@ -1541,10 +1532,10 @@ function updateStats() {
   document.getElementById('statBaixa').textContent = baixa;
   document.getElementById('statMedia').textContent = media;
   document.getElementById('statAlta').textContent = alta;
-  const covMedia = countPct > 0 ? Math.round(sumPct / countPct) : null;
+  const covMedia = countPct > 0 ? (sumPct / countPct) : null;
   const covColor = covMedia === null ? 'var(--foam)' : covMedia >= 70 ? '#2ecc71' : covMedia >= 40 ? '#f5a623' : '#ff4d4d';
   const covEl = document.getElementById('statMediaRamo');
-  covEl.textContent = covMedia !== null ? covMedia + '%' : '—';
+  covEl.textContent = covMedia !== null ? covMedia.toFixed(2) + '%' : '—';
   covEl.style.color = covColor;
   document.getElementById('statMediaSubcats').textContent = total > 0 ? (sumSubcats / total).toFixed(1) : '—';
 
@@ -2780,7 +2771,7 @@ async function carregarRankingPeriodo() {
   const mesProxStr = String(mesProx).padStart(2, '0');
 
   try {
-    const BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,cliente,rca,codrca,supervisor,codsupervisor,ramo,codramo,subcategoria,total,dtmov&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE`;
+    const BASE = `${SUPABASE_URL}/rest/v1/faturamento?select=codcli,cliente,rca,codrca,supervisor,codsupervisor,ramo,codramo,subcategoria,descricao,total,dtmov&codoper=eq.S&total=gt.0&filial=eq.MAR FOODSERVICE`;
     const url = `${BASE}&dtmov=gte.${ano}-${mesStr}-01&dtmov=lt.${anoProx}-${mesProxStr}-01&limit=100000`;
     const resp = await fetch(url, { headers: HEADERS });
     RANKING_CLIENTS = processDataSilent(await resp.json());
@@ -2789,6 +2780,22 @@ async function carregarRankingPeriodo() {
     RANKING_CLIENTS = ALL_CLIENTS;
     if (statusEl) statusEl.textContent = 'Erro — usando dados atuais';
   }
+  renderRanking();
+}
+
+// Usa exatamente os mesmos dados e período já carregados na aba Mix Obrigatório
+function usarPeriodoFiltro() {
+  if (!ALL_CLIENTS || ALL_CLIENTS.length === 0) {
+    alert('Carregue os dados na aba Mix Obrigatório primeiro.');
+    return;
+  }
+  RANKING_CLIENTS = ALL_CLIENTS;
+  const de = document.getElementById('filterDe').value;
+  const ate = document.getElementById('filterAte').value;
+  const fmt = d => d ? d.split('-').reverse().join('/') : '?';
+  const statusEl = document.getElementById('rankingStatus');
+  if (statusEl) statusEl.textContent = `Período: ${fmt(de)} → ${fmt(ate)} · ${RANKING_CLIENTS.length} clientes`;
+  popularFiltroRankingSup();
   renderRanking();
 }
 
@@ -2813,7 +2820,7 @@ function calcRankMetrics(clientes) {
     if (p !== null) { sumCov += p; cntCov++; }
     sumSubs += c.subcategorias.length;
   });
-  const cov = cntCov > 0 ? Math.round(sumCov / cntCov) : null;
+  const cov = cntCov > 0 ? parseFloat((sumCov / cntCov).toFixed(2)) : null;
   const subcats = clientes.length > 0 ? (sumSubs / clientes.length).toFixed(1) : '—';
   return { cov, subcats, total: clientes.length };
 }
@@ -2845,7 +2852,7 @@ function renderRankRows(tbody, rows, onClickFn) {
           <div class="rank-bar-mini-fill" style="width:${pct}%;background:linear-gradient(90deg,${color}88,${color});"></div>
         </div>
       </td>
-      <td class="rank-pct" style="color:${color};">${r.cov !== null ? r.cov + '%' : '—'}</td>
+      <td class="rank-pct" style="color:${color};">${r.cov !== null ? r.cov.toFixed(2) + '%' : '—'}</td>
       <td class="rank-subcats">${r.subcats}</td>
       <td class="rank-clientes">${r.total}</td>
     </tr>`;
