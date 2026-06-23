@@ -210,6 +210,8 @@ body{font-family:'Barlow',sans-serif;background:var(--navy);color:var(--text);mi
       <span>até</span><input type="date" id="mix-ate">
       <button class="btn-go" onclick="reloadData()">↺</button>
     </div>
+    <button class="btn-go" style="background:var(--navy-light);border:1px solid var(--border);font-size:10px;padding:4px 8px;white-space:nowrap" onclick="filtrar60dias()">📅 60 dias</button>
+    <button class="btn-go" style="background:var(--navy-light);border:1px solid var(--border);font-size:10px;padding:4px 8px;white-space:nowrap" onclick="filtrarMesAtual()">📅 Mês atual</button>
     <select class="f-sel" id="flt-ramo" onchange="renderAll()" style="flex:1;min-width:100px"><option value="">Todos ramos</option></select>
     <select class="f-sel" id="flt-cob" onchange="renderAll()">
       <option value="">Todas</option>
@@ -429,7 +431,27 @@ async function loadData(){
   carregarBenchmark180();
 }
 
-async function reloadData(){selectedClient=null;VIEW='ramos';await loadData();}
+async function reloadData(){
+  document.getElementById('flt-ramo').value='';
+  document.getElementById('flt-busca').value='';
+  document.getElementById('flt-cob').value='';
+  selectedClient=null;VIEW='ramos';
+  await loadData();
+}
+async function filtrar60dias(){
+  const hoje=new Date();const d60=new Date(hoje);d60.setDate(d60.getDate()-60);
+  document.getElementById('mix-de').value=fmtDate(d60);
+  document.getElementById('mix-ate').value=fmtDate(hoje);
+  document.getElementById('flt-ramo').value='';document.getElementById('flt-busca').value='';document.getElementById('flt-cob').value='';
+  selectedClient=null;VIEW='ramos';await loadData();
+}
+async function filtrarMesAtual(){
+  const hoje=new Date();const prim=new Date(hoje.getFullYear(),hoje.getMonth(),1);
+  document.getElementById('mix-de').value=fmtDate(prim);
+  document.getElementById('mix-ate').value=fmtDate(hoje);
+  document.getElementById('flt-ramo').value='';document.getElementById('flt-busca').value='';document.getElementById('flt-cob').value='';
+  selectedClient=null;VIEW='ramos';await loadData();
+}
 
 function processData(rows){
   const map={};
@@ -460,7 +482,7 @@ function getFiltered(){
   const cov=document.getElementById('flt-cob').value;
   return ALL_CLIENTS.filter(c=>{
     if(ramo&&c.ramo!==ramo)return false;
-    if(busca&&!c.cliente?.toLowerCase().includes(busca))return false;
+    if(busca&&!c.cliente?.toLowerCase().includes(busca)&&!String(c.codcli||'').includes(busca))return false;
     if(cov){const pct=getCoverage(c);if(pct===null)return false;if(cov==='high'&&pct<70)return false;if(cov==='mid'&&(pct<40||pct>=70))return false;if(cov==='low'&&pct>=40)return false;}
     return true;
   }).sort((a,b)=>{const pa=getCoverage(a)??-1,pb=getCoverage(b)??-1;return pa-pb;});
