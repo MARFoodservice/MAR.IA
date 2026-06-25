@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-   <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -921,6 +909,7 @@
   <button class="tab-btn active" onclick="switchTab('painel', this)">🎯 Mix Obrigatório</button>
   <button class="tab-btn" onclick="switchTab('ranking', this)">🏆 Ranking</button>
     <button class="tab-btn" onclick="switchTab('cadastro', this)">⚙️ Configurar Mix</button>
+  <button class="tab-btn" onclick="switchTab('acesso', this)">🔐 Acessos</button>
 </div>
 
 <!-- FILTERS BAR (compartilhada entre painel e ramo) -->
@@ -1184,6 +1173,42 @@
 </div>
 
 
+<!-- ===================== PAGE: ACESSO ===================== -->
+<div class="page" id="page-acesso">
+  <div style="padding:24px;max-width:1200px;margin:0 auto;">
+    <h2 style="color:var(--foam);margin-bottom:16px;">🔐 Controle de Acessos</h2>
+
+    <!-- Filtros -->
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
+      <select id="acesso-filtro-rca" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;min-width:200px;">
+        <option value="">Todos os vendedores</option>
+      </select>
+      <input type="date" id="acesso-de" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
+      <input type="date" id="acesso-ate" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
+      <button onclick="carregarAcessos()" style="background:var(--foam);color:var(--navy);border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;">🔍 Buscar</button>
+      <span id="acesso-count" style="color:var(--text-dim);font-size:13px;"></span>
+    </div>
+
+    <!-- Tabela -->
+    <div style="overflow-x:auto;">
+      <table id="acesso-tabela" style="width:100%;border-collapse:collapse;font-size:13px;">
+        <thead>
+          <tr style="background:var(--navy-mid);color:var(--foam);">
+            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Data/Hora</th>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Vendedor</th>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Cód. RCA</th>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Localização</th>
+            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Dispositivo</th>
+          </tr>
+        </thead>
+        <tbody id="acesso-tbody">
+          <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Clique em Buscar para carregar os acessos.</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
 <!-- MODAL UNIFICAR / EXPANDIR -->
 <div class="modal-overlay hidden" id="modalOverlay">
   <div class="modal-box" id="modalBox">
@@ -1236,6 +1261,15 @@ function switchTab(tab, btn) {
       alert('Senha incorreta. Acesso negado.');
       return;
     }
+  }
+  if (tab === 'acesso') {
+    const senha = prompt('🔒 Digite a senha para acessar os Acessos:');
+    if (senha !== '12') {
+      alert('Senha incorreta. Acesso negado.');
+      return;
+    }
+    initAcessosDates();
+    setTimeout(carregarAcessos, 100);
   }
 
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -3366,6 +3400,71 @@ async function listarUsuarios() {
     </div>`;
 }
 // ===== FIM GESTÃO DE USUÁRIOS =====
+
+
+// ============================================
+// ACESSOS
+// ============================================
+async function carregarAcessos() {
+  const rca = document.getElementById('acesso-filtro-rca').value;
+  const de = document.getElementById('acesso-de').value;
+  const ate = document.getElementById('acesso-ate').value;
+
+  let url = `${SUPABASE_URL}/rest/v1/Batalha%20Naval_Log_Acesso?select=*&order=data_login.desc&limit=500`;
+  if (rca) url += `&codrca=eq.${rca}`;
+  if (de) url += `&data_login=gte.${de}`;
+  if (ate) {
+    const ateD = new Date(ate); ateD.setDate(ateD.getDate() + 1);
+    url += `&data_login=lt.${ateD.toISOString().split('T')[0]}`;
+  }
+
+  const resp = await fetch(url, { headers: HEADERS });
+  const data = await resp.json();
+
+  if (!Array.isArray(data)) { alert('Erro ao carregar acessos: ' + JSON.stringify(data)); return; }
+
+  const tbody = document.getElementById('acesso-tbody');
+  document.getElementById('acesso-count').textContent = `${data.length} registros`;
+
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Nenhum acesso encontrado.</td></tr>';
+    return;
+  }
+
+  tbody.innerHTML = data.map(r => {
+    const dt = new Date(r.data_login);
+    const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+    const loc = r.latitude && r.longitude
+      ? `<a href="https://maps.google.com/?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--foam);">📍 Ver no mapa</a>`
+      : '<span style="color:var(--text-dim);">Não informada</span>';
+    return `<tr style="border-bottom:1px solid var(--border);">
+      <td style="padding:8px 10px;">${dtStr}</td>
+      <td style="padding:8px 10px;font-weight:600;">${r.nome||'—'}</td>
+      <td style="padding:8px 10px;color:var(--text-dim);">${r.codrca||'—'}</td>
+      <td style="padding:8px 10px;">${loc}</td>
+      <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${(r.dispositivo||'—').substring(0,60)}</td>
+    </tr>`;
+  }).join('');
+
+  // Popular filtro de vendedores
+  const sel = document.getElementById('acesso-filtro-rca');
+  const vistos = new Map();
+  data.forEach(r => { if(r.codrca && !vistos.has(r.codrca)) vistos.set(r.codrca, r.nome); });
+  const curVal = sel.value;
+  sel.innerHTML = '<option value="">Todos os vendedores</option>' +
+    [...vistos.entries()].sort((a,b)=>(a[1]||'').localeCompare(b[1]||'')).map(([cod,nome]) =>
+      `<option value="${cod}" ${cod==curVal?'selected':''}>${nome} (${cod})</option>`
+    ).join('');
+}
+
+// Inicializar datas ao abrir a aba
+function initAcessosDates() {
+  const hoje = new Date();
+  const prim = new Date(hoje.getFullYear(), hoje.getMonth(), 1);
+  document.getElementById('acesso-de').value = prim.toISOString().split('T')[0];
+  document.getElementById('acesso-ate').value = hoje.toISOString().split('T')[0];
+}
+
 
 </script>
 </body>
