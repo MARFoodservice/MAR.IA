@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1209,12 +1197,11 @@
             <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Data/Hora</th>
             <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Vendedor</th>
             <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Cód. RCA</th>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Localização</th>
             <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Dispositivo</th>
           </tr>
         </thead>
         <tbody id="acesso-tbody">
-          <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Clique em Buscar para carregar os acessos.</td></tr>
+          <tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-dim);">Clique em Buscar para carregar os acessos.</td></tr>
         </tbody>
       </table>
     </div>
@@ -3439,7 +3426,7 @@ async function carregarAcessos() {
   document.getElementById('acesso-count').textContent = `${data.length} registros`;
 
   if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Nenhum acesso encontrado.</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-dim);">Nenhum acesso encontrado.</td></tr>';
     return;
   }
 
@@ -3453,7 +3440,6 @@ async function carregarAcessos() {
       <td style="padding:8px 10px;">${dtStr}</td>
       <td style="padding:8px 10px;font-weight:600;">${r.nome||'—'}</td>
       <td style="padding:8px 10px;color:var(--text-dim);">${r.codrca||'—'}</td>
-      <td style="padding:8px 10px;">${loc}</td>
       <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${(r.dispositivo||'—').substring(0,60)}</td>
     </tr>`;
   }).join('');

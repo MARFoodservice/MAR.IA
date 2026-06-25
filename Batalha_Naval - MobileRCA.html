@@ -264,28 +264,12 @@ async function doLogout(){await sb.auth.signOut();location.reload();}
 async function registrarAcesso(){
   try{
     const dispositivo=navigator.userAgent.substring(0,150);
-    const log={
+    await sb.from('Batalha Naval_Log_Acesso').insert({
       codrca:userInfo?.codrca||null,
       nome:userInfo?.nome||null,
       user_id:currentUser?.id||null,
       dispositivo
-    };
-    // Tenta capturar localização
-    if(navigator.geolocation){
-      navigator.geolocation.getCurrentPosition(
-        async pos=>{
-          log.latitude=pos.coords.latitude;
-          log.longitude=pos.coords.longitude;
-          await sb.from('Batalha Naval_Log_Acesso').insert(log);
-        },
-        async ()=>{
-          await sb.from('Batalha Naval_Log_Acesso').insert(log);
-        },
-        {timeout:5000}
-      );
-    } else {
-      await sb.from('Batalha Naval_Log_Acesso').insert(log);
-    }
+    });
   }catch(e){console.warn('Log acesso falhou:',e);}
 }
 
