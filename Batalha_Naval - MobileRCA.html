@@ -268,6 +268,7 @@ async function registrarAcesso(){
       codrca:userInfo?.codrca||null,
       nome:userInfo?.nome||null,
       user_id:currentUser?.id||null,
+      supervisor:userInfo?.supervisor||null,
       dispositivo
     });
   }catch(e){console.warn('Log acesso falhou:',e);}
@@ -279,7 +280,7 @@ async function initApp(){
   let supNome='—';
   if(vu){
     const {data:fat}=await sb.from('faturamento').select('supervisor').eq('codrca',vu.codrca).limit(1).maybeSingle();
-    if(fat?.supervisor)supNome=fat.supervisor;
+    if(fat?.supervisor){supNome=fat.supervisor;userInfo.supervisor=fat.supervisor;}
   }
   document.getElementById('hdr-id').textContent='RCA '+( vu?.codrca||'—');
   document.getElementById('hdr-nome').textContent=vu?.nome?.split(' ')[0]||'—';

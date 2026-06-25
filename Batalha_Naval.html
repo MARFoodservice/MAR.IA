@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-     <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Batalha Naval — MIX CAMPEÃO</title>
@@ -1187,35 +1175,104 @@
 
 <!-- ===================== PAGE: ACESSO ===================== -->
 <div class="page" id="page-acesso">
-  <div style="padding:24px;max-width:1200px;margin:0 auto;">
-    <h2 style="color:var(--foam);margin-bottom:16px;">🔐 Controle de Acessos</h2>
+  <div style="padding:24px;max-width:1400px;margin:0 auto;">
+    <div style="display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:10px;margin-bottom:20px;">
+      <h2 style="color:var(--foam);margin:0;">🔐 Controle de Acessos</h2>
+      <!-- Sub-abas -->
+      <div style="display:flex;gap:6px;">
+        <button id="sub-dash-btn" onclick="acessoSubTab('dashboard')" style="background:var(--foam);color:var(--navy);border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;font-size:13px;">📊 Dashboard</button>
+        <button id="sub-lista-btn" onclick="acessoSubTab('lista')" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 16px;border-radius:6px;cursor:pointer;font-size:13px;">📋 Lista</button>
+      </div>
+    </div>
 
     <!-- Filtros -->
-    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:16px;align-items:center;">
-      <select id="acesso-filtro-rca" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;min-width:200px;">
+    <div style="display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px;align-items:center;background:var(--navy-mid);padding:12px 16px;border-radius:8px;border:1px solid var(--border);">
+      <select id="acesso-filtro-supervisor" style="background:var(--navy);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;min-width:180px;">
+        <option value="">Todos os supervisores</option>
+      </select>
+      <select id="acesso-filtro-rca" style="background:var(--navy);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;min-width:200px;">
         <option value="">Todos os vendedores</option>
       </select>
-      <input type="date" id="acesso-de" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
-      <input type="date" id="acesso-ate" style="background:var(--navy-mid);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
-      <button onclick="carregarAcessos()" style="background:var(--foam);color:var(--navy);border:none;padding:6px 16px;border-radius:6px;cursor:pointer;font-weight:600;">🔍 Buscar</button>
+      <input type="date" id="acesso-de" style="background:var(--navy);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
+      <span style="color:var(--text-dim);">até</span>
+      <input type="date" id="acesso-ate" style="background:var(--navy);color:var(--text);border:1px solid var(--border);padding:6px 10px;border-radius:6px;">
+      <button onclick="carregarAcessos()" style="background:var(--foam);color:var(--navy);border:none;padding:6px 18px;border-radius:6px;cursor:pointer;font-weight:700;">🔍 Buscar</button>
       <span id="acesso-count" style="color:var(--text-dim);font-size:13px;"></span>
     </div>
 
-    <!-- Tabela -->
-    <div style="overflow-x:auto;">
-      <table id="acesso-tabela" style="width:100%;border-collapse:collapse;font-size:13px;">
-        <thead>
-          <tr style="background:var(--navy-mid);color:var(--foam);">
-            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Data/Hora</th>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Vendedor</th>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Cód. RCA</th>
-            <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Dispositivo</th>
-          </tr>
-        </thead>
-        <tbody id="acesso-tbody">
-          <tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-dim);">Clique em Buscar para carregar os acessos.</td></tr>
-        </tbody>
-      </table>
+    <!-- DASHBOARD -->
+    <div id="acesso-sub-dashboard">
+      <!-- Cards KPI -->
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:14px;margin-bottom:24px;">
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div id="kpi-total" style="font-size:36px;font-weight:700;color:var(--foam);">—</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Total de Acessos</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div id="kpi-vendedores" style="font-size:36px;font-weight:700;color:#2ecc71;">—</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Vendedores Únicos</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div id="kpi-hoje" style="font-size:36px;font-weight:700;color:#f5a623;">—</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Acessos Hoje</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div id="kpi-ontem" style="font-size:36px;font-weight:700;color:#9b59b6;">—</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Acessos Ontem</div>
+        </div>
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;text-align:center;">
+          <div id="kpi-media" style="font-size:36px;font-weight:700;color:#1abc9c;">—</div>
+          <div style="font-size:12px;color:var(--text-dim);margin-top:4px;">Média/Dia</div>
+        </div>
+      </div>
+
+      <!-- Gráficos -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:24px;">
+        <!-- Acessos por dia -->
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="color:var(--foam);font-weight:600;margin-bottom:12px;">📅 Acessos por Dia</div>
+          <div id="chart-dias" style="height:180px;display:flex;align-items:flex-end;gap:4px;overflow-x:auto;"></div>
+        </div>
+        <!-- Acessos por hora -->
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="color:var(--foam);font-weight:600;margin-bottom:12px;">🕐 Acessos por Hora do Dia</div>
+          <div id="chart-horas" style="height:180px;display:flex;align-items:flex-end;gap:3px;"></div>
+        </div>
+      </div>
+
+      <!-- Ranking por supervisor e por vendedor -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px;">
+        <!-- Ranking supervisores -->
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="color:var(--foam);font-weight:600;margin-bottom:12px;">👔 Acessos por Supervisor</div>
+          <div id="ranking-supervisores"></div>
+        </div>
+        <!-- Top vendedores -->
+        <div style="background:var(--navy-mid);border:1px solid var(--border);border-radius:10px;padding:16px;">
+          <div style="color:var(--foam);font-weight:600;margin-bottom:12px;">🏆 Top Vendedores por Acessos</div>
+          <div id="ranking-vendedores"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- LISTA -->
+    <div id="acesso-sub-lista" style="display:none;">
+      <div style="overflow-x:auto;">
+        <table id="acesso-tabela" style="width:100%;border-collapse:collapse;font-size:13px;">
+          <thead>
+            <tr style="background:var(--navy-mid);color:var(--foam);">
+              <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Data/Hora</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Vendedor</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Cód. RCA</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Supervisor</th>
+              <th style="padding:10px;text-align:left;border-bottom:1px solid var(--border);">Dispositivo</th>
+            </tr>
+          </thead>
+          <tbody id="acesso-tbody">
+            <tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Clique em Buscar para carregar os acessos.</td></tr>
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 </div>
@@ -3416,12 +3473,25 @@ async function listarUsuarios() {
 // ============================================
 // ACESSOS
 // ============================================
+// ---- ACESSOS: sub-aba ----
+function acessoSubTab(tab) {
+  document.getElementById('acesso-sub-dashboard').style.display = tab==='dashboard'?'block':'none';
+  document.getElementById('acesso-sub-lista').style.display = tab==='lista'?'block':'none';
+  document.getElementById('sub-dash-btn').style.background = tab==='dashboard'?'var(--foam)':'var(--navy-mid)';
+  document.getElementById('sub-dash-btn').style.color = tab==='dashboard'?'var(--navy)':'var(--text)';
+  document.getElementById('sub-dash-btn').style.border = tab==='dashboard'?'none':'1px solid var(--border)';
+  document.getElementById('sub-lista-btn').style.background = tab==='lista'?'var(--foam)':'var(--navy-mid)';
+  document.getElementById('sub-lista-btn').style.color = tab==='lista'?'var(--navy)':'var(--text)';
+  document.getElementById('sub-lista-btn').style.border = tab==='lista'?'none':'1px solid var(--border)';
+}
+
 async function carregarAcessos() {
   const rca = document.getElementById('acesso-filtro-rca').value;
+  const sup = document.getElementById('acesso-filtro-supervisor').value;
   const de = document.getElementById('acesso-de').value;
   const ate = document.getElementById('acesso-ate').value;
 
-  let url = `${SUPABASE_URL}/rest/v1/Batalha%20Naval_Log_Acesso?select=*&order=data_login.desc&limit=500`;
+  let url = `${SUPABASE_URL}/rest/v1/Batalha%20Naval_Log_Acesso?select=*&order=data_login.desc&limit=2000`;
   if (rca) url += `&codrca=eq.${rca}`;
   if (de) url += `&data_login=gte.${de}`;
   if (ate) {
@@ -3430,41 +3500,150 @@ async function carregarAcessos() {
   }
 
   const resp = await fetch(url, { headers: HEADERS });
-  const data = await resp.json();
+  let data = await resp.json();
+  if (!Array.isArray(data)) { alert('Erro: ' + JSON.stringify(data)); return; }
 
-  if (!Array.isArray(data)) { alert('Erro ao carregar acessos: ' + JSON.stringify(data)); return; }
+  // Filtro supervisor no front
+  if (sup) data = data.filter(r => r.supervisor === sup);
 
-  const tbody = document.getElementById('acesso-tbody');
   document.getElementById('acesso-count').textContent = `${data.length} registros`;
 
-  if (data.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="4" style="padding:20px;text-align:center;color:var(--text-dim);">Nenhum acesso encontrado.</td></tr>';
-    return;
-  }
+  // ---- KPIs ----
+  const hoje = new Date().toISOString().split('T')[0];
+  const ontem = new Date(Date.now()-86400000).toISOString().split('T')[0];
+  const acessosHoje = data.filter(r => r.data_login && r.data_login.startsWith(hoje)).length;
+  const acessosOntem = data.filter(r => r.data_login && r.data_login.startsWith(ontem)).length;
+  const vendedoresUnicos = new Set(data.map(r=>r.codrca)).size;
+  // Dias únicos no período
+  const diasUnicos = new Set(data.map(r=>r.data_login?.split('T')[0])).size;
+  const media = diasUnicos > 0 ? (data.length / diasUnicos).toFixed(1) : 0;
 
-  tbody.innerHTML = data.map(r => {
-    const dt = new Date(r.data_login);
-    const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
-    const loc = r.latitude && r.longitude
-      ? `<a href="https://maps.google.com/?q=${r.latitude},${r.longitude}" target="_blank" style="color:var(--foam);">📍 Ver no mapa</a>`
-      : '<span style="color:var(--text-dim);">Não informada</span>';
-    return `<tr style="border-bottom:1px solid var(--border);">
-      <td style="padding:8px 10px;">${dtStr}</td>
-      <td style="padding:8px 10px;font-weight:600;">${r.nome||'—'}</td>
-      <td style="padding:8px 10px;color:var(--text-dim);">${r.codrca||'—'}</td>
-      <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${(r.dispositivo||'—').substring(0,60)}</td>
-    </tr>`;
+  document.getElementById('kpi-total').textContent = data.length;
+  document.getElementById('kpi-vendedores').textContent = vendedoresUnicos;
+  document.getElementById('kpi-hoje').textContent = acessosHoje;
+  document.getElementById('kpi-ontem').textContent = acessosOntem;
+  document.getElementById('kpi-media').textContent = media;
+
+  // ---- Gráfico por dia ----
+  const porDia = {};
+  data.forEach(r => {
+    const d = r.data_login?.split('T')[0];
+    if (d) porDia[d] = (porDia[d]||0) + 1;
+  });
+  const diasOrds = Object.keys(porDia).sort();
+  const maxDia = Math.max(...Object.values(porDia), 1);
+  const chartDias = document.getElementById('chart-dias');
+  chartDias.innerHTML = diasOrds.map(d => {
+    const h = Math.round((porDia[d]/maxDia)*160);
+    const label = d.slice(5).replace('-','/');
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;min-width:28px;gap:3px;cursor:default;" title="${d}: ${porDia[d]} acessos">
+      <span style="font-size:10px;color:var(--foam);">${porDia[d]}</span>
+      <div style="width:100%;background:var(--foam);border-radius:3px 3px 0 0;height:${h}px;transition:height .3s;"></div>
+      <span style="font-size:9px;color:var(--text-dim);white-space:nowrap;">${label}</span>
+    </div>`;
   }).join('');
 
-  // Popular filtro de vendedores
-  const sel = document.getElementById('acesso-filtro-rca');
-  const vistos = new Map();
-  data.forEach(r => { if(r.codrca && !vistos.has(r.codrca)) vistos.set(r.codrca, r.nome); });
-  const curVal = sel.value;
-  sel.innerHTML = '<option value="">Todos os vendedores</option>' +
-    [...vistos.entries()].sort((a,b)=>(a[1]||'').localeCompare(b[1]||'')).map(([cod,nome]) =>
-      `<option value="${cod}" ${cod==curVal?'selected':''}>${nome} (${cod})</option>`
-    ).join('');
+  // ---- Gráfico por hora ----
+  const porHora = Array(24).fill(0);
+  data.forEach(r => {
+    if (r.data_login) {
+      const h = new Date(r.data_login).getHours();
+      porHora[h]++;
+    }
+  });
+  const maxHora = Math.max(...porHora, 1);
+  const chartHoras = document.getElementById('chart-horas');
+  chartHoras.innerHTML = porHora.map((v,h) => {
+    const px = Math.round((v/maxHora)*160);
+    const cor = h>=8&&h<=18 ? 'var(--foam)' : '#9b59b6';
+    return `<div style="display:flex;flex-direction:column;align-items:center;flex:1;gap:2px;cursor:default;" title="${h}h: ${v} acessos">
+      <span style="font-size:9px;color:${cor};">${v||''}</span>
+      <div style="width:100%;background:${cor};border-radius:3px 3px 0 0;height:${px}px;transition:height .3s;"></div>
+      <span style="font-size:9px;color:var(--text-dim);">${h}</span>
+    </div>`;
+  }).join('');
+
+  // ---- Ranking supervisores ----
+  const porSup = {};
+  const supVendedores = {};
+  data.forEach(r => {
+    const s = r.supervisor || 'Sem supervisor';
+    porSup[s] = (porSup[s]||0) + 1;
+    if (!supVendedores[s]) supVendedores[s] = new Set();
+    if (r.codrca) supVendedores[s].add(r.codrca);
+  });
+  const supOrds = Object.entries(porSup).sort((a,b)=>b[1]-a[1]);
+  const maxSup = Math.max(...supOrds.map(s=>s[1]), 1);
+  document.getElementById('ranking-supervisores').innerHTML = supOrds.map(([s,v]) => `
+    <div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+        <span style="font-size:12px;color:var(--text);font-weight:600;">${s}</span>
+        <span style="font-size:12px;color:var(--foam);">${v} acessos · <span style="color:#2ecc71;">${supVendedores[s].size} vendedores</span></span>
+      </div>
+      <div style="background:var(--navy);border-radius:4px;height:8px;">
+        <div style="background:var(--foam);height:8px;border-radius:4px;width:${Math.round((v/maxSup)*100)}%;transition:width .3s;"></div>
+      </div>
+    </div>`).join('');
+
+  // ---- Top vendedores ----
+  const porVend = {};
+  data.forEach(r => {
+    const k = r.codrca;
+    if (!k) return;
+    if (!porVend[k]) porVend[k] = { nome: r.nome||'—', count: 0, ultimo: r.data_login };
+    porVend[k].count++;
+    if (r.data_login > porVend[k].ultimo) porVend[k].ultimo = r.data_login;
+  });
+  const topVend = Object.entries(porVend).sort((a,b)=>b[1].count-a[1].count).slice(0,15);
+  const maxVend = topVend.length > 0 ? topVend[0][1].count : 1;
+  document.getElementById('ranking-vendedores').innerHTML = topVend.map(([cod,v], i) => {
+    const medal = i===0?'🥇':i===1?'🥈':i===2?'🥉':'';
+    const dtUlt = new Date(v.ultimo).toLocaleDateString('pt-BR');
+    return `<div style="margin-bottom:10px;">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;">
+        <span style="font-size:12px;color:var(--text);">${medal} ${v.nome}</span>
+        <span style="font-size:12px;color:var(--foam);">${v.count}x <span style="color:var(--text-dim);font-size:11px;">· último: ${dtUlt}</span></span>
+      </div>
+      <div style="background:var(--navy);border-radius:4px;height:6px;">
+        <div style="background:${i===0?'#f5a623':i===1?'#bdc3c7':'var(--foam)'};height:6px;border-radius:4px;width:${Math.round((v.count/maxVend)*100)}%;transition:width .3s;"></div>
+      </div>
+    </div>`;
+  }).join('');
+
+  // ---- Lista ----
+  const tbody = document.getElementById('acesso-tbody');
+  if (data.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="5" style="padding:20px;text-align:center;color:var(--text-dim);">Nenhum acesso encontrado.</td></tr>';
+  } else {
+    tbody.innerHTML = data.map(r => {
+      const dt = new Date(r.data_login);
+      const dtStr = dt.toLocaleDateString('pt-BR') + ' ' + dt.toLocaleTimeString('pt-BR', {hour:'2-digit',minute:'2-digit'});
+      return `<tr style="border-bottom:1px solid var(--border);">
+        <td style="padding:8px 10px;">${dtStr}</td>
+        <td style="padding:8px 10px;font-weight:600;">${r.nome||'—'}</td>
+        <td style="padding:8px 10px;color:var(--text-dim);">${r.codrca||'—'}</td>
+        <td style="padding:8px 10px;color:var(--text-dim);">${r.supervisor||'—'}</td>
+        <td style="padding:8px 10px;color:var(--text-dim);font-size:11px;">${(r.dispositivo||'—').substring(0,60)}</td>
+      </tr>`;
+    }).join('');
+  }
+
+  // ---- Popular filtros ----
+  const selRca = document.getElementById('acesso-filtro-rca');
+  const selSup = document.getElementById('acesso-filtro-supervisor');
+  const vendMap = new Map();
+  const supSet = new Set();
+  data.forEach(r => {
+    if (r.codrca) vendMap.set(r.codrca, r.nome||r.codrca);
+    if (r.supervisor) supSet.add(r.supervisor);
+  });
+  const curRca = selRca.value;
+  selRca.innerHTML = '<option value="">Todos os vendedores</option>' +
+    [...vendMap.entries()].sort((a,b)=>(a[1]||'').localeCompare(b[1]||'')).map(([cod,nome])=>
+      `<option value="${cod}" ${cod==curRca?'selected':''}>${nome} (${cod})</option>`).join('');
+  const curSup = selSup.value;
+  selSup.innerHTML = '<option value="">Todos os supervisores</option>' +
+    [...supSet].sort().map(s=>`<option value="${s}" ${s===curSup?'selected':''}>${s}</option>`).join('');
 }
 
 // Inicializar datas ao abrir a aba
