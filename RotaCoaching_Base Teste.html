@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-     <script>
-  (function(){
-    try{
-      var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-      if(!a || !a.exp || Date.now() > a.exp){
-        location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-      }
-    }catch(e){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  })();
-  </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Execução Comercial — MAR Foods</title>
@@ -151,70 +139,12 @@ tbody td { padding: 11px 12px; }
   .nav-tabs { width: 100%; display: flex; justify-content: space-around; }
   .nav-tab { flex: 1; padding: 10px 4px 8px; font-size: 0.65rem; text-align: center; border-bottom: none; border-top: 3px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .nav-tab.active { border-top-color: var(--accent); border-bottom: none; }
-  /* Page padding: account for fixed bottom nav + top logo bar */
-  .page { padding: 16px 12px 80px; }
-  .section-title { font-size: 1.1rem; margin-bottom: 14px; }
-  .card { padding: 14px 12px; margin-bottom: 12px; }
-  .card-title { font-size: .82rem; }
+  /* Page padding: account for fixed bottom nav */
+  .page { padding: 16px 14px 80px; }
+  .section-title { font-size: 1.15rem; margin-bottom: 16px; }
+  .card { padding: 16px 14px; margin-bottom: 14px; }
 
-  /* ── DASHBOARD ── */
-  /* Todos os grids de cards → 2 colunas */
-  #dash-cards, #dash-cards-2, #dash-cards-3 { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-  #dash-cards-perfil { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-  .metric-card { padding: 12px 10px; }
-  .metric-card .m-label { font-size: .68rem; }
-  .metric-card .m-val { font-size: 1.5rem; }
-  .metric-card .m-sub { font-size: .65rem; display: none; }
-  /* Gráficos comparativos por supervisor → 1 coluna */
-  #dash-graficos-sup { grid-template-columns: 1fr !important; gap: 12px !important; }
-  /* Distribuição perfil e 9 passos → altura menor */
-  #dash-chart-perfil-dist, #dash-chart-9passos { height: 160px !important; }
-  /* Distribuição vendedor → scroll */
-  #dash-distribuicao-vendedor .table-wrap { overflow-x: auto; }
-  /* Filtros dashboard → 2 por linha */
-  #page-dashboard .filter-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-
-  /* ── AGENDA ── */
-  /* Calendário — células menores */
-  .calendar-grid { gap: 4px !important; }
-  .cal-day { min-height: 60px !important; padding: 6px 4px !important; font-size: .7rem !important; }
-  .cal-entry { font-size: .65rem !important; padding: 3px 5px !important; }
-  /* Painel planejado x executado → scroll */
-  #agenda-pvx-content .table-wrap { overflow-x: auto; }
-  #agenda-pvx-content table { min-width: 500px; }
-
-  /* ── HISTÓRICO ── */
-  #page-historico .filter-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #hist-tbody tr td:nth-child(4), /* Rota */
-  #hist-tbody tr td:nth-child(8)  /* Botão ver */ { display: table-cell; }
-  /* Esconde colunas menos importantes no mobile */
-  #page-historico table thead tr th:nth-child(4),
-  #page-historico table tbody tr td:nth-child(4) { display: none; }
-
-  /* ── TOP 30 ── */
-  #page-top30painel .filter-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #t30p-cards { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-  /* Tabelas TOP 30 — scroll horizontal + oculta colunas menos críticas */
-  #t30p-tbody-food, #t30p-tbody-fc { font-size: .75rem; }
-  #page-top30painel .table-wrap { overflow-x: auto; min-height: 0; }
-  #page-top30painel table { min-width: 600px; }
-  /* Gráfico evolução → menor */
-  #t30p-chart-evo { height: 140px !important; }
-
-  /* ── BATALHA NAVAL ── */
-  #page-batalhanaval .filter-row,
-  #page-batalhanaval > div[style*="display:flex"] { flex-wrap: wrap !important; gap: 8px !important; }
-  #bn-cards-inline { width: 100%; justify-content: flex-start !important; margin-left: 0 !important; }
-  #bn-cards-inline .metric-card { min-width: 120px; flex: 1; }
-  /* Lista vendedores → empilha info */
-  #bn-status-list > div { flex-wrap: wrap; gap: 6px; }
-
-  /* ── ACESSO ── */
-  #acesso-cards { grid-template-columns: 1fr 1fr !important; gap: 8px !important; }
-  #page-acesso .filter-row { display: grid !important; grid-template-columns: 1fr 1fr; gap: 8px; }
-  #acesso-chart-diario-wrap { overflow-x: auto; }
-
-  /* ── GRIDS GERAIS ── */
+  /* GRIDS */
   .metrics-grid,.resultado-auto { grid-template-columns: 1fr 1fr; gap: 10px; }
   .form-row.cols-2,.form-row.cols-3,.form-row.cols-4 { grid-template-columns: 1fr; gap: 12px; }
   .bottom-fields { grid-template-columns: 1fr; gap: 14px; }
@@ -231,15 +161,23 @@ tbody td { padding: 11px 12px; }
   .toggle-row { order: 3; width: 100%; justify-content: flex-end; }
   .toggle-btn { flex: 1; text-align: center; padding: 10px 8px; font-size: 0.9rem; }
 
+  /* Mix checkboxes */
+  .mix-items { gap: 8px; }
+  .mix-check { padding: 8px 10px; font-size: 0.85rem; }
+
   /* Botões de ação */
   .form-actions { flex-direction: column-reverse; }
   .form-actions .btn { width: 100%; text-align: center; padding: 14px; font-size: 1rem; }
   .btn-save-pdv { padding: 15px; font-size: 1rem; margin-top: 20px; }
 
+  /* Dashboard charts side-by-side → stack */
+  #page-dashboard > div[style*="grid-template-columns:1fr 1fr"] { display: flex !important; flex-direction: column !important; gap: 14px !important; }
+  .metric-card .m-val { font-size: 1.6rem; }
+
   /* Histórico tabela scroll */
   .table-wrap { -webkit-overflow-scrolling: touch; }
 
-  /* Filter row genérico */
+  /* Filter row */
   .filter-row { flex-direction: column; }
   .filter-row .field { min-width: unset; width: 100%; }
   .filter-row .btn { width: 100%; }
@@ -250,17 +188,10 @@ tbody td { padding: 11px 12px; }
   /* Inputs maiores para touch */
   .field input, .field select, .field textarea { padding: 13px 14px; font-size: 1rem; }
 
+  /* Bottom fields toggle */
   .bfield-label { font-size: 0.85rem; }
+  /* Avaliação TOP30 mobile */
   #t30-pdv-content > div [style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2,1fr) !important; }
-
-  /* Botão voltar menor */
-  button[onclick="voltarInicio()"] { padding: 7px 10px !important; font-size: .75rem !important; }
-
-  /* Logo bar menor */
-  .logo-bar { height: 42px !important; }
-  body { padding-top: 42px !important; }
-  nav { top: 42px !important; }
-  .page { padding-top: 12px; }
 }
 </style>
 </head>
