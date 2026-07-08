@@ -1,18 +1,6 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-    <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Execução Comercial — MAR Foods</title>
@@ -921,10 +909,12 @@ function init() {
   document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
   initPdvs(); renderNav(); renderPdv(0);
   renderSupSelector();
-  // Restaura sessão salva
+  // Restaura sessão salva — expira no dia seguinte
   const savedUser   = localStorage.getItem('coaching_logged_user');
   const savedPerfil = localStorage.getItem('coaching_logged_perfil') || 'supervisor';
-  if(savedUser) {
+  const savedDate   = localStorage.getItem('coaching_login_date') || '';
+  const hoje        = new Date().toISOString().substring(0,10);
+  if(savedUser && savedDate === hoje) {
     _loggedSupervisor = savedUser;
     _loggedPerfil     = savedPerfil;
     document.getElementById('login-screen').style.display = 'none';
@@ -935,6 +925,12 @@ function init() {
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('page-select').classList.add('active');
     document.querySelector('.nav-tab').classList.add('active');
+  } else if(savedUser && savedDate !== hoje) {
+    // Sessão de outro dia — limpa e exige novo login
+    localStorage.removeItem('coaching_logged_user');
+    localStorage.removeItem('coaching_logged_perfil');
+    localStorage.removeItem('coaching_login_date');
+    localStorage.removeItem('coaching_login_date');
   }
   // Usuários carregados do Supabase no login
   }
@@ -1014,31 +1010,35 @@ function renderPdv(idx) {
   setTimeout(()=>verificarBatalhaStatusPdv(idx), 100);
   document.getElementById('pdv-content').innerHTML = `
     ${savedBanner}
-    <div class="form-row" style="display:grid;grid-template-columns:1fr 2fr;gap:12px;margin-bottom:12px;align-items:end">
+    <div class="form-row cols-1" style="margin-bottom:12px">
       <div class="field">
-        <label>🔎 Buscar por ID</label>
-        <div style="display:flex;gap:6px">
-          <input type="text" id="ci-${idx}" value="${d.clienteId}" placeholder="Ex: 10045"
-            style="flex:1"
-            oninput="onClienteIdInput(${idx})"
-            onkeydown="if(event.key==='Enter'){document.getElementById('ci-btn-${idx}').click()}">
-          <button type="button" id="ci-btn-${idx}" onclick="onClienteIdInput(${idx})"
-            style="padding:10px 14px;background:var(--accent);color:#fff;border:none;border-radius:8px;cursor:pointer;font-weight:700;flex-shrink:0">🔍</button>
-        </div>
-      </div>
-      <div class="field">
-        <label>📋 Selecionar da Lista do Vendedor</label>
-        <select id="cli-sel-${idx}" onchange="onClienteSelectChange(${idx})"
-          style="background:var(--surface2);border:1px solid var(--accent);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
+        <label>📋 Selecionar Cliente do Vendedor</label>
+        <input type="text" id="cli-search-${idx}" placeholder="🔍 Pesquisar por ID ou nome..."
+          style="width:100%;background:var(--surface2);border:1px solid var(--accent);border-radius:8px 8px 0 0;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;font-size:1rem;outline:none;border-bottom:none;box-sizing:border-box"
+          oninput="filtrarListaClientes(${idx})"
+          autocomplete="off" autocorrect="off" autocapitalize="off">
+        <select id="cli-sel-${idx}" onchange="onClienteSelectChange(${idx})" size="1"
+          style="background:var(--surface2);border:1px solid var(--accent);border-top:none;border-radius:0 0 8px 8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%;box-sizing:border-box">
           <option value="">Carregando clientes...</option>
         </select>
       </div>
     </div>
     <div class="form-row cols-3">
-      <div class="field"><label>ID Selecionado</label><input type="text" id="ci-show-${idx}" value="${d.clienteId}" placeholder="—" readonly style="background:var(--surface2);color:var(--accent2);font-weight:700"></div>
-      <div class="field"><label>Nome do Cliente</label><input type="text" id="cn-${idx}" value="${d.nomeCliente}" placeholder="Preenchido automaticamente"></div>
-      <div class="field"><label>Ramo <span style="color:var(--muted);font-size:.75rem">(automático)</span></label>
-        <input type="text" id="ramo-${idx}" value="${d.ramo||''}" placeholder="Preenchido pelo cliente" readonly style="background:var(--surface2);opacity:.8;cursor:not-allowed">
+      <div class="field">
+        <label>ID do Cliente</label>
+        <input type="text" id="ci-show-${idx}" value="${d.clienteId}" placeholder="—"
+          oninput="onManualClienteInput(${idx})"
+          style="background:var(--surface2);color:var(--accent2);font-weight:700">
+      </div>
+      <div class="field">
+        <label>Nome do Cliente</label>
+        <input type="text" id="cn-${idx}" value="${d.nomeCliente}" placeholder="Preenchido automaticamente"
+          oninput="onManualClienteInput(${idx})">
+      </div>
+      <div class="field">
+        <label>Ramo</label>
+        <input type="text" id="ramo-${idx}" value="${d.ramo||''}" placeholder="Preenchido pelo cliente"
+          id="ramo-${idx}" oninput="pdvs[${idx}].ramo=this.value">
       </div>
     </div>
     <div class="form-row cols-1" style="margin-bottom:16px">
@@ -3412,39 +3412,92 @@ let _vendCache = {}; // cache em memória por sessão
 
 async function buscarVendedoresPorSupervisor(loginName) {
   const nomeCompleto = supNomeCompleto(loginName);
-  if(!nomeCompleto || !sbUrl() || !sbKey()) { console.warn('buscarVendedores: faltando nome/credenciais', loginName, nomeCompleto); return []; }
+  if(!nomeCompleto || !sbUrl() || !sbKey()) { console.warn('buscarVendedores: faltando nome/credenciais', loginName); return []; }
 
-  if(_vendCache[nomeCompleto]) return _vendCache[nomeCompleto];
+  if(_vendCache[nomeCompleto] && _vendCache[nomeCompleto].length > 0) return _vendCache[nomeCompleto];
 
-  // Usa RPC por codsupervisor (numérico, índice mais eficiente) quando disponível
   const cod = supCodigo(loginName);
+  const headers = { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey(), 'Content-Type': 'application/json' };
+  let lista = [];
+
   try {
-    let r;
-    if(cod !== null) {
-      r = await fetch(`${sbUrl()}/rest/v1/rpc/listar_vendedores_por_codsupervisor`, {
-        method: 'POST',
-        headers: { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cod_sup: cod })
-      });
-    } else {
-      // Fallback para busca por nome (supervisores sem código mapeado, ex: suporte/diretoria filtrando por nome direto)
-      r = await fetch(`${sbUrl()}/rest/v1/rpc/listar_vendedores_por_supervisor`, {
-        method: 'POST',
-        headers: { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey(), 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sup_nome: nomeCompleto })
-      });
+    // 1. Busca em gerot_vendedores por nome do supervisor (mais confiável)
+    const nomeLogin = loginName.toUpperCase();
+    const r0 = await fetch(
+      `${sbUrl()}/rest/v1/gerot_vendedores?supervisor=ilike.${encodeURIComponent(nomeLogin)}&select=nome&limit=500`,
+      { headers }
+    );
+    if(r0.ok) {
+      const rows = await r0.json();
+      if(Array.isArray(rows) && rows.length > 0) {
+        lista = rows.map(row => (row.nome||'').trim()).filter(Boolean).sort();
+        console.log(`Vendedores de "${nomeCompleto}" via gerot_vendedores: ${lista.length}`);
+      }
     }
-    if(!r.ok) {
-      console.error('RPC listar_vendedores erro:', r.status, await r.text());
-      return [];
+
+    // 2. RPC por código numérico
+    if(!lista.length && cod !== null) {
+      const r = await fetch(`${sbUrl()}/rest/v1/rpc/listar_vendedores_por_codsupervisor`, {
+        method:'POST', headers, body: JSON.stringify({ cod_sup: cod })
+      });
+      if(r.ok) {
+        const rows = await r.json();
+        if(Array.isArray(rows) && rows.length > 0) {
+          lista = rows.map(row => (row.rca||'').trim()).filter(Boolean).sort();
+          console.log(`Vendedores de "${nomeCompleto}" via RPC cod: ${lista.length}`);
+        }
+      }
     }
-    const rows = await r.json();
-    if(!Array.isArray(rows)) { console.error('RPC: resposta não é array', rows); return []; }
-    const lista = rows.map(row => row.rca.trim()).sort();
-    console.log(`Vendedores de "${nomeCompleto}" (login: ${loginName}, cod: ${cod}) via RPC: ${lista.length}`, lista);
-    _vendCache[nomeCompleto] = lista;
+
+    // 3. RPC por nome
+    if(!lista.length) {
+      const r = await fetch(`${sbUrl()}/rest/v1/rpc/listar_vendedores_por_supervisor`, {
+        method:'POST', headers, body: JSON.stringify({ sup_nome: nomeCompleto })
+      });
+      if(r.ok) {
+        const rows = await r.json();
+        if(Array.isArray(rows) && rows.length > 0) {
+          lista = rows.map(row => (row.rca||'').trim()).filter(Boolean).sort();
+          console.log(`Vendedores de "${nomeCompleto}" via RPC nome: ${lista.length}`);
+        }
+      }
+    }
+
+    // 4. Fallback direto na faturamento — agrupa por codrca para evitar duplicatas
+    if(!lista.length && cod !== null) {
+      // Busca em páginas de 1000 para garantir todos
+      let page = 0, pageSize = 1000, acum = [];
+      while(true) {
+        const r = await fetch(
+          `${sbUrl()}/rest/v1/faturamento?codsupervisor=eq.${cod}&select=rca,codrca&limit=${pageSize}&offset=${page*pageSize}`,
+          { headers }
+        );
+        if(!r.ok) break;
+        const rows = await r.json();
+        if(!Array.isArray(rows) || !rows.length) break;
+        acum.push(...rows);
+        if(rows.length < pageSize) break;
+        page++;
+        if(page > 10) break; // segurança: max 10.000 registros
+      }
+      // Deduplica por codrca (mais preciso que por nome)
+      const seen = new Set();
+      lista = acum
+        .filter(r => r.rca && r.codrca && !seen.has(r.codrca) && seen.add(r.codrca))
+        .map(r => r.rca.trim())
+        .filter(Boolean)
+        .sort();
+      console.log(`Vendedores de "${nomeCompleto}" via faturamento: ${lista.length}`);
+    }
+
+    if(lista.length > 0) _vendCache[nomeCompleto] = lista;
+    else console.warn(`Nenhum vendedor encontrado para ${nomeCompleto} (cod:${cod})`);
     return lista;
-  } catch(e) { console.error('RPC listar_vendedores exception:', e); return []; }
+
+  } catch(e) {
+    console.error('buscarVendedoresPorSupervisor exception:', e);
+    return [];
+  }
 }
 function saveVendors(sup, list) {
   localStorage.setItem('vendors_' + sup, JSON.stringify(list));
@@ -3620,6 +3673,7 @@ async function fazerLogin() {
     _loggedPerfil     = found.perfil;
     localStorage.setItem('coaching_logged_user',   found.nome);
     localStorage.setItem('coaching_logged_perfil', found.perfil);
+    localStorage.setItem('coaching_login_date',    new Date().toISOString().substring(0,10));
 
     // Registrar log
     const loginEntry = {tipo:'login', supervisor: found.nome, perfil: found.perfil, timestamp: new Date().toISOString(), device: navigator.userAgent.substring(0,80)};
@@ -5231,37 +5285,64 @@ async function buscarClientesPorVendedor(vendedor, supervisor) {
   if(_clientesCache[cacheKey]) return _clientesCache[cacheKey];
   if(!sbUrl()||!sbKey()) return [];
 
+  const headers = { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey(), 'Content-Type': 'application/json' };
   let rows = [];
+
+  const dedup = (arr) => {
+    const seen = new Set();
+    return arr.filter(r => { const k = r.codcli||r.cliente; if(seen.has(k)) return false; seen.add(k); return true; });
+  };
+
   try {
-    // Tenta RPC principal com nome exato
-    const r = await fetch(`${sbUrl()}/rest/v1/rpc/listar_clientes_por_vendedor`, {
-      method: 'POST',
-      headers: { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey(), 'Content-Type': 'application/json' },
+    // 1. RPC com nome exato
+    const r1 = await fetch(`${sbUrl()}/rest/v1/rpc/listar_clientes_por_vendedor`, {
+      method:'POST', headers,
       body: JSON.stringify({ nome_rca: vendedor.trim() })
     });
-    if(r.ok) {
-      rows = await r.json();
-      if(!Array.isArray(rows)) rows = [];
+    if(r1.ok) { const d = await r1.json(); if(Array.isArray(d)) rows = d; }
+
+    // 2. Fallback: ilike exato no campo rca
+    if(!rows.length) {
+      const r2 = await fetch(
+        `${sbUrl()}/rest/v1/faturamento?rca=ilike.${encodeURIComponent(vendedor.trim())}&select=codcli,cliente,ramo&limit=500`,
+        { headers }
+      );
+      if(r2.ok) { const d = await r2.json(); if(Array.isArray(d)) rows = dedup(d); }
     }
 
-    // Se não veio nada, tenta busca direta na tabela faturamento com ilike (case-insensitive)
+    // 3. Fallback: busca pela primeira palavra do nome (resolve problemas de espaço/acento)
     if(!rows.length) {
-      const rf = await fetch(
-        `${sbUrl()}/rest/v1/faturamento?rca=ilike.${encodeURIComponent(vendedor.trim())}&select=codcli,cliente,ramo&limit=500`,
-        { headers: { 'apikey': sbKey(), 'Authorization': 'Bearer ' + sbKey() } }
-      );
-      if(rf.ok) {
-        const raw = await rf.json();
-        // Deduplica por codcli
-        const seen = new Set();
-        rows = raw.filter(r => { if(seen.has(r.codcli)) return false; seen.add(r.codcli); return true; });
+      const primeiraPalavra = vendedor.trim().split(' ')[0];
+      if(primeiraPalavra.length >= 3) {
+        const r3 = await fetch(
+          `${sbUrl()}/rest/v1/faturamento?rca=ilike.*${encodeURIComponent(primeiraPalavra)}*&select=codcli,cliente,ramo,rca&limit=500`,
+          { headers }
+        );
+        if(r3.ok) {
+          const d = await r3.json();
+          // Filtra só os que têm o nome parecido (evita falsos positivos)
+          const vNorm = vendedor.trim().toUpperCase();
+          const filtrado = d.filter(x => x.rca && x.rca.toUpperCase().includes(primeiraPalavra.toUpperCase()));
+          if(Array.isArray(filtrado)) rows = dedup(filtrado);
+        }
+      }
+    }
+
+    // 4. Último recurso: busca pelo codrca via supervisor
+    if(!rows.length && supervisor) {
+      const codSup = supCodigo(supervisor);
+      if(codSup) {
+        const r4 = await fetch(`${sbUrl()}/rest/v1/rpc/listar_clientes_por_vendedor`, {
+          method:'POST', headers,
+          body: JSON.stringify({ nome_rca: vendedor.trim().toUpperCase() })
+        });
+        if(r4.ok) { const d = await r4.json(); if(Array.isArray(d)) rows = d; }
       }
     }
   } catch(e) { console.error('buscarClientesPorVendedor:', e); }
 
-  console.log(`Clientes de "${vendedor}" via RPC/fallback:`, rows.length);
-
-  const clientes = rows.map(row => ({ id: row.codcli, nome: row.cliente || '', ramo: row.ramo || '' }));
+  console.log(`Clientes de "${vendedor}": ${rows.length}`);
+  const clientes = rows.map(row => ({ id: row.codcli, nome: row.cliente||'', ramo: row.ramo||'' }));
   clientes.push({ id: 'OUTRO', nome: '+ Outro (não listado)', ramo: '' });
   _clientesCache[cacheKey] = clientes;
   return clientes;
@@ -5392,43 +5473,100 @@ async function renderClienteSelect(idx) {
 
   sel.disabled = false;
   if(clientes.length <= 1) {
-    // Só tem "Outro" — sem clientes na base para esse vendedor/supervisor
     sel.innerHTML = '<option value="">Sem clientes na base — use ID manual</option>' +
       '<option value="OUTRO">+ Outro (não listado)</option>';
+    sel._allOptions = [{value:'OUTRO', text:'+ Outro (não listado)', nome:'', ramo:''}];
     return;
   }
 
-  sel.innerHTML = '<option value="">🔍 Selecione o cliente...</option>' +
-    clientes.map(c => `<option value="${c.id}" data-nome="${c.nome}" data-ramo="${c.ramo}" ${String(d.clienteId)===String(c.id)?'selected':''}>${c.id === 'OUTRO' ? c.nome : c.id + ' — ' + c.nome}</option>`).join('');
+  // Salva todas as opções para filtro por digitação
+  sel._allOptions = clientes
+    .filter(c => c.id !== 'OUTRO')
+    .map(c => ({value:String(c.id), text:`${c.id} — ${c.nome}`, nome:c.nome, ramo:c.ramo}));
+
+  sel.innerHTML = '<option value="">🔍 Selecione ou pesquise acima...</option>' +
+    clientes.map(c => `<option value="${c.id}" data-nome="${(c.nome||'').replace(/"/g,'&quot;')}" data-ramo="${(c.ramo||'').replace(/"/g,'&quot;')}" ${String(d.clienteId)===String(c.id)?'selected':''}>${c.id === 'OUTRO' ? c.nome : c.id + ' — ' + c.nome}</option>`).join('');
+}
+
+// Filtra o select de clientes enquanto o supervisor digita
+function filtrarListaClientes(idx) {
+  const termo = (document.getElementById(`cli-search-${idx}`)?.value||'').trim().toLowerCase();
+  const sel = document.getElementById(`cli-sel-${idx}`);
+  if(!sel || !sel._allOptions) return;
+
+  sel.innerHTML = '';
+
+  const filtrados = termo
+    ? sel._allOptions.filter(o => o.text.toLowerCase().includes(termo) || o.value.toLowerCase().includes(termo))
+    : sel._allOptions;
+
+  // Opção padrão
+  const defaultOpt = document.createElement('option');
+  defaultOpt.value = ''; defaultOpt.textContent = filtrados.length ? '🔍 Selecione o cliente...' : 'Nenhum encontrado';
+  sel.appendChild(defaultOpt);
+
+  filtrados.forEach(o => {
+    const el = document.createElement('option');
+    el.value = o.value; el.textContent = o.text;
+    el.dataset.nome = o.nome; el.dataset.ramo = o.ramo;
+    sel.appendChild(el);
+  });
+
+  // Outro sempre no final
+  const outroOpt = document.createElement('option');
+  outroOpt.value = 'OUTRO'; outroOpt.textContent = '+ Outro (não listado)';
+  outroOpt.dataset.nome = ''; outroOpt.dataset.ramo = '';
+  sel.appendChild(outroOpt);
+
+  // Se só tem 1 resultado real, seleciona automaticamente
+  if(filtrados.length === 1) {
+    sel.value = filtrados[0].value;
+    onClienteSelectChange(idx);
+  }
+}
+
+// Digitação manual quando "+Outro" selecionado
+function onManualClienteInput(idx) {
+  const idVal   = document.getElementById(`ci-show-${idx}`)?.value?.trim()||'';
+  const nomeVal = document.getElementById(`cn-${idx}`)?.value?.trim()||'';
+  const ramoEl  = document.getElementById(`ramo-${idx}`);
+  pdvs[idx].clienteId   = idVal;
+  pdvs[idx].nomeCliente = nomeVal;
+  // Ramo permanece editável quando manual
 }
 
 function onClienteSelectChange(idx) {
   const sel = document.getElementById(`cli-sel-${idx}`);
   if(!sel) return;
   const opt = sel.options[sel.selectedIndex];
-  if(!opt.value) return;
+  if(!opt || !opt.value) return;
+
   if(opt.value === 'OUTRO') {
-    // Limpa e foca no campo ID para digitação manual
+    // Limpa campos e torna editáveis para entrada manual
     pdvs[idx].clienteId = ''; pdvs[idx].nomeCliente = ''; pdvs[idx].ramo = '';
-    const ciEl = document.getElementById(`ci-${idx}`);
-    const cnEl = document.getElementById(`cn-${idx}`);
-    if(ciEl) { ciEl.value = ''; ciEl.focus(); }
-    if(cnEl) cnEl.value = '';
-    showToast('Digite o ID ou nome do cliente manualmente','#ffc24a');
+    const ciShowEl = document.getElementById(`ci-show-${idx}`);
+    const cnEl     = document.getElementById(`cn-${idx}`);
+    const ramoEl   = document.getElementById(`ramo-${idx}`);
+    if(ciShowEl) { ciShowEl.value = ''; ciShowEl.readOnly = false; ciShowEl.style.opacity='1'; ciShowEl.style.cursor='text'; ciShowEl.focus(); }
+    if(cnEl)     { cnEl.value = ''; cnEl.readOnly = false; }
+    if(ramoEl)   { ramoEl.value = ''; ramoEl.readOnly = false; ramoEl.style.opacity='1'; ramoEl.style.cursor='text'; }
+    showToast('Digite ID, Nome e Ramo do cliente manualmente','#ffc24a');
     return;
   }
+
+  // Cliente da lista — preenche campos (readonly)
   pdvs[idx].clienteId   = opt.value;
   pdvs[idx].nomeCliente = opt.dataset.nome || '';
   pdvs[idx].ramo        = opt.dataset.ramo || '';
-  const ciEl   = document.getElementById(`ci-${idx}`);
   const ciShowEl = document.getElementById(`ci-show-${idx}`);
-  const cnEl   = document.getElementById(`cn-${idx}`);
-  const ramoEl = document.getElementById(`ramo-${idx}`);
-  if(ciEl) ciEl.value = opt.value;
-  if(ciShowEl) ciShowEl.value = opt.value;
-  if(cnEl) cnEl.value = opt.dataset.nome || '';
-  if(ramoEl && opt.dataset.ramo) { ramoEl.value = opt.dataset.ramo; pdvs[idx].ramo = opt.dataset.ramo; }
+  const cnEl     = document.getElementById(`cn-${idx}`);
+  const ramoEl   = document.getElementById(`ramo-${idx}`);
+  if(ciShowEl) { ciShowEl.value = opt.value; ciShowEl.readOnly = true; }
+  if(cnEl)     { cnEl.value = opt.dataset.nome||''; cnEl.readOnly = true; }
+  if(ramoEl)   { ramoEl.value = opt.dataset.ramo||''; ramoEl.readOnly = true; ramoEl.style.opacity='.8'; ramoEl.style.cursor='not-allowed'; pdvs[idx].ramo = opt.dataset.ramo||''; }
 }
+
+
 
 
 init();
