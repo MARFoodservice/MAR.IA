@@ -1,0 +1,437 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pesquisa Vettore — Assessment</title>
+<style>
+  :root{
+    --mar-azul:#0B5C9E; --mar-azul-esc:#083E6B; --mar-vermelho:#B01E28;
+    --bg:#EEF2F6; --card:#FFFFFF; --texto:#1F2A37; --suave:#6B7280;
+    --borda:#E2E8F0; --ok:#16A34A; --sombra:0 2px 10px rgba(15,40,70,.08);
+  }
+  *{box-sizing:border-box;margin:0;padding:0}
+  body{font-family:-apple-system,'Segoe UI',Roboto,Arial,sans-serif;background:var(--bg);color:var(--texto);line-height:1.45}
+  .topo{background:linear-gradient(135deg,var(--mar-azul),var(--mar-azul-esc));color:#fff;padding:18px 16px;position:sticky;top:0;z-index:10;box-shadow:0 2px 8px rgba(0,0,0,.15)}
+  .topo .marca{font-weight:800;letter-spacing:1px;font-size:13px;opacity:.85}
+  .topo h1{font-size:19px;margin-top:2px}
+  .topo .ref{font-size:12px;opacity:.8;margin-top:4px;font-style:italic}
+  .wrap{max-width:760px;margin:0 auto;padding:16px}
+  .card{background:var(--card);border:1px solid var(--borda);border-radius:14px;padding:18px;margin-bottom:14px;box-shadow:var(--sombra)}
+  .card h2{font-size:15px;color:var(--mar-azul-esc);margin-bottom:12px}
+  label.f{display:block;font-size:13px;font-weight:600;margin-bottom:5px;color:var(--texto)}
+  input.f{width:100%;padding:11px 12px;border:1px solid var(--borda);border-radius:9px;font-size:15px;margin-bottom:12px}
+  input.f:focus{outline:none;border-color:var(--mar-azul)}
+  .bloco-tit{font-size:13px;font-weight:800;color:var(--mar-azul);text-transform:uppercase;letter-spacing:.5px;margin:6px 0 10px;padding-bottom:6px;border-bottom:2px solid var(--borda)}
+  .perg{padding:12px 0;border-bottom:1px dashed var(--borda)}
+  .perg:last-child{border-bottom:none}
+  .perg-txt{font-size:14px;margin-bottom:10px}
+  .perg-ref{font-size:11px;color:var(--suave);font-style:italic;display:block;margin-top:3px}
+  .escala{display:flex;gap:7px;flex-wrap:wrap}
+  .eb{width:42px;height:42px;border-radius:10px;border:1.5px solid var(--borda);background:#fff;font-size:15px;font-weight:700;color:var(--suave);cursor:pointer;transition:all .12s}
+  .eb:hover{border-color:var(--mar-azul)}
+  .eb.sel{background:var(--mar-azul);color:#fff;border-color:var(--mar-azul);transform:scale(1.05)}
+  .legenda{font-size:11px;color:var(--suave);margin-top:8px}
+  .barra{position:sticky;bottom:0;background:#fff;border-top:1px solid var(--borda);padding:12px 16px;box-shadow:0 -2px 8px rgba(0,0,0,.06)}
+  .barra .prog{height:7px;background:var(--borda);border-radius:99px;overflow:hidden;margin-bottom:9px}
+  .barra .prog i{display:block;height:100%;background:var(--ok);width:0;transition:width .2s}
+  .btn{display:block;width:100%;padding:14px;border:none;border-radius:11px;font-size:15px;font-weight:700;cursor:pointer;text-align:center;text-decoration:none}
+  .btn-primario{background:var(--mar-azul);color:#fff}
+  .btn-primario:disabled{background:#B8C4D0;cursor:not-allowed}
+  .btn-wpp{background:#25D366;color:#fff;margin-bottom:10px}
+  .btn-sec{background:#fff;color:var(--mar-azul);border:1.5px solid var(--mar-azul)}
+  .status{font-size:12px;text-align:center;color:var(--suave);margin-bottom:8px}
+  .selector{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+  .selp{border:1.5px solid var(--borda);border-radius:11px;padding:14px;cursor:pointer;background:#fff;text-align:left}
+  .selp:hover{border-color:var(--mar-azul);box-shadow:var(--sombra)}
+  .selp .ic{font-size:22px}
+  .selp .nm{font-weight:700;font-size:14px;margin-top:4px}
+  .selp .sb{font-size:11px;color:var(--suave)}
+  .fim{text-align:center;padding:10px 0}
+  .fim .check{font-size:48px}
+  .codebox{background:#F1F5F9;border:1px dashed var(--borda);border-radius:9px;padding:12px;font-family:monospace;font-size:11px;word-break:break-all;margin:12px 0;max-height:120px;overflow:auto}
+  .aviso{font-size:12px;color:var(--suave);text-align:center;margin-top:10px}
+  @media(max-width:480px){.selector{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+const ASS_PERFIS = [
+  { id:"gereneg",  label:"Gerente de Negocios",  icon:"🎯", sub:"Thiago", cor:"#1B5E8A", bg:"#E8F4FD", n:1,  externo:false },
+  { id:"gerecomer",label:"Gerente Comercial",     icon:"📊", sub:"Comercial",cor:"#0F6E56",bg:"#E8F3EE",n:1,  externo:false },
+  { id:"gerecomp", label:"Gerente de Compras",    icon:"📦", sub:"Rodrigo", cor:"#854F0B", bg:"#FEF3E8", n:1,  externo:false },
+  { id:"timecomp", label:"Time de Compras",        icon:"🛒", sub:"Senior/Junior",cor:"#B45309",bg:"#FEF9EC",n:3, externo:false },
+  { id:"timemarket",label:"Time de Marketing",    icon:"📢", sub:"Marketing",cor:"#7C3AED",bg:"#F3E8FF",n:2,  externo:false },
+  { id:"suporte",  label:"Suporte Comercial",     icon:"🎧", sub:"Suporte",  cor:"#0891B2", bg:"#E0F7FA", n:5,  externo:false },
+  { id:"supervisor",label:"Supervisor Comercial", icon:"👔", sub:"7 supervisores",cor:"#1B75BC",bg:"#EBF5FF",n:7,externo:false },
+  { id:"rca",      label:"RCA",                   icon:"🚗", sub:"~30 representantes",cor:"#F7941D",bg:"#FFF3E0",n:30,externo:false },
+  { id:"vendclT",  label:"Vendedor CLT",          icon:"💼", sub:"Time interno",cor:"#16A34A",bg:"#F0FDF4",n:5, externo:false },
+  { id:"cliente",  label:"Cliente",               icon:"🍽️", sub:"~50 clientes",cor:"#DC2626",bg:"#FEF2F2",n:50,externo:true  },
+  { id:"fornecedor",label:"Fornecedor",           icon:"🌱", sub:"~10 fornecedores",cor:"#166534",bg:"#F0FDF4",n:10,externo:true },
+];
+const ASS_QUESTIONARIOS = {
+
+  gereneg: {
+    titulo: "Gerente de Negocios",
+    ref: "Baseado em McKinsey OHI — Dimensoes: Direcao, Coordenacao, Controle e Capacidade",
+    blocos: [
+      { titulo: "A — Estrategia e Direcao", perguntas: [
+        { id:"gn1", texto:"A estrategia comercial da MAR e comunicada claramente para todos os responsaveis de area antes de ser executada?", ref:"McKinsey OHI — Direction clarity" },
+        { id:"gn2", texto:"Existe uma cadencia definida de alinhamento entre as areas de Comercial, Compras e Marketing?", ref:"McKinsey OHI — Coordination & control" },
+        { id:"gn3", texto:"Quando uma decisao estrategica e tomada, ela chega ao time de vendas com antecedencia suficiente para preparo?", ref:"RevOps Maturity — Pipeline alignment" },
+      ]},
+      { titulo: "B — Integracao entre Areas", perguntas: [
+        { id:"gn4", texto:"Compras e Comercial compartilham informacoes de forma estruturada e em tempo util para evitar ruptura e erro de mix?", ref:"McKinsey OHI — Integration" },
+        { id:"gn5", texto:"Marketing produz conteudo e argumentos que chegam ao RCA antes da visita ao cliente?", ref:"Sales Communication Maturity Model" },
+        { id:"gn6", texto:"Existe um fluxo claro de informacao do campo (RCA/cliente) para dentro da MAR que alimenta decisoes de compra?", ref:"RevOps Maturity — Feedback loops" },
+      ]},
+      { titulo: "C — Comunicacao e Resultado", perguntas: [
+        { id:"gn7", texto:"A MAR comunica de forma proativa com clientes — antecipando novidades, nao apenas respondendo problemas?", ref:"CSAT Best Practices — Proactive communication" },
+        { id:"gn8", texto:"Os fornecedores estrategicos recebem informacoes sobre o destino e o desempenho dos produtos que entregam?", ref:"Voice of Supplier — Transparency" },
+        { id:"gn9", texto:"Existe um indicador ou metrica que mede a qualidade da comunicacao interna e externa da MAR?", ref:"McKinsey OHI — Performance metrics" },
+        { id:"gn10", texto:"Se voce pudesse mudar UMA COISA na comunicacao corporativa da MAR amanha, o impacto seria imediato nos resultados?", ref:"Pergunta de impacto — Demand Metric" },
+      ]},
+    ]
+  },
+
+  gerecomer: {
+    titulo: "Gerente Comercial",
+    ref: "Baseado em McKinsey OHI + Sales Communication Maturity Model",
+    blocos: [
+      { titulo: "A — Alinhamento do Time de Vendas", perguntas: [
+        { id:"gc1", texto:"Os supervisores recebem a estrategia comercial da semana com antecedencia suficiente para repassar ao time?", ref:"McKinsey OHI — Direction flow" },
+        { id:"gc2", texto:"Os RCAs vao a campo com material de apoio atualizado — argumentos, produtos em foco, competitividade de preco?", ref:"Sales Communication Maturity Model" },
+        { id:"gc3", texto:"Existe um canal oficial e estruturado de comunicacao entre o Comercial e os RCAs com cadencia definida?", ref:"Sales Comm. Maturity — Channel governance" },
+      ]},
+      { titulo: "B — Fluxo de Informacao", perguntas: [
+        { id:"gc4", texto:"O Suporte Comercial tem clareza sobre o que precisa comunicar, para quem e em qual prazo?", ref:"RevOps Maturity — Role clarity" },
+        { id:"gc5", texto:"Informacoes de ruptura, mudanca de preco ou restricao de produto chegam ao RCA antes do cliente reclamar?", ref:"Sales Comm. Maturity — Proactive enablement" },
+        { id:"gc6", texto:"O feedback que o RCA traz do campo (dores do cliente, movimentos do concorrente) chega de volta para as areas de decisao?", ref:"RevOps — Voice of field" },
+      ]},
+      { titulo: "C — Reconhecimento e Motivacao", perguntas: [
+        { id:"gc7", texto:"Existe reconhecimento publico estruturado para o time comercial — nao apenas comissao, mas visibilidade e pertencimento?", ref:"McKinsey OHI — Motivation & recognition" },
+        { id:"gc8", texto:"O RCA sente que faz parte da marca MAR — nao apenas que vende o produto MAR?", ref:"Sales Comm. Maturity — Brand belonging" },
+        { id:"gc9", texto:"O time de suporte comercial se sente informado e preparado para atender o RCA e o cliente com precisao?", ref:"RevOps — Enablement readiness" },
+        { id:"gc10", texto:"A comunicacao entre Comercial e as demais areas (Logistica, Compras, Financeiro) e fluida o suficiente para nao gerar retrabalho?", ref:"McKinsey OHI — Cross-functional integration" },
+      ]},
+    ]
+  },
+
+  gerecomp: {
+    titulo: "Gerente de Compras",
+    ref: "Baseado em McKinsey OHI + Voice of Supplier Framework",
+    blocos: [
+      { titulo: "A — Comunicacao com Fornecedores", perguntas: [
+        { id:"gcp1", texto:"Existe um canal oficial e padronizado de comunicacao com fornecedores estrategicos — nao dependente do comprador individual?", ref:"Voice of Supplier — Channel governance" },
+        { id:"gcp2", texto:"Os fornecedores sao avisados com antecedencia sobre mudancas de volume, pausa ou cancelamento de pedido?", ref:"Voice of Supplier — Forecast communication" },
+        { id:"gcp3", texto:"O fornecedor recebe feedback estruturado sobre qualidade, prazo e desempenho — nao apenas quando ha problema?", ref:"Voice of Supplier — Feedback loop" },
+      ]},
+      { titulo: "B — Integracao Compras x Comercial", perguntas: [
+        { id:"gcp4", texto:"Compras e Comercial se reúnem regularmente para alinhar demanda, ruptura e oportunidades de mercado?", ref:"RevOps Maturity — Cross-functional alignment" },
+        { id:"gcp5", texto:"O time de compras tem visibilidade do que o time de vendas precisa vender antes de fechar pedidos com fornecedores?", ref:"RevOps — Demand sensing" },
+        { id:"gcp6", texto:"A informacao de competitividade de preco que o RCA traz do campo chega ao comprador em tempo util?", ref:"Sales Comm. Maturity — Field intelligence" },
+      ]},
+      { titulo: "C — SLA e Governanca", perguntas: [
+        { id:"gcp7", texto:"Existe um SLA definido para confirmacao de data de entrega pelo fornecedor apos o pedido ser feito?", ref:"Supply chain comm. best practices — SLA" },
+        { id:"gcp8", texto:"Fornecedores estrategicos sao informados sobre onde o produto chega — qual cliente, segmento, regiao?", ref:"Voice of Supplier — Destination transparency" },
+        { id:"gcp9", texto:"Existe um processo formal de avaliacao de fornecedor que e compartilhado com ele periodicamente?", ref:"Voice of Supplier — Scorecard transparency" },
+        { id:"gcp10", texto:"A comunicacao atual de Compras com fornecedores seria suficiente para fidelizar um produtor estrategico no longo prazo?", ref:"Voice of Supplier — Relationship longevity" },
+      ]},
+    ]
+  },
+
+  timecomp: {
+    titulo: "Time de Compras",
+    ref: "Baseado em RevOps Maturity + Voice of Supplier Framework",
+    blocos: [
+      { titulo: "A — Ferramentas e Canais", perguntas: [
+        { id:"tc1", texto:"Voce tem clareza sobre qual canal usar para cada tipo de comunicacao com o fornecedor — e-mail, WhatsApp, ligacao?", ref:"RevOps — Channel clarity" },
+        { id:"tc2", texto:"As informacoes que voce precisa para fazer um pedido chegam com antecedencia suficiente do time comercial?", ref:"RevOps — Demand communication" },
+        { id:"tc3", texto:"Quando um fornecedor entrega fora do prazo ou com qualidade abaixo, existe um processo claro de como comunicar e registrar?", ref:"Voice of Supplier — Issue resolution" },
+      ]},
+      { titulo: "B — Fluxo e Rotina", perguntas: [
+        { id:"tc4", texto:"Voce sabe quais produtos o time de vendas precisa priorizar nesta semana antes de negociar com fornecedores?", ref:"RevOps — Sales-ops alignment" },
+        { id:"tc5", texto:"Existe uma rotina de alinhamento entre voce e o time comercial que evita surpresas de ruptura ou excesso de estoque?", ref:"RevOps — Operating rhythm" },
+        { id:"tc6", texto:"As informacoes sobre competitividade de preco no mercado chegam ate voce de forma organizada e em tempo util?", ref:"Sales Comm. Maturity — Market intelligence" },
+      ]},
+      { titulo: "C — Impacto Percebido", perguntas: [
+        { id:"tc7", texto:"Voce sente que a comunicacao atual entre Compras e Comercial e suficiente para voce fazer seu melhor trabalho?", ref:"McKinsey OHI — Enablement" },
+        { id:"tc8", texto:"Se voce pudesse receber UMA informacao a mais no seu trabalho diario, qual impacto isso teria na sua performance?", ref:"Demand Metric — Impact question" },
+      ]},
+    ]
+  },
+
+  timemarket: {
+    titulo: "Time de Marketing",
+    ref: "Baseado em Sales Communication Maturity Model + RevOps GTM Alignment",
+    blocos: [
+      { titulo: "A — Producao e Distribuicao de Conteudo", perguntas: [
+        { id:"tm1", texto:"O conteudo que Marketing produz chega ao RCA com antecedencia suficiente para ele usar na visita ao cliente?", ref:"Sales Comm. Maturity — Content delivery" },
+        { id:"tm2", texto:"Existe um calendario editorial definido que alinha Marketing, Comercial e Compras nas mesmas prioridades?", ref:"GTM Alignment — Content calendar" },
+        { id:"tm3", texto:"Os materiais de apoio de vendas — fichas tecnicas, argumentos, casos de uso — sao atualizados com frequencia adequada?", ref:"Sales Comm. Maturity — Asset freshness" },
+      ]},
+      { titulo: "B — Integracao e Segmentacao", perguntas: [
+        { id:"tm4", texto:"Marketing produz comunicacoes diferentes para cada segmento de cliente — food, delivery, hospitalar, institucional?", ref:"Sales Comm. Maturity — Segmentation" },
+        { id:"tm5", texto:"Marketing recebe feedback do campo (RCA, cliente, fornecedor) que alimenta a producao de conteudo relevante?", ref:"RevOps — Field feedback loop" },
+        { id:"tm6", texto:"A comunicacao de Marketing com fornecedores e estruturada — existe um plano de divulgacao de portfolio e reconhecimento?", ref:"Voice of Supplier — Brand visibility" },
+      ]},
+      { titulo: "C — Canais e Metricas", perguntas: [
+        { id:"tm7", texto:"Os canais digitais da MAR (Instagram, WhatsApp, e-mail) sao geridos com cadencia e estrategia definidas?", ref:"GTM Maturity — Channel governance" },
+        { id:"tm8", texto:"Existe alguma metrica que mede o impacto das acoes de Marketing no resultado comercial da MAR?", ref:"RevOps — Attribution metrics" },
+      ]},
+    ]
+  },
+
+  suporte: {
+    titulo: "Suporte Comercial",
+    ref: "Baseado em RevOps Maturity — Customer Support Enablement",
+    blocos: [
+      { titulo: "A — Clareza de Papel e Informacao", perguntas: [
+        { id:"sp1", texto:"Voce tem clareza sobre o que precisa comunicar, para quem e em qual prazo nas suas responsabilidades diarias?", ref:"RevOps — Role definition" },
+        { id:"sp2", texto:"As informacoes que voce precisa para atender o RCA ou o cliente chegam de forma organizada e em tempo?", ref:"RevOps — Information flow" },
+        { id:"sp3", texto:"Quando ha uma mudanca de produto, preco ou politica, voce e comunicado antes de o cliente ou RCA perguntar?", ref:"Sales Comm. Maturity — Proactive enablement" },
+      ]},
+      { titulo: "B — Ferramentas e Fluxo", perguntas: [
+        { id:"sp4", texto:"Os sistemas e ferramentas que voce usa para se comunicar internamente sao suficientes para fazer seu trabalho sem retrabalho?", ref:"RevOps — Tech stack adequacy" },
+        { id:"sp5", texto:"Existe um processo claro de escalada quando voce nao tem a resposta que o cliente ou RCA precisa?", ref:"RevOps — Escalation protocol" },
+        { id:"sp6", texto:"O Suporte Comercial e visto pelas outras areas como parte da cadeia de valor — nao apenas como area administrativa?", ref:"McKinsey OHI — Role perception" },
+      ]},
+      { titulo: "C — Impacto", perguntas: [
+        { id:"sp7", texto:"Voce sente que a comunicacao atual entre Suporte, Comercial e outras areas e suficiente para entregar um bom servico ao cliente?", ref:"McKinsey OHI — Enablement" },
+        { id:"sp8", texto:"Se voce melhorasse o fluxo de comunicacao no seu trabalho, quanto isso impactaria a satisfacao do cliente final?", ref:"CES — Customer Effort Score logic" },
+      ]},
+    ]
+  },
+
+  supervisor: {
+    titulo: "Supervisor Comercial",
+    ref: "Baseado em McKinsey OHI + Sales Communication Maturity Model",
+    blocos: [
+      { titulo: "A — Alinhamento Estrategico", perguntas: [
+        { id:"sv1", texto:"Voce recebe a estrategia comercial da semana com antecedencia suficiente para repassar ao time de RCAs?", ref:"McKinsey OHI — Direction cascade" },
+        { id:"sv2", texto:"As prioridades de vendas — produto foco, cliente critico, meta da semana — sao comunicadas de forma clara e objetiva?", ref:"Sales Comm. Maturity — Weekly enablement" },
+        { id:"sv3", texto:"Quando ha mudanca de produto, preco ou politica, voce e informado antes de o RCA descobrir no campo?", ref:"Sales Comm. Maturity — Proactive info" },
+      ]},
+      { titulo: "B — Suporte ao RCA", perguntas: [
+        { id:"sv4", texto:"O RCA do seu time vai a campo com material de apoio atualizado — argumento tecnico, custo por porcao, acao do concorrente?", ref:"Sales Comm. Maturity — Field readiness" },
+        { id:"sv5", texto:"Existe um canal estruturado pelo qual o RCA pode te passar informacoes do campo — dores do cliente, oportunidades, problemas?", ref:"RevOps — Voice of field" },
+        { id:"sv6", texto:"O feedback que voce coleta dos RCAs chega de forma organizada para as areas de Comercial e Compras?", ref:"RevOps — Feedback loop completeness" },
+      ]},
+      { titulo: "C — Reconhecimento e Retencao", perguntas: [
+        { id:"sv7", texto:"O RCA do seu time sente que faz parte da marca MAR — existe um senso de pertencimento alem da relacao transacional?", ref:"McKinsey OHI — Affiliation & pride" },
+        { id:"sv8", texto:"Existe reconhecimento publico e estruturado para os melhores RCAs — nao apenas comissao, mas visibilidade perante a equipe?", ref:"Sales Comm. Maturity — Recognition" },
+      ]},
+    ]
+  },
+
+  rca: {
+    titulo: "RCA — Representante Comercial",
+    ref: "Baseado em Sales Communication Maturity Model + RevOps Field Enablement",
+    blocos: [
+      { titulo: "A — Preparo para o Campo", perguntas: [
+        { id:"rc1", texto:"Antes de sair para visitar clientes, voce recebe informacoes atualizadas sobre produtos em foco, precos e estrategia da semana?", ref:"Sales Comm. Maturity — Pre-call enablement" },
+        { id:"rc2", texto:"Voce tem material de apoio para apresentar ao cliente — ficha tecnica, argumento de venda, custo por porcao, novidades?", ref:"Sales Comm. Maturity — Sales asset quality" },
+        { id:"rc3", texto:"Quando o concorrente lanca algo novo ou muda preco, voce recebe essa informacao da MAR antes de ser questionado pelo cliente?", ref:"Sales Comm. Maturity — Competitive intelligence" },
+      ]},
+      { titulo: "B — Comunicacao com a MAR", perguntas: [
+        { id:"rc4", texto:"Existe um canal claro e oficial para voce se comunicar com a MAR — nao apenas grupos de WhatsApp informais?", ref:"Sales Comm. Maturity — Channel governance" },
+        { id:"rc5", texto:"Quando voce identifica uma oportunidade ou problema no campo, existe um caminho estruturado para comunicar isso para a MAR?", ref:"RevOps — Field intelligence capture" },
+        { id:"rc6", texto:"Voce recebe retorno sobre o que fez com as informacoes que voce passou para a MAR?", ref:"RevOps — Closed-loop feedback" },
+      ]},
+      { titulo: "C — Pertencimento e Reconhecimento", perguntas: [
+        { id:"rc7", texto:"Voce se sente parte da marca MAR — nao apenas um vendedor autonomo que revende o produto?", ref:"McKinsey OHI — Affiliation" },
+        { id:"rc8", texto:"Seu esforco e resultados sao reconhecidos pela MAR de forma publica — alem do pagamento da comissao?", ref:"Sales Comm. Maturity — Recognition" },
+      ]},
+    ]
+  },
+
+  vendclT: {
+    titulo: "Vendedor CLT",
+    ref: "Baseado em Sales Communication Maturity Model — Perfil interno",
+    blocos: [
+      { titulo: "A — Preparo e Informacao", perguntas: [
+        { id:"vc1", texto:"Voce recebe as prioridades de vendas da semana com antecedencia suficiente para planejar sua abordagem?", ref:"Sales Comm. Maturity — Enablement" },
+        { id:"vc2", texto:"Voce tem acesso a informacoes de mercado — tendencias, acoes do concorrente, novidades de produto — de forma regular?", ref:"Sales Comm. Maturity — Market intelligence" },
+        { id:"vc3", texto:"Quando ha problemas de entrega ou produto, voce e comunicado a tempo de gerenciar a expectativa do cliente?", ref:"Sales Comm. Maturity — Proactive comms" },
+      ]},
+      { titulo: "B — Comunicacao Interna", perguntas: [
+        { id:"vc4", texto:"A comunicacao entre Vendas, Compras e Logistica e suficientemente fluida para voce evitar surpresas na visita ao cliente?", ref:"RevOps — Cross-functional communication" },
+        { id:"vc5", texto:"Seu feedback sobre o que o cliente quer ou reclama chega de forma estruturada para as areas que podem resolver?", ref:"RevOps — Voice of field" },
+        { id:"vc6", texto:"Voce sente que a MAR valoriza e usa as informacoes que voce traz do campo?", ref:"McKinsey OHI — Motivation" },
+      ]},
+      { titulo: "C — Resultado e Pertencimento", perguntas: [
+        { id:"vc7", texto:"A comunicacao que voce recebe da MAR e suficiente para voce fechar mais vendas e atender melhor o cliente?", ref:"Sales Comm. Maturity — Impact" },
+        { id:"vc8", texto:"Voce se sente parte de uma equipe integrada — nao apenas um vendedor individual?", ref:"McKinsey OHI — Team cohesion" },
+      ]},
+    ]
+  },
+
+  cliente: {
+    titulo: "Cliente",
+    ref: "Baseado em NPS (Bain & Company) + CSAT (Qualtrics) + CES — Perspectiva de fora para dentro",
+    blocos: [
+      { titulo: "A — Comunicacao Recebida", perguntas: [
+        { id:"cl1", texto:"A MAR te comunica de forma proativa sobre novidades, promocoes e oportunidades — ou voce so e contactado quando a MAR quer vender algo?", ref:"CSAT Best Practices — Proactive vs reactive" },
+        { id:"cl2", texto:"A comunicacao que voce recebe da MAR e relevante para o seu negocio — ou e generica e nao considera o seu perfil de cliente?", ref:"NPS driver — Personalization" },
+        { id:"cl3", texto:"Voce sabe quem e o seu ponto de contato na MAR e como acessa-lo quando precisa?", ref:"CES — Ease of contact" },
+      ]},
+      { titulo: "B — Experiencia de Relacionamento", perguntas: [
+        { id:"cl4", texto:"Quando voce tem um problema — entrega errada, produto faltante, erro de pedido — a MAR resolve de forma rapida e sem burocracia?", ref:"CES — Problem resolution effort" },
+        { id:"cl5", texto:"O representante da MAR que te visita chega preparado — sabe o que voce compra, o que falta, o que pode melhorar no seu cardapio?", ref:"Sales Comm. Maturity — RCA preparation" },
+        { id:"cl6", texto:"A MAR entrega o que promete — produto certo, prazo certo, quantidade certa — de forma consistente?", ref:"CSAT — Delivery reliability" },
+      ]},
+      { titulo: "C — Valor e Lealdade", perguntas: [
+        { id:"cl7", texto:"A MAR te ajuda a ter mais sucesso no seu negocio — nao apenas te vende produto, mas te apoia com informacao e solucao?", ref:"NPS driver — Business value" },
+        { id:"cl8", texto:"Em uma escala de 0 a 5, qual a probabilidade de voce recomendar a MAR para outro restaurante ou negocio de alimentacao?", ref:"NPS — Net Promoter Score adapted" },
+      ]},
+    ]
+  },
+
+  fornecedor: {
+    titulo: "Fornecedor",
+    ref: "Baseado em Voice of Supplier (UNA.com) + Supplier Satisfaction Framework — Perspectiva de fora para dentro",
+    blocos: [
+      { titulo: "A — Comunicacao da MAR com Voce", perguntas: [
+        { id:"fn1", texto:"A MAR te avisa com antecedencia quando precisa aumentar, reduzir ou pausar pedidos — ou voce descobre de surpresa?", ref:"Voice of Supplier — Forecast communication" },
+        { id:"fn2", texto:"Existe um canal oficial e claro para voce se comunicar com a MAR — ou voce depende de encontrar a pessoa certa?", ref:"Voice of Supplier — Channel governance" },
+        { id:"fn3", texto:"A MAR define e cumpre um prazo claro para confirmar datas de entrega depois que voce envia o produto?", ref:"Voice of Supplier — SLA clarity" },
+      ]},
+      { titulo: "B — Reconhecimento e Parceria", perguntas: [
+        { id:"fn4", texto:"Voce sabe onde o produto que entrega para a MAR vai chegar — qual restaurante, qual regiao, qual segmento de cliente?", ref:"Voice of Supplier — Destination transparency" },
+        { id:"fn5", texto:"A MAR reconhece e valoriza o seu trabalho publicamente — ou sua contribuicao e invisivel para o mercado?", ref:"Voice of Supplier — Recognition" },
+        { id:"fn6", texto:"Voce recebe feedback da MAR sobre a qualidade do seu produto — nao apenas reclamacoes, mas tambem elogios e dados?", ref:"Voice of Supplier — Quality feedback" },
+      ]},
+      { titulo: "C — Resultado e Continuidade", perguntas: [
+        { id:"fn7", texto:"A sua relacao com a MAR e baseada em parceria e confianca — ou e puramente transacional (preco e prazo)?", ref:"Voice of Supplier — Partnership depth" },
+        { id:"fn8", texto:"Em uma escala de 0 a 5, o quanto voce recomendaria a MAR como parceiro comercial para outro produtor ou fabricante?", ref:"NPS adapted — Supplier advocacy" },
+      ]},
+    ]
+  },
+
+};
+
+function getParam(k){return new URLSearchParams(location.search).get(k);}
+var perfilId = getParam('perfil');
+var respostas = {};
+var identidade = {nome:'', setor:''};
+
+var app = document.getElementById('app');
+
+function perfilInfo(id){ return ASS_PERFIS.find(function(p){return p.id===id;}); }
+function precisaSetor(id){ var p=perfilInfo(id); return p && (p.n>1 || p.externo); }
+
+function tela(html){ app.innerHTML = html; }
+
+// ---------- SELETOR (quando nao ha ?perfil= no link) ----------
+function renderSeletor(){
+  var cards = ASS_PERFIS.filter(function(p){return ASS_QUESTIONARIOS[p.id];}).map(function(p){
+    return '<div class="selp" onclick="location.search=\'?perfil='+p.id+'\'">'+
+      '<div class="ic">'+p.icon+'</div><div class="nm">'+p.label+'</div>'+
+      '<div class="sb">'+p.sub+' · '+(ASS_QUESTIONARIOS[p.id].blocos.reduce(function(a,b){return a+b.perguntas.length;},0))+' perguntas</div></div>';
+  }).join('');
+  tela('<div class="topo"><div class="marca">VETTORE · MAR FOOD SERVICE</div><h1>Pesquisa de Diagnóstico</h1>'+
+    '<div class="ref">Modo teste — escolha um perfil para simular o envio</div></div>'+
+    '<div class="wrap"><div class="card"><h2>Selecione o perfil / área</h2><div class="selector">'+cards+'</div></div>'+
+    '<p class="aviso">Na versão real, cada pessoa recebe um link já com o perfil dela (ex.: ?perfil=rca) e vê só estas perguntas.</p></div>');
+}
+
+// ---------- FORMULARIO ----------
+function renderForm(){
+  var q = ASS_QUESTIONARIOS[perfilId];
+  var p = perfilInfo(perfilId);
+  if(!q){ tela('<div class="wrap"><div class="card">Perfil não encontrado: '+perfilId+'</div></div>'); return; }
+
+  var idBlock = '';
+  if(precisaSetor(perfilId)){
+    idBlock = '<div class="card"><h2>Identificação</h2>'+
+      '<label class="f">Seu nome</label><input class="f" id="in-nome" placeholder="Nome completo" oninput="identidade.nome=this.value">'+
+      '<label class="f">Setor / Região</label><input class="f" id="in-setor" placeholder="Ex.: Interior · Metropolitana · Kuhn" oninput="identidade.setor=this.value"></div>';
+  } else {
+    idBlock = '<div class="card"><h2>Identificação</h2>'+
+      '<label class="f">Seu nome <span style="font-weight:400;color:var(--suave)">(opcional)</span></label>'+
+      '<input class="f" id="in-nome" placeholder="'+(p.sub||'')+'" oninput="identidade.nome=this.value"></div>';
+  }
+
+  var blocos = q.blocos.map(function(b){
+    var pergs = b.perguntas.map(function(pg){
+      var btns = [0,1,2,3,4,5].map(function(v){
+        return '<button class="eb" id="b-'+pg.id+'-'+v+'" onclick="marcar(\''+pg.id+'\','+v+')">'+v+'</button>';
+      }).join('');
+      var ref = pg.ref ? '<span class="perg-ref">Ref.: '+pg.ref+'</span>' : '';
+      return '<div class="perg"><div class="perg-txt">'+pg.texto+ref+'</div><div class="escala">'+btns+'</div></div>';
+    }).join('');
+    return '<div class="card"><div class="bloco-tit">'+b.titulo+'</div>'+pergs+'</div>';
+  }).join('');
+
+  var total = q.blocos.reduce(function(a,b){return a+b.perguntas.length;},0);
+
+  tela('<div class="topo"><div class="marca">VETTORE · MAR FOOD SERVICE</div><h1>'+p.icon+' '+q.titulo+'</h1>'+
+    '<div class="ref">'+(q.ref||'')+'</div></div>'+
+    '<div class="wrap">'+idBlock+
+    '<div class="card"><h2>Como responder</h2><p style="font-size:13px;color:var(--suave)">'+
+    'Avalie de <b>0</b> (discordo totalmente / não existe) a <b>5</b> (concordo totalmente / plenamente estabelecido). '+
+    'Se não souber avaliar, deixe em branco.</p></div>'+
+    blocos+
+    '</div>'+
+    '<div class="barra"><div class="prog"><i id="prog-i"></i></div>'+
+    '<div class="status" id="status">0 de '+total+' respondidas</div>'+
+    '<button class="btn btn-primario" id="btn-fim" onclick="finalizar()">Finalizar e gerar código</button></div>');
+  atualizarProgresso();
+}
+
+function marcar(id,v){
+  respostas[id]=v;
+  var q=ASS_QUESTIONARIOS[perfilId];
+  q.blocos.forEach(function(b){b.perguntas.forEach(function(pg){
+    if(pg.id===id){for(var k=0;k<=5;k++){var el=document.getElementById('b-'+id+'-'+k); if(el) el.classList.toggle('sel',k===v);}}
+  });});
+  atualizarProgresso();
+}
+
+function totalPerguntas(){ return ASS_QUESTIONARIOS[perfilId].blocos.reduce(function(a,b){return a+b.perguntas.length;},0); }
+
+function atualizarProgresso(){
+  var total=totalPerguntas(); var resp=Object.keys(respostas).length;
+  var pct=Math.round(resp/total*100);
+  var i=document.getElementById('prog-i'); if(i) i.style.width=pct+'%';
+  var s=document.getElementById('status'); if(s) s.textContent=resp+' de '+total+' respondidas ('+pct+'%)';
+}
+
+function finalizar(){
+  var total=totalPerguntas(); var resp=Object.keys(respostas).length;
+  if(resp < Math.ceil(total*0.5)){ alert('Responda ao menos metade das perguntas ('+Math.ceil(total*0.5)+' de '+total+') antes de finalizar.'); return; }
+  if(precisaSetor(perfilId) && (!identidade.nome.trim()||!identidade.setor.trim())){ alert('Preencha seu nome e setor/região.'); return; }
+
+  var payload={p:perfilId, n:identidade.nome.trim(), s:identidade.setor.trim(), a:respostas, t:Date.now()};
+  var code='MARV1:'+btoa(unescape(encodeURIComponent(JSON.stringify(payload))));
+
+  var soma=Object.values(respostas).reduce(function(a,b){return a+b;},0);
+  var score=Math.round(soma/(resp*5)*100);
+  var q=ASS_QUESTIONARIOS[perfilId]; var p=perfilInfo(perfilId);
+
+  var msg='Assessment Vettore - '+q.titulo+(identidade.nome?(' - '+identidade.nome):'')+'%0A'+
+          'Respondidas: '+resp+'/'+total+'%0A%0ACODIGO (copie tudo abaixo):%0A'+encodeURIComponent(code);
+
+  tela('<div class="topo"><div class="marca">VETTORE · MAR FOOD SERVICE</div><h1>Pronto!</h1></div>'+
+    '<div class="wrap"><div class="card fim"><div class="check">✅</div>'+
+    '<h2 style="margin-top:8px">Respostas registradas</h2>'+
+    '<p style="font-size:13px;color:var(--suave);margin-top:6px">'+q.titulo+' · '+resp+' de '+total+' respondidas</p></div>'+
+    '<div class="card"><h2>Enviar suas respostas</h2>'+
+    '<p style="font-size:13px;color:var(--suave);margin-bottom:12px">Toque no botão abaixo para enviar pelo WhatsApp, ou copie o código e cole onde combinaram.</p>'+
+    '<a class="btn btn-wpp" href="https://wa.me/?text='+msg+'" target="_blank">📲 Enviar no WhatsApp</a>'+
+    '<button class="btn btn-sec" onclick="copiar(\''+code+'\')">📋 Copiar código</button>'+
+    '<div class="codebox" id="cb">'+code+'</div></div>'+
+    '<p class="aviso">Este é o código que você envia. Quem coordena a pesquisa vai lançá-lo no painel geral.</p></div>');
+}
+
+function copiar(code){
+  navigator.clipboard.writeText(code).then(function(){alert('Código copiado!');},
+    function(){var r=document.createRange();r.selectNode(document.getElementById('cb'));window.getSelection().removeAllRanges();window.getSelection().addRange(r);document.execCommand('copy');alert('Código copiado!');});
+}
+
+// INIT
+if(perfilId && ASS_QUESTIONARIOS[perfilId]){ renderForm(); } else { renderSeletor(); }
+</script>
+</body>
+</html>
