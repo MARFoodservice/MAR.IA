@@ -2064,7 +2064,7 @@ function montarRAW(dadosCarteira, dadosHist, dadosEvo, dadosDepto, dadosProdutos
     const _fatVal = parseFloat(r.fat) || 0;
     // Apenas fat > 0 = vendas reais (equivalente a CODOPER='S')
     // Registros com fat <= 0 são devoluções/cancelamentos
-    if (_fatVal > 0) hist[cod].push({ m: r.mes, v: _fatVal });
+    if (_fatVal > 0) hist[cod].push({ m: r.mes, v: _fatVal, d: parseInt(r.dia_ult_compra)||null });
   });
   Object.keys(hist).forEach(cod => {
     hist[cod].sort((a, b) => {
@@ -2861,7 +2861,14 @@ function _compGetHistAno(ano){
       // Calcular dias desde última compra até fim do mês ref
       var mesIdx=MNS_EN.indexOf(ultMes.split('/')[0]);
       var anoUlt=parseInt('20'+ultMes.split('/')[1]);
-      var ultDate=new Date(anoUlt,mesIdx+1,0); // último dia do mês de última compra
+      // Usar dia exato da última compra se disponível (mais preciso)
+      // Fallback: último dia do mês (comportamento anterior)
+      var diaExato=null;
+      var hExato=ch.find(function(h){return h.m===ultMes&&h.v>0;});
+      if(hExato&&hExato.d) diaExato=hExato.d;
+      var ultDate=diaExato
+        ? new Date(anoUlt,mesIdx,diaExato)      // dia exato da compra
+        : new Date(anoUlt,mesIdx+1,0);           // último dia do mês (fallback)
       var diasRef=Math.floor((refTs-ultDate.getTime())/86400000);
       if(diasRef<0)return;
       var st=diasRef<=30?'A':diasRef<=90?'P':diasRef<=120?'I':'B';
