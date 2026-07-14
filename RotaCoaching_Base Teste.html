@@ -932,7 +932,7 @@ function init() {
     document.getElementById('login-screen').style.display = 'none';
     aplicarVisibilidadePerfil(savedPerfil);
     const fSup = document.getElementById('f-supervisor');
-    if(fSup) { fSup.value = savedUser; onSupervisorChange(); }
+    if(fSup) { fSup.value = savedUser; onSupervisorChange(true); }
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
     document.getElementById('page-select').classList.add('active');
@@ -5390,13 +5390,18 @@ async function buscarClientePorTermo(vendedor, termo) {
 }
 
 // Chamado quando supervisor muda no formulário — filtra vendedores do sup
-async function onSupervisorChange() {
+// restaurando=true => chamado pelo init() ao restaurar sessão salva (reload/app em 2º plano).
+// Nesse caso NAO deve apagar dados de cliente já preenchidos/salvos.
+async function onSupervisorChange(restaurando=false) {
   _clientesCache = {};
   await renderVendedorSelect();
-  // Limpa clientes de todos os PDVs
-  pdvs.forEach((p, i) => {
-    p.clienteId = ''; p.nomeCliente = ''; p.ramo = '';
-  });
+  if(!restaurando) {
+    // Limpa clientes só dos PDVs ainda NÃO salvos (protege rotas já registradas)
+    pdvs.forEach((p, i) => {
+      if(!p.saved) { p.clienteId = ''; p.nomeCliente = ''; p.ramo = ''; }
+    });
+    saveDraft();
+  }
   renderPdv(cur);
 }
 
