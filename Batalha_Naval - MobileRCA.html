@@ -256,22 +256,32 @@ async function doLogin(){
   if(error){err.textContent='Código ou senha incorretos.';err.style.display='block';return;}
   currentUser=data.user;
   await initApp();
-  // Registrar acesso
-  registrarAcesso();
+  // Registrar acesso — com await para garantir que o INSERT complete
+  await registrarAcesso();
 }
 async function doLogout(){await sb.auth.signOut();location.reload();}
 
 async function registrarAcesso(){
-  try{
-    const dispositivo=navigator.userAgent.substring(0,150);
-    await sb.from('Batalha Naval_Log_Acesso').insert({
-      codrca:userInfo?.codrca||null,
-      nome:userInfo?.nome||null,
-      user_id:currentUser?.id||null,
-      supervisor:userInfo?.supervisor||null,
-      dispositivo
-    });
-  }catch(e){console.warn('Log acesso falhou:',e);}
+  const dispositivo=navigator.userAgent.substring(0,150);
+  const payload={
+    codrca:userInfo?.codrca||null,
+    nome:userInfo?.nome||null,
+    user_id:currentUser?.id||null,
+    supervisor:userInfo?.supervisor||null,
+    dispositivo
+  };
+  // Tenta até 3 vezes em caso de falha momentânea de rede/RLS
+  for(let tentativa=1;tentativa<=3;tentativa++){
+    try{
+      const {error}=await sb.from('Batalha Naval_Log_Acesso').insert(payload);
+      if(!error){return;} // sucesso
+      console.warn(`Log acesso tentativa ${tentativa} falhou:`,error.message);
+    }catch(e){
+      console.warn(`Log acesso tentativa ${tentativa} erro:`,e);
+    }
+    if(tentativa<3){await new Promise(r=>setTimeout(r,800));}
+  }
+  console.error('Log de acesso não registrado após 3 tentativas.');
 }
 
 async function initApp(){
@@ -748,7 +758,7 @@ function esc(s){return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').
 
 (async()=>{
   const {data:{session}}=await sb.auth.getSession();
-  if(session){currentUser=session.user;await initApp();}
+  if(session){currentUser=session.user;await initApp();await registrarAcesso();}
 })();
 
 </script>
