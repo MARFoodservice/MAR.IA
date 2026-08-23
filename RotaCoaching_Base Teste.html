@@ -192,6 +192,18 @@ tbody td { padding: 11px 12px; }
   .bfield-label { font-size: 0.85rem; }
   /* Avaliação TOP30 mobile */
   #t30-pdv-content > div [style*="grid-template-columns:repeat(4"] { grid-template-columns: repeat(2,1fr) !important; }
+
+  /* Grids de 2 colunas em páginas de uso diário — empilha em telas pequenas pra não espremer conteúdo */
+  #page-form div[style*="grid-template-columns:1fr 1fr"],
+  #page-acesso div[style*="grid-template-columns:1fr 1fr"],
+  #drilldown-overlay div[style*="grid-template-columns:1fr 1fr"],
+  #meta-form,
+  #modal-cliente-info,
+  #modal-itens { grid-template-columns: 1fr !important; }
+
+  /* Cards de métricas com 4-5 colunas fixas — 2 colunas em mobile */
+  #dash-cards, #dash-cards-2, #dash-cards-3, #dash-cards-perfil,
+  #acesso-cards, #t30p-cards { grid-template-columns: repeat(2,1fr) !important; }
 }
 </style>
 </head>
@@ -244,6 +256,8 @@ tbody td { padding: 11px 12px; }
     <div class="nav-tab" onclick="showPage('dashboard',this)"><span style="font-size:1.2rem">📊</span><span>Dashboard</span></div>
     <div class="nav-tab" onclick="showPage('acesso',this)" id="nav-tab-acesso"><span style="font-size:1.2rem">🔐</span><span>Acesso</span></div>
     <div class="nav-tab" onclick="showPage('historico',this)"><span style="font-size:1.2rem">🗂️</span><span>Histórico</span></div>
+    <div class="nav-tab" onclick="showPage('vespertina',this)"><span style="font-size:1.2rem">🌇</span><span>Vespertina</span></div>
+    <div class="nav-tab" onclick="showPage('carteira',this)"><span style="font-size:1.2rem">📇</span><span>Carteira</span></div>
     <div class="nav-tab" onclick="showPage('cadastros',this)" id="nav-tab-cadastros"><span style="font-size:1.2rem">📋</span><span>Cadastros</span></div>
     <div class="nav-tab" onclick="showPage('top30painel',this)"><span style="font-size:1.2rem">🏆</span><span>TOP 30</span></div>
     <div class="nav-tab" onclick="showPage('batalhanaval',this)"><span style="font-size:1.2rem">⚓</span><span>Batalha Naval</span></div>
@@ -497,6 +511,28 @@ tbody td { padding: 11px 12px; }
     </table></div>
     <div id="hist-empty" class="empty-state" style="display:none">Nenhum registro encontrado</div>
   </div>
+</div>
+
+<!-- VESPERTINA -->
+<div id="page-vespertina" class="page">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Início</button><div class="section-title" style="margin:0">🌇 <span>Vespertina</span></div></div>
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Ritual de encerramento do dia — dados do dia e acumulado da semana (seg–sex) para a reunião do Gerente com o Supervisor.</p>
+  <div class="filter-row" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div class="field"><label>Supervisor</label><select id="vesp-supervisor" onchange="renderVespertina()"></select></div>
+    <div class="field"><label>Data de referência</label><input type="date" id="vesp-data" onchange="renderVespertina()"></div>
+  </div>
+  <div id="vesp-content"><div class="empty-state">Selecione supervisor e data</div></div>
+</div>
+
+<!-- CARTEIRA -->
+<div id="page-carteira" class="page">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Início</button><div class="section-title" style="margin:0">📇 <span>Carteira</span></div><a href="https://marfoodservice.github.io/MAR.IA/GestaoCarteira_SupaBase.html" target="_blank" rel="noopener" style="margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:9px 18px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem;text-decoration:none;display:inline-flex;align-items:center;gap:6px">🔗 App Gestão de Carteira</a></div>
+  <p style="font-size:.82rem;color:var(--muted);margin-bottom:16px">Perfil da carteira de clientes por vendedor (dados reais da tabela "faturamento") — Recorrentes, Novos, Retidos, Reativados e clientes que viraram Pré-Inativos no mês atual. Clique no número de <strong>Clientes Perdidos</strong> pra ver a lista de clientes.</p>
+  <div class="filter-row" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div class="field"><label>Supervisor</label><select id="cart-supervisor" onchange="renderCarteira()"></select></div>
+    <div class="field"><label>Mês de referência</label><input type="month" id="cart-mesref" onchange="renderCarteira()"></div>
+  </div>
+  <div id="cart-content"><div class="empty-state">Selecione um supervisor</div></div>
 </div>
 
 <!-- CADASTROS -->
@@ -1310,8 +1346,16 @@ function agruparRotasPorDia(recs) {
     grupos[key].resultado.cadastros   += r.resultado?.cadastros   || 0;
     grupos[key].resultado.venda       += r.resultado?.venda       || 0;
   });
-  return Object.values(grupos).map(g => ({...g, vendedores: [...g.vendedores]}))
-    .filter(g => g.resultado.visitados >= 10); // Só conta como rota se tiver 10+ PDVs visitados no dia
+  // Sem filtro aqui: retorna TODOS os dias agrupados, mesmo com poucos PDVs.
+  // O filtro de "rota qualificada" (10+ PDVs no dia) é aplicado pelos consumidores que precisam
+  // contar ROTAS ou calcular médias por rota — mas visitas/positivações/cadastros/venda desses dias
+  // continuam contando nos totais gerais do Dashboard.
+  return Object.values(grupos).map(g => ({...g, vendedores: [...g.vendedores]}));
+}
+// Filtro de "rota qualificada": só conta como 1 rota se teve 10+ PDVs visitados no dia.
+const ROTA_MIN_PDVS = 10;
+function filtrarRotasQualificadas(gruposDia) {
+  return gruposDia.filter(g => (g.resultado?.visitados||0) >= ROTA_MIN_PDVS);
 }
 
 async function renderDashboard() {
@@ -1370,24 +1414,35 @@ async function renderDashboard() {
   if(mesF) recs = recs.filter(r => (r.data||'').startsWith(mesF));
 
   // ── Agrupamento 1 rota/dia ──
-  const recsAgrup = agruparRotasPorDia(recs);
+  // recsAgrupTodos: TODA a atividade lançada, mesmo dias com poucos PDVs (não "qualificam" como rota).
+  // recsAgrupQualif: só os dias com 10+ PDVs visitados — usado exclusivamente para CONTAR rotas e
+  // calcular médias "por rota" (essas continuam exigindo o mínimo de 10 PDVs, como antes).
+  const recsAgrupTodos  = agruparRotasPorDia(recs);
+  const recsAgrupQualif = filtrarRotasQualificadas(recsAgrupTodos);
 
   // ── Métricas base ──
-  const totalRotas = recsAgrup.length;
-  const totalPdvs  = recsAgrup.reduce((s,r)=>s+(r.resultado?.visitados||0),0);
-  const totalPos   = recsAgrup.reduce((s,r)=>s+(r.resultado?.positivados||0),0);
-  const totalCad   = recsAgrup.reduce((s,r)=>s+(r.resultado?.cadastros||0),0);
-  const totalVenda = recsAgrup.reduce((s,r)=>s+(r.resultado?.venda||0),0);
+  // PDVs/Positivações/Cadastros/Venda: SEMPRE contam, mesmo em dias com menos de 10 PDVs (rota não qualificada).
+  const totalPdvs  = recsAgrupTodos.reduce((s,r)=>s+(r.resultado?.visitados||0),0);
+  const totalPos   = recsAgrupTodos.reduce((s,r)=>s+(r.resultado?.positivados||0),0);
+  const totalCad   = recsAgrupTodos.reduce((s,r)=>s+(r.resultado?.cadastros||0),0);
+  const totalVenda = recsAgrupTodos.reduce((s,r)=>s+(r.resultado?.venda||0),0);
   const taxaConv   = totalPdvs ? Math.round(totalPos/totalPdvs*100) : 0;
   const vendedoresAtivos = new Set(recs.map(r=>r.vendedor).filter(Boolean)).size;
-  const diasAtivos = new Set(recsAgrup.map(r=>r.data).filter(Boolean)).size;
-  const rotasPorDia = diasAtivos ? (totalRotas/diasAtivos).toFixed(1) : '0';
-  const pdvsPorRota = totalRotas ? (totalPdvs/totalRotas).toFixed(1) : '0';
-  const cadastrosPorRota = totalRotas ? (totalCad/totalRotas).toFixed(1) : '0';
-  const vendaPorRota = totalRotas ? Math.round(totalVenda/totalRotas) : 0;
 
+  // Rotas Realizadas e médias "por rota": só contam dias qualificados (10+ PDVs), como já era.
+  const totalRotas = recsAgrupQualif.length;
+  const diasAtivos = new Set(recsAgrupQualif.map(r=>r.data).filter(Boolean)).size;
+  const totalPdvsQualif  = recsAgrupQualif.reduce((s,r)=>s+(r.resultado?.visitados||0),0);
+  const totalCadQualif   = recsAgrupQualif.reduce((s,r)=>s+(r.resultado?.cadastros||0),0);
+  const totalVendaQualif = recsAgrupQualif.reduce((s,r)=>s+(r.resultado?.venda||0),0);
+  const rotasPorDia = diasAtivos ? (totalRotas/diasAtivos).toFixed(1) : '0';
+  const pdvsPorRota = totalRotas ? (totalPdvsQualif/totalRotas).toFixed(1) : '0';
+  const cadastrosPorRota = totalRotas ? (totalCadQualif/totalRotas).toFixed(1) : '0';
+  const vendaPorRota = totalRotas ? Math.round(totalVendaQualif/totalRotas) : 0;
+
+  // Adesão aos 9 Passos: avaliada sobre as rotas qualificadas (mesmo critério de antes)
   let passosOk = 0, passosTotal = 0;
-  recsAgrup.forEach(r => (r.pdvs||[]).forEach(p => {
+  recsAgrupQualif.forEach(r => (r.pdvs||[]).forEach(p => {
     ['p1','p2','p3','p4','p5','p6','p7','p8','p9'].forEach(pk => {
       const v = p.passos?.[pk];
       if(v) { passosTotal++; if(v==='E') passosOk++; }
@@ -1447,7 +1502,7 @@ async function renderDashboard() {
   const pks = ['p1','p2','p3','p4','p5','p6','p7','p8','p9'];
   const passoPcts = pks.map(pk => {
     let ok=0, tot=0;
-    recsAgrup.forEach(r => (r.pdvs||[]).forEach(p => {
+    recsAgrupQualif.forEach(r => (r.pdvs||[]).forEach(p => {
       const v = p.passos?.[pk];
       if(v) { tot++; if(v==='E') ok++; }
     }));
@@ -1486,7 +1541,7 @@ async function renderDashboard() {
       // Clientes distintos por perfil — distinção por DIA (mesmo cliente outro dia conta)
       // Aqui mês atual: agrupa por (data, codcli) → cliente distinto no mesmo dia
       const clientesDia = new Set();
-      recsAgrup.forEach(r => {
+      recsAgrupQualif.forEach(r => {
         const clientesDoDia = new Set();
         (r.pdvs||[]).forEach(p => {
           if(p.perfilRota===perfil) {
@@ -1504,13 +1559,15 @@ async function renderDashboard() {
     }).join('');
   }
 
-  // Salva recsAgrup e recs no window pra uso nos drilldowns
-  window._dashRecsAgrup = recsAgrup;
+  // Salva os dois conjuntos e recs no window pra uso nos drilldowns.
+  // drillDash escolhe qual usar conforme o tipo (totais gerais x métricas "por rota").
+  window._dashRecsAgrupTodos  = recsAgrupTodos;
+  window._dashRecsAgrupQualif = recsAgrupQualif;
   window._dashRecs = recs;
 
-  // PDVs com perfil para gráfico de distribuição
+  // PDVs com perfil para gráfico de distribuição (rotas qualificadas)
   const allPdvsDash = [];
-  recsAgrup.forEach(r => (r.pdvs||[]).forEach(p => allPdvsDash.push(p)));
+  recsAgrupQualif.forEach(r => (r.pdvs||[]).forEach(p => allPdvsDash.push(p)));
 
   // ── Gráfico distribuição % por perfil de rota ──
   const perfisChart = ['Rota','Cadastros','Maiores Perdas','Gestão Carteira','TOP 30'];
@@ -1558,19 +1615,24 @@ async function renderDashboard() {
     return `<div class="card"><div class="card-title">${label}</div><canvas id="sup-chart-${id}" height="200"></canvas></div>`;
   };
 
-  const rotasBySup   = sups.map(s => recsAgrup.filter(r=>r.supervisor===s).length);
-  const pdvsBySup    = sups.map(s => recsAgrup.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.visitados||0),0));
-  const posBySup     = sups.map(s => recsAgrup.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.positivados||0),0));
-  const vendsBySup   = sups.map(s => new Set(recs.filter(r=>r.supervisor===s).map(r=>r.vendedor).filter(Boolean)).size);
-  const convBySup    = sups.map((s,i) => pdvsBySup[i] ? Math.round(posBySup[i]/pdvsBySup[i]*100) : 0);
-  const medPdvBySup  = sups.map((s,i) => rotasBySup[i] ? +(pdvsBySup[i]/rotasBySup[i]).toFixed(1) : 0);
-  const cadBySup     = sups.map(s => recsAgrup.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.cadastros||0),0));
-  const medCadBySup  = sups.map((s,i) => rotasBySup[i] ? +(cadBySup[i]/rotasBySup[i]).toFixed(1) : 0);
-  const vendaBySup   = sups.map(s => recsAgrup.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.venda||0),0));
-  const medVendBySup = sups.map((s,i) => rotasBySup[i] ? Math.round(vendaBySup[i]/rotasBySup[i]) : 0);
+  // Rotas Realizadas e médias "por rota" continuam exigindo 10+ PDVs (recsAgrupQualif).
+  // PDVs Visitados / Positivações / Venda Total por supervisor mostram TODA a atividade (recsAgrupTodos),
+  // pra bater com os cards gerais do topo.
+  const rotasBySup      = sups.map(s => recsAgrupQualif.filter(r=>r.supervisor===s).length);
+  const pdvsBySup       = sups.map(s => recsAgrupTodos.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.visitados||0),0));
+  const posBySup        = sups.map(s => recsAgrupTodos.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.positivados||0),0));
+  const vendsBySup      = sups.map(s => new Set(recs.filter(r=>r.supervisor===s).map(r=>r.vendedor).filter(Boolean)).size);
+  const convBySup       = sups.map((s,i) => pdvsBySup[i] ? Math.round(posBySup[i]/pdvsBySup[i]*100) : 0);
+  const pdvsBySupQualif = sups.map(s => recsAgrupQualif.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.visitados||0),0));
+  const medPdvBySup     = sups.map((s,i) => rotasBySup[i] ? +(pdvsBySupQualif[i]/rotasBySup[i]).toFixed(1) : 0);
+  const cadBySupQualif  = sups.map(s => recsAgrupQualif.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.cadastros||0),0));
+  const medCadBySup     = sups.map((s,i) => rotasBySup[i] ? +(cadBySupQualif[i]/rotasBySup[i]).toFixed(1) : 0);
+  const vendaBySup      = sups.map(s => recsAgrupTodos.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.venda||0),0));
+  const vendaBySupQualif= sups.map(s => recsAgrupQualif.filter(r=>r.supervisor===s).reduce((a,r)=>a+(r.resultado?.venda||0),0));
+  const medVendBySup    = sups.map((s,i) => rotasBySup[i] ? Math.round(vendaBySupQualif[i]/rotasBySup[i]) : 0);
   const adesaoBySup  = sups.map(s => {
     let ok=0, tot=0;
-    recsAgrup.filter(r=>r.supervisor===s).forEach(r=>(r.pdvs||[]).forEach(p=>{
+    recsAgrupQualif.filter(r=>r.supervisor===s).forEach(r=>(r.pdvs||[]).forEach(p=>{
       ['p1','p2','p3','p4','p5','p6','p7','p8','p9'].forEach(pk=>{const v=p.passos?.[pk];if(v){tot++;if(v==='E')ok++;}});
     }));
     return tot ? Math.round(ok/tot*100) : 0;
@@ -1692,7 +1754,7 @@ async function renderDashboard() {
   const distEl = document.getElementById('dash-distribuicao-vendedor');
   if(distEl) {
     const porSupVend = {};
-    recsAgrup.forEach(r => {
+    recsAgrupQualif.forEach(r => {
       r.vendedores.forEach(v => {
         if(!v) return;
         if(!porSupVend[r.supervisor]) porSupVend[r.supervisor] = {};
@@ -1886,7 +1948,10 @@ function fecharDrilldown() {
 
 // Drilldown para cards do Dashboard
 function drillDash(tipo, perfilFiltro) {
-  const recsAgrup = window._dashRecsAgrup || [];
+  // 'pdvs','pos','venda','cad','conv' refletem TODA a atividade (mesmo dias com <10 PDVs).
+  // Os demais (rotas, rotasdia, pdvsrota, cadrota, passos, perfil) usam só rotas qualificadas (10+ PDVs).
+  const usaTodaAtividade = ['pdvs','pos','venda','cad','conv'].includes(tipo);
+  const recsAgrup = (usaTodaAtividade ? window._dashRecsAgrupTodos : window._dashRecsAgrupQualif) || [];
   const recs = window._dashRecs || [];
   let titulo='', thead='', rows=[];
 
@@ -2187,6 +2252,8 @@ function showPage(name,tab){
   }
   if(name==='dashboard') { sbSincronizarDashboard().then(async ()=>{ await carregarMetasCache(); renderDashboard(); }); }
   if(name==='historico') { sbSincronizarDashboard().then(()=>renderHistorico()); }
+  if(name==='vespertina') { renderVespertina(); }
+  if(name==='carteira') { renderCarteira(); }
   if(name==='batalhanaval') { renderBatalhaNavalPage(); }
   if(name==='top30painel') { renderTop30Painel(true); }
   if(name==='config') {
@@ -5205,6 +5272,625 @@ async function sbGetLogs(supervisor='', limit=500) {
   let params = `order=timestamp.desc&limit=${limit}`;
   if(supervisor) params += `&supervisor=eq.${encodeURIComponent(supervisor)}`;
   return await supabaseGet('gerot_acesso_logs', params);
+}
+
+// ── VESPERTINA: vendas reais (tabela 'vendas') por supervisor + intervalo de datas ──
+async function sbGetVendasSupervisor(codsupervisor, dataIniStr, dataFimStr) {
+  if(!sbUrl()||!sbKey()||!codsupervisor) return [];
+  const url = `${sbUrl()}/rest/v1/vendas?select=rca,data_lancamento,valor_total`
+    + `&codsupervisor=eq.${encodeURIComponent(codsupervisor)}`
+    + `&data_lancamento=gte.${encodeURIComponent(dataIniStr+' 00:00:00')}`
+    + `&data_lancamento=lte.${encodeURIComponent(dataFimStr+' 23:59:59')}`
+    + `&order=data_lancamento.asc&limit=20000`;
+  try {
+    const r = await fetch(url, { headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()} });
+    if(!r.ok) return [];
+    return await r.json();
+  } catch(e) { console.error('sbGetVendasSupervisor:', e); return []; }
+}
+
+// ── VESPERTINA: acessos ao Batalha Naval de um vendedor num intervalo de datas ──
+async function sbGetBatalhaAcessos(nomeVendedor, dataIniStr, dataFimStr) {
+  if(!sbUrl()||!sbKey()||!nomeVendedor) return [];
+  const url = `${sbUrl()}/rest/v1/${encodeURIComponent('Batalha Naval_Log_Acesso')}?select=nome,data_login`
+    + `&nome=eq.${encodeURIComponent(nomeVendedor)}`
+    + `&data_login=gte.${encodeURIComponent(dataIniStr+'T00:00:00')}`
+    + `&data_login=lte.${encodeURIComponent(dataFimStr+'T23:59:59')}`
+    + `&order=data_login.asc&limit=500`;
+  try {
+    const r = await fetch(url, { headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()} });
+    if(!r.ok) return [];
+    return await r.json();
+  } catch(e) { return []; }
+}
+
+// ── VESPERTINA: plano de metas do mês (compras_metas_plano) — 1 linha por mês, 1 registro só ──
+// mesKey no formato 'YYYY-MM'
+async function sbGetMetaPlanoMes(mesKey) {
+  if(!sbUrl()||!sbKey()||!mesKey) return null;
+  try {
+    const url = `${sbUrl()}/rest/v1/compras_metas_plano?select=mes_key,dia_num,sup_labels,sup_meta_dia&mes_key=eq.${encodeURIComponent(mesKey)}&limit=1`;
+    const r = await fetch(url, { headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()} });
+    if(!r.ok) return null;
+    const rows = await r.json();
+    return rows[0] || null;
+  } catch(e) { console.error('sbGetMetaPlanoMes:', e); return null; }
+}
+
+// ============================================================
+// CARTEIRA — perfil de clientes por vendedor (tabela "faturamento", dado real)
+// Regras replicadas dos SQLs oficiais do CarteiraPro (fornecidos pelo usuário):
+// Recorrente = comprou mês atual E anterior.
+// Novo = sem compra 120+ dias antes do mês anterior, ou nunca comprou (só conta pra
+//        vendedores com 120+ dias de casa — evita creditar carteira herdada de recém-chegado).
+// Retido = voltou a comprar após 31-90 dias parado (antes do mês anterior).
+// Reativado = voltou a comprar após 91-120 dias parado (antes do mês anterior).
+// Pré-Inativo no mês = cliente cuja última compra completou 30 dias sem nova compra dentro do mês atual.
+// ============================================================
+
+// Busca faturamento (vendas reais, codoper='S' e total>0) de um supervisor nos últimos N meses
+// Filtra por NOME completo do supervisor (texto), não pelo código numérico —
+// o codsupervisor da tabela "faturamento" não bate de forma confiável com o
+// SUPERVISOR_MAP (validado só contra a tabela "vendas"). Nome completo é o dado
+// confirmado nas amostras reais (ex: "JULIANO CARLOS LAUSE").
+async function sbGetFaturamentoSupervisor(nomeCompletoSup, dataIniStr) {
+  if(!sbUrl()||!sbKey()||!nomeCompletoSup) return [];
+  const url = `${sbUrl()}/rest/v1/faturamento?select=codcli,rca,dtmov,cliente,ramo`
+    + `&supervisor=eq.${encodeURIComponent(nomeCompletoSup)}`
+    + `&codoper=eq.S&total=gt.0`
+    + `&dtmov=gte.${encodeURIComponent(dataIniStr+' 00:00:00')}`
+    + `&order=dtmov.asc&limit=50000`;
+  try {
+    const r = await fetch(url, { headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()} });
+    if(!r.ok) return [];
+    return await r.json();
+  } catch(e) { console.error('sbGetFaturamentoSupervisor:', e); return []; }
+}
+
+function diffDiasCarteira(d1, d2) { return Math.round((d1 - d2) / 86400000); }
+
+// Mostra, no modal de drilldown já existente no app, os clientes do vendedor que
+// completaram 30 dias sem comprar dentro do mês de referência selecionado na Carteira.
+function mostrarPerdidosCarteira(idx) {
+  const linha = (window._carteiraLinhas||[])[idx];
+  if(!linha) return;
+  const lista = (window._carteiraPreInativosDetalhe||{})[linha.vendedor] || [];
+  const mesLabel = window._carteiraMesRefLabel || '';
+
+  document.getElementById('drilldown-title').innerHTML =
+    `⚠️ Clientes Perdidos [30 Dias] — ${linha.vendedor}${mesLabel?' · '+mesLabel:''} <span style="font-size:.8rem;color:var(--muted)">(${lista.length})</span>`;
+  document.getElementById('drilldown-thead').innerHTML =
+    `<tr><th>Código</th><th>Cliente</th><th>Ramo</th><th>Última Compra</th><th>Dias Parado</th></tr>`;
+  document.getElementById('drilldown-tbody').innerHTML = lista.length
+    ? lista.slice().sort((a,b)=>b.diasParado-a.diasParado).map(c => `<tr>
+        <td>${c.codcli}</td>
+        <td>${c.cliente||'-'}</td>
+        <td>${c.ramo||'-'}</td>
+        <td>${c.ultimaCompra ? c.ultimaCompra.toLocaleDateString('pt-BR') : '-'}</td>
+        <td>${c.diasParado}</td>
+      </tr>`).join('')
+    : `<tr><td colspan="5" style="text-align:center;color:var(--muted);padding:20px">Nenhum cliente encontrado</td></tr>`;
+  document.getElementById('drilldown-overlay').style.display = 'block';
+}
+
+async function renderCarteira() {
+  const cont = document.getElementById('cart-content');
+  if(!cont) return;
+
+  const selSup = document.getElementById('cart-supervisor');
+
+  // Acesso: só Gerência e Diretoria veem todos os supervisores. Todo o resto (inclusive
+  // Suporte) fica travado no próprio supervisor — regra específica desta página.
+  const podeVerTodosCarteira = ['gerente','diretoria'].includes(_loggedPerfil);
+  if(selSup) {
+    if(!podeVerTodosCarteira) {
+      selSup.innerHTML = `<option value="${_loggedSupervisor}" selected>${_loggedSupervisor}</option>`;
+      selSup.disabled = true;
+    } else {
+      selSup.disabled = false;
+      const curSel = selSup.value;
+      try {
+        const r = await fetch(`${sbUrl()}/rest/v1/gerot_usuarios?ativo=eq.true&perfil=eq.supervisor&select=nome&order=nome.asc`, {
+          headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
+        });
+        const rowsSup = r.ok ? await r.json() : [];
+        selSup.innerHTML = '<option value="">Selecione supervisor...</option>' + rowsSup.map(u=>`<option value="${u.nome}" ${u.nome===curSel?'selected':''}>${u.nome}</option>`).join('');
+      } catch(e) { selSup.innerHTML = '<option value="">Selecione supervisor...</option>'; }
+    }
+  }
+  const supervisorLogin = podeVerTodosCarteira ? (selSup?.value || '') : _loggedSupervisor;
+  if(!supervisorLogin) { cont.innerHTML = '<div class="empty-state">Selecione um supervisor</div>'; return; }
+
+  const nomeCompletoSup = supNomeCompleto(supervisorLogin);
+  if(!SUPERVISOR_MAP[supervisorLogin.toUpperCase()]) { cont.innerHTML = '<div class="empty-state">⚠️ Supervisor sem nome completo mapeado em SUPERVISOR_MAP — não é possível consultar a carteira.</div>'; return; }
+
+  cont.innerHTML = '<div class="empty-state">⏳ Carregando...</div>';
+
+  // Mês de referência: por padrão o mês atual, mas o supervisor pode escolher um mês
+  // anterior no filtro pra consultar o status da carteira retroativo.
+  const hoje = new Date();
+  const selMes = document.getElementById('cart-mesref');
+  if(selMes && !selMes.value) selMes.value = `${hoje.getFullYear()}-${String(hoje.getMonth()+1).padStart(2,'0')}`;
+  const [anoRef, mesRefNum] = (selMes?.value || `${hoje.getFullYear()}-${hoje.getMonth()+1}`).split('-').map(Number);
+
+  // Limites de mês em 00:00:00 — os dados de dtmov vêm zerados (ex: "2026-08-01 00:00:00").
+  // Usar meio-dia aqui excluía incorretamente vendas do dia 1º do mês (bug corrigido).
+  const inicioMesAtual    = new Date(anoRef, mesRefNum-1, 1);
+  const inicioMesAnterior = new Date(anoRef, mesRefNum-2, 1);
+  // Se o mês selecionado é o mês corrente real, o limite superior é hoje; se é um mês
+  // passado, o limite superior é o último dia daquele mês (23:59:59).
+  const ehMesAtualReal = (anoRef===hoje.getFullYear() && mesRefNum-1===hoje.getMonth());
+  const fimRef = ehMesAtualReal ? hoje : new Date(anoRef, mesRefNum, 0, 23,59,59);
+  const janelaIni = new Date(inicioMesAtual); janelaIni.setMonth(janelaIni.getMonth()-13);
+  const janelaIniStr = janelaIni.toISOString().split('T')[0];
+
+  const rowsRaw = await sbGetFaturamentoSupervisor(nomeCompletoSup, janelaIniStr);
+  if(!rowsRaw.length) { cont.innerHTML = '<div class="empty-state">Sem dados de faturamento para esse supervisor no período.</div>'; return; }
+
+  // Normaliza: codcli arredondado (equivalente a ROUND(codcli::numeric)::int no SQL)
+  const rows = rowsRaw.map(r => {
+    const codcli = Math.round(parseFloat(r.codcli));
+    const dt = r.dtmov ? new Date(String(r.dtmov).replace(' ','T')) : null;
+    return { codcli, rca: (r.rca||'').trim(), dt, cliente: r.cliente||'', ramo: r.ramo||'' };
+  }).filter(r => Number.isFinite(r.codcli) && r.dt && !isNaN(r.dt));
+
+  // Nome/ramo do cliente — usa o registro mais recente disponível
+  const infoCliente = {};
+  rows.forEach(r => {
+    if(!infoCliente[r.codcli] || r.dt > infoCliente[r.codcli].dt) infoCliente[r.codcli] = { cliente: r.cliente, ramo: r.ramo, dt: r.dt };
+  });
+
+  // ── Query 1: quem virou Pré-Inativo dentro do mês atual ──
+  const ultimaAntesDoMesAtual = {}; // codcli -> última compra ANTES do mês atual
+  rows.forEach(r => {
+    if(r.dt < inicioMesAtual) {
+      if(!ultimaAntesDoMesAtual[r.codcli] || r.dt > ultimaAntesDoMesAtual[r.codcli]) ultimaAntesDoMesAtual[r.codcli] = r.dt;
+    }
+  });
+  const clientesMesAtualSet = new Set();
+  rows.forEach(r => { if(r.dt >= inicioMesAtual && r.dt <= fimRef) clientesMesAtualSet.add(r.codcli); });
+
+  // rca "dono" do cliente — MAX(rca) entre qualquer linha do cliente na janela (igual ao SQL)
+  const rcaPorCliente = {};
+  rows.forEach(r => {
+    if(!rcaPorCliente[r.codcli] || r.rca > rcaPorCliente[r.codcli]) rcaPorCliente[r.codcli] = r.rca;
+  });
+
+  const preInativosPorVendedor = {};
+  const preInativosDetalhePorVendedor = {};
+  Object.keys(ultimaAntesDoMesAtual).forEach(codcliStr => {
+    const codcli = Number(codcliStr);
+    const ultima = ultimaAntesDoMesAtual[codcli];
+    const dataQueda = new Date(ultima); dataQueda.setDate(dataQueda.getDate()+30);
+    const virouEsteMes  = dataQueda >= inicioMesAtual && dataQueda <= fimRef;
+    const comprouEsteMes = clientesMesAtualSet.has(codcli);
+    if(virouEsteMes && !comprouEsteMes) {
+      const rca = rcaPorCliente[codcli] || 'SEM VENDEDOR';
+      preInativosPorVendedor[rca] = (preInativosPorVendedor[rca]||0) + 1;
+      if(!preInativosDetalhePorVendedor[rca]) preInativosDetalhePorVendedor[rca] = [];
+      const info = infoCliente[codcli] || {};
+      preInativosDetalhePorVendedor[rca].push({
+        codcli, cliente: info.cliente||'', ramo: info.ramo||'',
+        ultimaCompra: ultima, diasParado: diffDiasCarteira(fimRef, ultima),
+      });
+    }
+  });
+
+  // ── Query 2: perfil do mês (Recorrente / Novo / Retido / Reativado) ──
+  const clientesMesAnteriorSet = new Set();
+  rows.forEach(r => { if(r.dt >= inicioMesAnterior && r.dt < inicioMesAtual) clientesMesAnteriorSet.add(r.codcli); });
+
+  const ultimaAntesDoMesAnterior = {}; // codcli -> última compra ANTES do mês anterior (2+ meses atrás)
+  rows.forEach(r => {
+    if(r.dt < inicioMesAnterior) {
+      if(!ultimaAntesDoMesAnterior[r.codcli] || r.dt > ultimaAntesDoMesAnterior[r.codcli]) ultimaAntesDoMesAnterior[r.codcli] = r.dt;
+    }
+  });
+
+  // rca do cliente DENTRO do mês atual (usado pra atribuir a classificação ao vendedor certo)
+  const rcaPorClienteMesAtual = {};
+  rows.forEach(r => {
+    if(r.dt >= inicioMesAtual && r.dt <= fimRef) {
+      if(!rcaPorClienteMesAtual[r.codcli] || r.rca > rcaPorClienteMesAtual[r.codcli]) rcaPorClienteMesAtual[r.codcli] = r.rca;
+    }
+  });
+
+  // "Tempo de casa" do rca — 1ª venda dele na janela buscada (13 meses cobre a checagem de 120 dias com folga)
+  const primeiraVendaRca = {};
+  rows.forEach(r => {
+    if(!r.rca) return;
+    if(!primeiraVendaRca[r.rca] || r.dt < primeiraVendaRca[r.rca]) primeiraVendaRca[r.rca] = r.dt;
+  });
+
+  const contagem = {};
+  const garanteRca = rca => { if(!contagem[rca]) contagem[rca] = {recorrentes:0,novos:0,retidos:0,reativados:0}; return contagem[rca]; };
+
+  clientesMesAtualSet.forEach(codcli => {
+    const rca = rcaPorClienteMesAtual[codcli] || 'SEM VENDEDOR';
+    const uca = ultimaAntesDoMesAnterior[codcli] || null;
+    let perfil;
+    if(!uca) perfil = 'NOVO';
+    else {
+      const gap = diffDiasCarteira(inicioMesAnterior, uca);
+      if(gap > 120) perfil = 'NOVO';
+      else if(gap >= 91) perfil = 'REATIVADO';
+      else if(gap >= 31) perfil = 'RETIDO';
+      else if(clientesMesAnteriorSet.has(codcli)) perfil = 'RECORRENTE';
+      else perfil = 'OUTRO';
+    }
+    if(perfil === 'OUTRO') return;
+    if(perfil === 'NOVO') {
+      const diasCasa = primeiraVendaRca[rca] ? diffDiasCarteira(fimRef, primeiraVendaRca[rca]) : 0;
+      if(diasCasa > 120) garanteRca(rca).novos++; // "prospecção" só conta pra quem já tem 120+ dias de casa
+    }
+    else if(perfil === 'RETIDO')     garanteRca(rca).retidos++;
+    else if(perfil === 'REATIVADO')  garanteRca(rca).reativados++;
+    else if(perfil === 'RECORRENTE') garanteRca(rca).recorrentes++;
+  });
+
+  // Garante linha pro vendedor mesmo se ele só tiver Pré-Inativos este mês
+  Object.keys(preInativosPorVendedor).forEach(rca => garanteRca(rca));
+
+  const linhas = Object.keys(contagem).map(rca => ({
+    vendedor: rca,
+    recorrentes: contagem[rca].recorrentes,
+    novos: contagem[rca].novos,
+    retidos: contagem[rca].retidos,
+    reativados: contagem[rca].reativados,
+    preInativosMes: preInativosPorVendedor[rca] || 0,
+  })).sort((a,b) => b.recorrentes - a.recorrentes); // ordena do maior pro menor Recorrente
+
+  // Expõe pro modal de detalhe (clique em "Clientes Perdidos Mês [30 Dias]")
+  window._carteiraLinhas = linhas;
+  window._carteiraPreInativosDetalhe = preInativosDetalhePorVendedor;
+  window._carteiraMesRefLabel = `${String(mesRefNum).padStart(2,'0')}/${anoRef}`;
+
+  if(!linhas.length) {
+    const maxDt = rows.reduce((m,r)=> r.dt>m?r.dt:m, new Date(0));
+    const fmtBR = d => d.getTime()>0 ? d.toLocaleDateString('pt-BR') : '—';
+    cont.innerHTML = `<div class="empty-state">Sem clientes classificados em ${String(mesRefNum).padStart(2,'0')}/${anoRef} para esse supervisor.<br>
+      <span style="font-size:.75rem;color:var(--muted)">Diagnóstico: ${rows.length} registro(s) de faturamento carregado(s) nos últimos 13 meses · última venda encontrada: ${fmtBR(maxDt)}</span>
+    </div>`;
+    return;
+  }
+
+  cont.innerHTML = `
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Vendedor</th>
+          <th style="text-align:center">🔵 Recorrentes</th>
+          <th style="text-align:center">🟣 Novos</th>
+          <th style="text-align:center">🟠 Retidos</th>
+          <th style="text-align:center">💗 Reativados</th>
+          <th style="text-align:center">⚠️ Clientes Perdidos Mês [30 Dias]</th>
+        </tr></thead>
+        <tbody>
+          ${linhas.map((l,idx) => `<tr>
+            <td>${l.vendedor}</td>
+            <td style="text-align:center;color:#4a9eff;font-weight:700">${l.recorrentes}</td>
+            <td style="text-align:center;color:#a064ff;font-weight:700">${l.novos}</td>
+            <td style="text-align:center;color:var(--warn);font-weight:700">${l.retidos}</td>
+            <td style="text-align:center;color:#ff4d9e;font-weight:700">${l.reativados}</td>
+            <td onclick="mostrarPerdidosCarteira(${idx})" style="text-align:center;color:var(--danger);font-weight:700;cursor:pointer;text-decoration:underline dotted" title="Clique pra ver os clientes">${l.preInativosMes}</td>
+          </tr>`).join('')}
+        </tbody>
+      </table></div>
+    </div>
+    <p style="font-size:.72rem;color:var(--muted);margin-top:10px">
+      Mês de referência: ${String(mesRefNum).padStart(2,'0')}/${anoRef}${ehMesAtualReal ? ' (mês corrente, até hoje)' : ''}.
+      Regras (iguais ao CarteiraPro): Recorrente = comprou no mês de referência e no anterior · Novo = sem comprar há 120+ dias ou 1ª compra (só conta pra vendedores com 120+ dias de casa) · Retido = voltou após 31-90 dias parado · Reativado = voltou após 91-120 dias parado.
+      Clientes Perdidos Mês [30 Dias] = completou 30 dias sem comprar dentro do mês de referência. Base: faturamento (vendas, codoper=S e total&gt;0) dos últimos 13 meses.
+    </p>
+  `;
+}
+
+// ============================================================
+// VESPERTINA — ritual de fim de dia (dia + acumulado da semana)
+// ============================================================
+
+// Retorna os 5 dias úteis (seg..sex) da semana que contém dataStr ('YYYY-MM-DD')
+function semanaUtilDe(dataStr) {
+  const d = new Date(dataStr+'T12:00:00');
+  const diaSemana = d.getDay(); // 0=Dom,1=Seg,...6=Sáb
+  const deltaSeg = diaSemana===0 ? -6 : (1-diaSemana);
+  const seg = new Date(d); seg.setDate(d.getDate()+deltaSeg);
+  const labels = ['Seg','Ter','Qua','Qui','Sex'];
+  const dias = [];
+  for(let i=0;i<5;i++){
+    const dt = new Date(seg); dt.setDate(seg.getDate()+i);
+    dias.push({ date: dt.toISOString().split('T')[0], label: labels[i] });
+  }
+  return dias;
+}
+function addDiasStr(dataStr, delta) {
+  const d = new Date(dataStr+'T12:00:00'); d.setDate(d.getDate()+delta);
+  return d.toISOString().split('T')[0];
+}
+function fmtDataBRSimples(dataStr) {
+  const p = dataStr.split('-'); return `${p[2]}/${p[1]}`;
+}
+// Vendedor "de fato" de um item de agenda, considerando a última troca registrada
+function vendedorEfetivoAgenda(a) {
+  if(!a) return '';
+  return (a.trocas && a.trocas.length) ? a.trocas[a.trocas.length-1].novoVendedor : (a.vendedor||'');
+}
+
+async function renderVespertina() {
+  const cont = document.getElementById('vesp-content');
+  if(!cont) return;
+
+  // Popula select de supervisor conforme perfil — sempre reaplica (não cacheia),
+  // pra garantir que troca de login (logout/login sem reload) respeite o perfil atual.
+  // populateSupSelect() já trava e força o próprio nome quando o perfil não é gerente/suporte/diretoria.
+  const selSup = document.getElementById('vesp-supervisor');
+  if(selSup) await populateSupSelect('vesp-supervisor', false);
+  const supervisorLogin = perfilVeTudo() ? (selSup?.value || '') : _loggedSupervisor;
+
+  const dataInput = document.getElementById('vesp-data');
+  if(dataInput && !dataInput.value) dataInput.value = new Date().toISOString().split('T')[0];
+  const dataRef = dataInput?.value || new Date().toISOString().split('T')[0];
+
+  if(!supervisorLogin) { cont.innerHTML = '<div class="empty-state">Selecione um supervisor</div>'; return; }
+
+  cont.innerHTML = '<div class="empty-state">⏳ Carregando...</div>';
+
+  const dias = semanaUtilDe(dataRef);
+  const segunda = dias[0].date, sexta = dias[4].date;
+  const rangeIni = addDiasStr(segunda, -28); // 4 semanas de histórico p/ trás
+  const codSup = supCodigo(supervisorLogin);
+
+  const mesKeysNaSemana = [...new Set(dias.map(d=>d.date.substring(0,7)))]; // normalmente 1, raramente 2 (semana virando o mês)
+
+  const [rotasRows, agendaMes1, agendaMes2, vendasRows, metaPlanoRows] = await Promise.all([
+    sbGetRotas(supervisorLogin, 5000),
+    sbGetAgenda(supervisorLogin, segunda.substring(0,7)),
+    sexta.substring(0,7) !== segunda.substring(0,7) ? sbGetAgenda(supervisorLogin, sexta.substring(0,7)) : Promise.resolve([]),
+    codSup ? sbGetVendasSupervisor(codSup, rangeIni, sexta) : Promise.resolve([]),
+    Promise.all(mesKeysNaSemana.map(mk=>sbGetMetaPlanoMes(mk)))
+  ]);
+  const agendaRows = [...(agendaMes1||[]), ...(agendaMes2||[])];
+
+  // Meta do dia da EQUIPE (supervisor), vinda de compras_metas_plano (sup_meta_dia é matriz dia × supervisor)
+  const nomeCompletoSup = supNomeCompleto(supervisorLogin);
+  const metaDiaEquipeMap = {};
+  (metaPlanoRows||[]).forEach(row => {
+    if(!row || !Array.isArray(row.sup_labels) || !Array.isArray(row.sup_meta_dia) || !Array.isArray(row.dia_num)) return;
+    const supIdx = row.sup_labels.indexOf(nomeCompletoSup);
+    if(supIdx === -1) return;
+    dias.forEach(d => {
+      if(d.date.substring(0,7) !== row.mes_key) return;
+      const diaDoMes = parseInt(d.date.substring(8,10), 10);
+      const diaIdx = row.dia_num.indexOf(diaDoMes);
+      if(diaIdx === -1) return;
+      const val = row.sup_meta_dia[diaIdx]?.[supIdx];
+      if(val != null) metaDiaEquipeMap[d.date] = val;
+    });
+  });
+
+  // Índice de vendas reais: perDateRca[data][rca] = soma ; perDateTotal[data] = soma da equipe
+  const perDateRca = {}, perDateTotal = {};
+  (vendasRows||[]).forEach(v => {
+    const dt = String(v.data_lancamento).substring(0,10);
+    const rca = v.rca || '';
+    const val = parseFloat(v.valor_total)||0;
+    perDateTotal[dt] = (perDateTotal[dt]||0) + val;
+    if(!perDateRca[dt]) perDateRca[dt] = {};
+    perDateRca[dt][rca] = (perDateRca[dt][rca]||0) + val;
+  });
+
+  // Índice de rotas do App (gerot_rotas_coaching): por data → vendedor(es) + contagens
+  const porDiaRota = {};
+  (rotasRows||[]).forEach(r => {
+    const dt = normData(r.data, r);
+    if(!dias.some(d=>d.date===dt)) return;
+    if(!porDiaRota[dt]) porDiaRota[dt] = { vendedores:new Set(), visitas:0, positivacoes:0, cadastros:0 };
+    const slot = porDiaRota[dt];
+    if(r.vendedor) slot.vendedores.add(r.vendedor);
+    slot.visitas++;
+    if(r.positivou===true || r.positivou==='true') slot.positivacoes++;
+    if(r.cadastrou===true || r.cadastrou==='true') slot.cadastros++;
+  });
+
+  // Índice de agenda: por data → vendedor efetivo (considerando troca)
+  const porDiaAgenda = {};
+  (agendaRows||[]).forEach(a => {
+    if(!dias.some(d=>d.date===a.data)) return;
+    porDiaAgenda[a.data] = vendedorEfetivoAgenda(a);
+  });
+
+  // Meta (venda por rota) cadastrada para o supervisor
+  if(!Object.keys(_metasCache).length) await carregarMetasCache();
+  const metaVendaRota = _metasCache[supervisorLogin]?.vendaporrota || null;
+
+  // Batalha Naval: 1 consulta por vendedor distinto envolvido na semana
+  const vendedoresDaSemana = new Set();
+  dias.forEach(d => {
+    const vr = porDiaRota[d.date] ? [...porDiaRota[d.date].vendedores][0] : '';
+    const va = porDiaAgenda[d.date] || '';
+    if(vr) vendedoresDaSemana.add(vr);
+    if(va) vendedoresDaSemana.add(va);
+  });
+  const batalhaPorVendedor = {};
+  await Promise.all([...vendedoresDaSemana].map(async v => {
+    batalhaPorVendedor[v] = await sbGetBatalhaAcessos(v.toUpperCase(), segunda, sexta);
+  }));
+
+  // Monta cada coluna (dia)
+  const colunas = dias.map(d => {
+    const rotaInfo = porDiaRota[d.date];
+    const vendedorRota = rotaInfo ? [...rotaInfo.vendedores][0] : '';
+    const vendedorAgenda = porDiaAgenda[d.date] || '';
+    const vendedorEfetivo = vendedorRota || vendedorAgenda;
+
+    const vendaEquipeDia = perDateTotal[d.date] || 0;
+    const vendaVendedorDia = vendedorEfetivo ? (perDateRca[d.date]?.[vendedorEfetivo] || 0) : 0;
+
+    // Meta do dia da equipe (compras_metas_plano) e % Venda Equipe x Meta Dia
+    const metaDiaEquipe = metaDiaEquipeMap[d.date] != null ? metaDiaEquipeMap[d.date] : null;
+    const pctVendaEquipeMeta = metaDiaEquipe ? Math.round(vendaEquipeDia/metaDiaEquipe*100) : null;
+
+    // Histórico: média das últimas 4 ocorrências do MESMO dia da semana
+    let somaHist = 0, nHist = 0;
+    for(let k=1; k<=4; k++) {
+      const dtPassado = addDiasStr(d.date, -7*k);
+      const v = vendedorEfetivo ? perDateRca[dtPassado]?.[vendedorEfetivo] : null;
+      if(v != null) { somaHist += v; nHist++; }
+    }
+    const vendaHistorico = nHist ? somaHist/nHist : null;
+    const pctVendaHist = vendaHistorico ? Math.round(vendaVendedorDia/vendaHistorico*100) : null;
+    const pctMeta = metaVendaRota ? Math.round(vendaVendedorDia/metaVendaRota*100) : null;
+
+    const agendaXRota = (vendedorAgenda && vendedorRota)
+      ? (vendedorAgenda === vendedorRota ? 'OK' : 'NOK')
+      : '—';
+
+    // Batalha Naval só é avaliado para o vendedor que EFETIVAMENTE saiu em rota naquele dia
+    // (não usa o vendedor da agenda como fallback — se não houve rota lançada, fica em branco)
+    const batalhaLogs = vendedorRota ? (batalhaPorVendedor[vendedorRota]||[]) : [];
+    const batalhaOk = vendedorRota ? batalhaLogs.some(l => String(l.data_login).substring(0,10) === d.date) : null;
+
+    return {
+      ...d, vendedorAgenda, vendedorRota, vendedorEfetivo, agendaXRota,
+      vendaEquipeDia, vendaVendedorDia, vendaHistorico, pctVendaHist, pctMeta,
+      metaDiaEquipe, pctVendaEquipeMeta,
+      visitas: rotaInfo?.visitas||0, positivacoes: rotaInfo?.positivacoes||0, cadastros: rotaInfo?.cadastros||0,
+      batalhaOk
+    };
+  });
+
+  // Acumulado da semana (seg-sex)
+  const acumVendaEquipe = colunas.reduce((s,c)=>s+c.vendaEquipeDia,0);
+  const diasComMetaEquipe = colunas.filter(c=>c.metaDiaEquipe!=null).length;
+  const acumMetaEquipe = diasComMetaEquipe ? colunas.reduce((s,c)=>s+(c.metaDiaEquipe||0),0) : null;
+  const acumPctMetaEquipe = acumMetaEquipe ? Math.round(acumVendaEquipe/acumMetaEquipe*100) : null;
+  const acumVendaVendedor = colunas.reduce((s,c)=>s+c.vendaVendedorDia,0);
+  const diasComVendedor = colunas.filter(c=>c.vendedorEfetivo).length;
+  const diasComRota = colunas.filter(c=>c.vendedorRota).length; // dias com rota efetivamente lançada no App
+  const acumMeta = metaVendaRota ? metaVendaRota*(diasComVendedor||5) : null;
+  const acumPctMeta = acumMeta ? Math.round(acumVendaVendedor/acumMeta*100) : null;
+  const acumVisitas = colunas.reduce((s,c)=>s+c.visitas,0);
+  const acumPositivacoes = colunas.reduce((s,c)=>s+c.positivacoes,0);
+  const acumCadastros = colunas.reduce((s,c)=>s+c.cadastros,0);
+  const diasBatalhaOk = colunas.filter(c=>c.batalhaOk===true).length;
+  const rotasNaSemana = diasComRota; // 1 rota lançada por dia útil (seg-sex)
+
+  const fmt = v => (v==null) ? '—' : 'R$ '+Math.round(v).toLocaleString('pt-BR');
+  const pct = v => (v==null) ? '—' : v+'%';
+  const corPct = v => (v==null) ? 'var(--muted)' : v>=100 ? 'var(--accent)' : v>=70 ? 'var(--warn)' : 'var(--danger)';
+
+  const linhas = [
+    {label:'VENDA TOTAL EQUIPE', fonte:'Vendas (real)', render:c=>fmt(c.vendaEquipeDia), bold:true},
+    {label:'META DIA (Equipe)', fonte:'compras_metas_plano', render:c=>fmt(c.metaDiaEquipe)},
+    {label:'Venda Equipe x Meta Dia', fonte:'compras_metas_plano', render:c=>pct(c.pctVendaEquipeMeta), pctCor:c=>corPct(c.pctVendaEquipeMeta)},
+    {label:'VENDEDOR AGENDA',    fonte:'App Gerot',      render:c=>c.vendedorAgenda||'—'},
+    {label:'VENDEDOR ROTA',      fonte:'App Gerot',      render:c=>c.vendedorRota||'—'},
+    {label:'AGENDA x ROTA',      fonte:'App Gerot',      render:c=>c.agendaXRota, tag:true},
+    {label:'Venda Histórico do vendedor', fonte:'Vendas (real)', render:c=>fmt(c.vendaHistorico)},
+    {label:'Venda do dia em Rota',        fonte:'Vendas (real)', render:c=>fmt(c.vendaVendedorDia)},
+    {label:'Venda Dia x Histórico',       fonte:'Vendas (real)', render:c=>pct(c.pctVendaHist), pctCor:c=>corPct(c.pctVendaHist)},
+    {label:'Meta Venda Rota',    fonte:'App Gerot', render:c=>fmt(metaVendaRota)},
+    {label:'Venda x Meta Dia',   fonte:'App Gerot', render:c=>pct(c.pctMeta), pctCor:c=>corPct(c.pctMeta)},
+    {label:'CADASTROS',    fonte:'App Gerot', render:c=>c.cadastros},
+    {label:'POSITIVAÇÕES', fonte:'App Gerot', render:c=>c.positivacoes},
+    {label:'VISITAS',      fonte:'App Gerot', render:c=>c.visitas},
+    {label:'BATALHA NAVAL',fonte:'App Gerot', render:c=>c.batalhaOk==null?'—':(c.batalhaOk?'OK':'NOK'), tag:true},
+  ];
+
+  const theadDias = colunas.map(c=>`<th style="text-align:center">${c.label}<br><span style="font-size:.7rem;color:var(--muted);font-weight:400">${fmtDataBRSimples(c.date)}</span></th>`).join('');
+
+  const tbodyRows = linhas.map(l => `
+    <tr>
+      <td style="min-width:210px">${l.label}<br><span style="font-size:.68rem;color:var(--muted)">${l.fonte}</span></td>
+      ${colunas.map(c => {
+        const val = l.render(c);
+        if(l.tag) {
+          const ok = val==='OK';
+          const cor = val==='—' ? 'var(--muted)' : (ok ? 'var(--accent)' : 'var(--danger)');
+          const bg  = val==='—' ? 'transparent'   : (ok ? 'rgba(0,229,160,.15)' : 'rgba(255,77,109,.15)');
+          return `<td style="text-align:center"><span style="background:${bg};color:${cor};padding:3px 10px;border-radius:6px;font-weight:700;font-size:.78rem">${val}</span></td>`;
+        }
+        if(l.pctCor) return `<td style="text-align:center;color:${l.pctCor(c)};font-weight:700;font-family:'Syne',sans-serif">${val}</td>`;
+        return `<td style="text-align:center">${l.bold ? `<strong>${val}</strong>` : val}</td>`;
+      }).join('')}
+    </tr>`).join('');
+
+  const avisoVendas = !codSup
+    ? `<p style="font-size:.75rem;color:var(--warn);margin-bottom:12px">⚠️ Supervisor sem código mapeado em SUPERVISOR_MAP — indicadores de venda real (tabela "vendas") não puderam ser carregados. Dados do App Gerot seguem normais.</p>`
+    : '';
+
+  // ---- Venda por Vendedor x Dia da Semana (tabela "vendas", real) ----
+  // Vendedores considerados: quem apareceu na agenda/rota da semana + qualquer rca com venda
+  // registrada nos 5 dias úteis da semana (cobre vendedor de reforço/backup não agendado).
+  const vendedoresTabela = new Set(vendedoresDaSemana);
+  dias.forEach(d => {
+    Object.keys(perDateRca[d.date] || {}).forEach(rca => { if(rca) vendedoresTabela.add(rca); });
+  });
+  const linhasVendedor = [...vendedoresTabela].map(v => {
+    const porDia = dias.map(d => perDateRca[d.date]?.[v] || 0);
+    const total = porDia.reduce((s,x)=>s+x,0);
+    return { vendedor: v, porDia, total };
+  }).sort((a,b) => b.total - a.total);
+  const totalPorDiaVendedores = dias.map((d,i) => linhasVendedor.reduce((s,l)=>s+l.porDia[i],0));
+  const totalGeralVendedores = totalPorDiaVendedores.reduce((s,x)=>s+x,0);
+
+  const tabelaVendedorHtml = linhasVendedor.length ? `
+    <div class="card-title" style="margin:24px 0 10px">👤 Venda por Vendedor — Seg a Sex (tabela "vendas")</div>
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap"><table>
+        <thead><tr>
+          <th>Vendedor</th>
+          ${dias.map(d=>`<th style="text-align:center">${d.label}<br><span style="font-size:.7rem;color:var(--muted);font-weight:400">${fmtDataBRSimples(d.date)}</span></th>`).join('')}
+          <th style="text-align:center">Total Semana</th>
+        </tr></thead>
+        <tbody>
+          ${linhasVendedor.map(l => `<tr>
+            <td>${l.vendedor}</td>
+            ${l.porDia.map(v=>`<td style="text-align:center">${fmt(v)}</td>`).join('')}
+            <td style="text-align:center;font-weight:700;font-family:'Syne',sans-serif">${fmt(l.total)}</td>
+          </tr>`).join('')}
+          <tr style="border-top:2px solid var(--border)">
+            <td><strong>TOTAL EQUIPE</strong></td>
+            ${totalPorDiaVendedores.map(v=>`<td style="text-align:center"><strong>${fmt(v)}</strong></td>`).join('')}
+            <td style="text-align:center"><strong>${fmt(totalGeralVendedores)}</strong></td>
+          </tr>
+        </tbody>
+      </table></div>
+    </div>` : `<div class="card-title" style="margin:24px 0 10px">👤 Venda por Vendedor — Seg a Sex</div><div class="empty-state">Sem vendas registradas para esse supervisor nesta semana</div>`;
+
+  cont.innerHTML = `
+    ${avisoVendas}
+    <div class="card" style="padding:0;overflow:hidden">
+      <div class="table-wrap"><table>
+        <thead><tr><th>Indicador</th>${theadDias}</tr></thead>
+        <tbody>${tbodyRows}</tbody>
+      </table></div>
+    </div>
+    <div class="card-title" style="margin-bottom:10px">📅 Acumulado da Semana (Seg–Sex, ${fmtDataBRSimples(segunda)} a ${fmtDataBRSimples(sexta)})</div>
+
+    <p style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">💰 Vendas (tabela "vendas" — dado real)</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:16px">
+      <div class="card"><div class="card-title">Venda em Rota (Semana)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${fmt(acumVendaVendedor)}</div></div>
+      <div class="card"><div class="card-title">Meta em Rota (Semana)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${fmt(acumMeta)}</div></div>
+      <div class="card"><div class="card-title">Venda x Meta (Rota)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:${corPct(acumPctMeta)}">${pct(acumPctMeta)}</div></div>
+      <div class="card" style="opacity:.7"><div class="card-title">Venda Equipe (referência)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:var(--muted)">${fmt(acumVendaEquipe)}</div></div>
+      <div class="card" style="opacity:.7"><div class="card-title">Meta Equipe (Semana)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:var(--muted)">${fmt(acumMetaEquipe)}</div></div>
+      <div class="card" style="opacity:.7"><div class="card-title">Venda x Meta (Equipe)</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem;color:${corPct(acumPctMetaEquipe)}">${pct(acumPctMetaEquipe)}</div></div>
+    </div>
+
+    <p style="font-size:.7rem;color:var(--muted);text-transform:uppercase;letter-spacing:.06em;margin-bottom:8px">📋 App Gerot (lançamentos de rota)</p>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px;margin-bottom:4px">
+      <div class="card"><div class="card-title">Visitas</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${acumVisitas}</div></div>
+      <div class="card"><div class="card-title">Positivações</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${acumPositivacoes}</div></div>
+      <div class="card"><div class="card-title">Cadastros</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${acumCadastros}</div></div>
+      <div class="card"><div class="card-title">Rotas na Semana</div><div style="font-family:'Syne',sans-serif;font-weight:800;font-size:1.4rem">${rotasNaSemana}/${dias.length}</div></div>
+    </div>
+
+    <p style="font-size:.72rem;color:var(--muted);margin-bottom:8px">"Venda em Rota" e "Meta em Rota" usam a venda real do vendedor que rodou a rota (tabela vendas), não o total da equipe. "Venda Equipe" é só referência do total faturado no dia pelo time do supervisor.</p>
+    <p style="font-size:.72rem;color:var(--muted)">Batalha Naval: ${diasBatalhaOk}/${diasComRota||0} dias com rota lançada tiveram acesso confirmado no dia.</p>
+
+    ${tabelaVendedorHtml}
+  `;
 }
 
 // ── Sincronizar dashboard do Supabase ──
