@@ -1,6 +1,18 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
+     <script>
+(function(){
+  try{
+    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
+    if(!a || !a.exp || Date.now() > a.exp){
+      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
+    }
+  }catch(e){
+    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
+  }
+})();
+</script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Execução Comercial — MAR Foods</title>
