@@ -155,16 +155,42 @@ tbody td { padding: 11px 12px; }
   /* NAV — ícones em baixo tipo app */
   nav { flex-direction: column; padding: 0; position: fixed; bottom: 0; top: auto; left: 0; right: 0; border-top: 1px solid var(--border); border-bottom: none; z-index: 200; }
   .nav-logo { display: none; }
-  .nav-tabs { width: 100%; display: flex; justify-content: space-around; }
-  .nav-tab { flex: 1; padding: 10px 4px 8px; font-size: 0.65rem; text-align: center; border-bottom: none; border-top: 3px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  /* Badge de perfil e botão Sair NÃO entram na pilha da barra de baixo — ficam
+     fixos no topo (são filhos de <nav>, mas position:fixed escapa do fluxo do pai) */
+  nav > button, #perfil-badge { position: fixed !important; top: 8px; z-index: 250; margin: 0 !important; }
+  nav > button { right: 8px; }
+  #perfil-badge { right: 90px; }
+  .nav-tabs { width: 100%; display: flex; justify-content: space-around; overflow-x: auto; }
+  .nav-tab { flex: 1; min-width: 52px; padding: 10px 4px 8px; font-size: 0.62rem; text-align: center; border-bottom: none; border-top: 3px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; }
   .nav-tab.active { border-top-color: var(--accent); border-bottom: none; }
   /* Page padding: account for fixed bottom nav */
-  .page { padding: 16px 14px 80px; }
+  .page { padding: 60px 14px 90px; }
   .section-title { font-size: 1.15rem; margin-bottom: 16px; }
   .card { padding: 16px 14px; margin-bottom: 14px; }
 
   /* GRIDS */
   .metrics-grid,.resultado-auto { grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* CRM — kanban com swipe de 1 coluna por vez + cards de resumo menores */
+  .kanban-wrap { scroll-snap-type: x mandatory; gap: 10px !important; }
+  .kanban-col { min-width: 86vw !important; max-width: 86vw !important; scroll-snap-align: start; }
+  #crm-resumo-freezer { grid-template-columns: repeat(2,1fr) !important; gap: 8px !important; }
+  #crm-resumo-freezer > div { padding: 10px !important; }
+  #crm-resumo-freezer .card-title, .kcard-nome { font-size: .82rem !important; }
+
+  /* Dashboard — tabela menor/mais compacta */
+  #db-lista, #db-lista td, #db-lista th { font-size: .72rem !important; }
+  #page-dashboard td, #page-dashboard th { padding: 6px 5px !important; }
+
+  /* Vendas — gráficos empilhados (semana em cima, dia embaixo) em vez de lado a lado */
+  #vd-charts-wrap { grid-template-columns: 1fr !important; }
+  #db-charts-wrap { grid-template-columns: 1fr !important; }
+
+  /* Todas as tabelas do App — mais compactas no celular */
+  .table-wrap table { font-size: .74rem !important; }
+  .table-wrap td, .table-wrap th { padding: 6px 5px !important; }
+  .filter-row { flex-direction: column; align-items: stretch !important; gap: 8px !important; }
+  .filter-row .field { width: 100%; }
   .form-row.cols-2,.form-row.cols-3,.form-row.cols-4 { grid-template-columns: 1fr; gap: 12px; }
   .bottom-fields { grid-template-columns: 1fr; gap: 14px; }
 
