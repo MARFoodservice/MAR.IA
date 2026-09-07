@@ -251,6 +251,8 @@ tbody td { padding: 11px 12px; }
   #d8c4aesso-cards, #t30p-cards { grid-template-columns: repeat(2,1fr) !important; }
 }
 </style>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 </head>
 <body>
 
@@ -306,6 +308,7 @@ tbody td { padding: 11px 12px; }
     <div class="nav-tab" onclick="showPage('freezers',this)" id="nav-tab-freezers"><span style="font-size:1.2rem">🧊</span><span>Freezers</span></div>
     <div class="nav-tab" onclick="showPage('vendas',this)"><span style="font-size:1.2rem">📈</span><span>Vendas</span></div>
     <div class="nav-tab" onclick="showPage('carteira',this)"><span style="font-size:1.2rem">📇</span><span>Carteira</span></div>
+    <div class="nav-tab" id="nav-tab-mapa" onclick="showPage('mapa',this)"><span style="font-size:1.2rem">🗺️</span><span>Mapa</span></div>
     <div class="nav-tab" onclick="showPage('config',this)"><span style="font-size:1.2rem">⚙️</span><span>Config.</span></div>
   </div>
 </nav>
@@ -562,6 +565,43 @@ tbody td { padding: 11px 12px; }
         <tbody id="ct-perdidos-lista"></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- MAPA -->
+<div id="page-mapa" class="page">
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🗺️ <span>Mapa</span> de Freezers — RS</div></div>
+
+  <div class="card" style="margin-bottom:18px;padding:0;overflow:hidden">
+    <div id="mapa-freezers" style="width:100%;height:500px;border-radius:var(--radius)"></div>
+  </div>
+
+  <div class="card">
+    <div class="card-title">🏙️ Cidades por Quantidade de Freezer</div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.83rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">
+            <th style="padding:8px 10px">Cidade</th>
+            <th style="padding:8px 10px">Qtd. Freezers</th>
+            <th style="padding:8px 10px">% do Total</th>
+            <th style="padding:8px 10px"></th>
+          </tr>
+        </thead>
+        <tbody id="mapa-ranking-cidades"></tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<!-- Modal detalhe do freezer no mapa -->
+<div id="modal-mapa-freezer" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center;padding:16px">
+  <div class="card" style="max-width:480px;width:100%;max-height:80vh;overflow-y:auto;margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" id="modal-mapa-titulo" style="margin-bottom:0">🧊 Freezers</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-mapa-freezer').style.display='none'">✕</button>
+    </div>
+    <div id="modal-mapa-body"></div>
   </div>
 </div>
 
@@ -1212,6 +1252,8 @@ tbody td { padding: 11px 12px; }
 </div>
 
 <script>
+const FREEZER_ICON_B64 = 'data:image/png;base64,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';
+
 const PASSOS = [
   {id:'p1',lbl:'Passo 1',title:'Planejamento da Rota',desc:'Rota planejada com antecedência, sequência lógica de PDVs',peso:10},
   {id:'p2',lbl:'Passo 2',title:'Objetivo da Visita',desc:'Objetivo claro definido antes de entrar no PDV',peso:10},
@@ -1874,6 +1916,7 @@ function showPage(name,tab){
   if(name==='vendas') { renderVendas(); }
   if(name==='carteira') { renderCarteira(); }
   if(name==='historicorotas') { renderHistoricoRotas(); }
+  if(name==='mapa') { renderMapaFreezers(); }
   if(name==='config') {
     document.getElementById('config-lock').style.display = 'flex';
     document.getElementById('config-content').style.display = 'none';
@@ -2984,6 +3027,101 @@ async function renderDashboard() {
   });
 }
 
+// ============================================================
+// MÓDULO MAPA — distribuição de freezers pelo Rio Grande do Sul
+// ============================================================
+// Coordenadas aproximadas (centro da cidade) das cidades que já vimos
+// na base de clientes/freezer. Cidade não mapeada aqui aparece listada
+// no ranking mas sem marcador no mapa (avisa no console).
+const COORDS_CIDADES_RS = {
+  'PORTO ALEGRE': [-30.0346, -51.2177], 'CANOAS': [-29.9177, -51.1836],
+  'SAPIRANGA': [-29.6394, -51.0064], 'NOVO HAMBURGO': [-29.6783, -51.1306],
+  'SAO LEOPOLDO': [-29.7604, -51.1478], 'ESTEIO': [-29.8508, -51.1789],
+  'CAMPO BOM': [-29.6739, -51.0533], 'MONTENEGRO': [-29.6889, -51.4650],
+  'LAJEADO': [-29.4669, -51.9614], 'CACHOEIRA DO SUL': [-30.0392, -52.8939],
+  'CACHOEIRA DO SU': [-30.0392, -52.8939], 'SAPUCAIA DO SUL': [-29.8383, -51.1439],
+  'PASSO FUNDO': [-28.2628, -52.4067], 'CACHOEIRINHA': [-29.9511, -51.0942],
+  'VIAMAO': [-30.0811, -51.0233], 'ALVORADA': [-29.9897, -51.0844],
+  'ELDORADO DO SUL': [-30.0847, -51.6178], 'GRAVATAI': [-29.9442, -50.9925],
+  'GUAIBA': [-30.1139, -51.3253], 'NOVA SANTA RITA': [-29.8339, -51.3789],
+  'TRAMANDAI': [-29.9861, -50.1331], 'CAPAO DA CANOA': [-29.7469, -50.0069],
+  'XANGRI-LA': [-29.8017, -50.0489], 'XANGRI LA': [-29.8017, -50.0489],
+  'IMBE': [-29.9711, -50.1281], 'TORRES': [-29.3350, -49.7269],
+  'ARROIO DO SAL': [-29.5439, -49.8908], 'TERRA DE AREIA': [-29.6297, -50.0800],
+  'OSORIO': [-29.8875, -50.2697], 'SANTO ANTONIO DA PATRULHA': [-29.7906, -50.5119],
+  'GRAMADO': [-29.3789, -50.8756], 'CANELA': [-29.3644, -50.8181],
+  'NOVA PETROPOLIS': [-29.3781, -51.1147], 'TRES COROAS': [-29.5158, -50.7797],
+  'IGREJINHA': [-29.5772, -50.7936], 'TAQUARA': [-29.6511, -50.7803],
+  'PAROBE': [-29.6289, -50.8342], 'CAXIAS DO SUL': [-29.1678, -51.1794],
+  'BENTO GONCALVES': [-29.1739, -51.5192], 'FARROUPILHA': [-29.2242, -51.3483],
+  'CARLOS BARBOSA': [-29.2969, -51.5028], 'GARIBALDI': [-29.2569, -51.5342],
+  'DOIS IRMAOS': [-29.5964, -51.0864], 'ESTANCIA VELHA': [-29.6497, -51.1742],
+  'PORTAO': [-29.7003, -51.2467],
+};
+
+let _mapaLeaflet = null;
+async function renderMapaFreezers() {
+  const [freezers, clientes] = await Promise.all([sbListarTodosFreezers(), sbListarClientesCRM()]);
+  _crmClientesCache = clientes; // mantém o modal de detalhe do cliente funcionando a partir daqui também
+  const clientePorDoc = {};
+  clientes.forEach(c => { if(c.documento) clientePorDoc[c.documento] = c; });
+
+  // Agrupa por cidade
+  const porCidade = {};
+  const semCoord = new Set();
+  freezers.forEach(f => {
+    const cli = clientePorDoc[f.cliente_documento];
+    const cidade = normalizarCidade(cli?.cidade || '');
+    if(!cidade) return;
+    if(!porCidade[cidade]) porCidade[cidade] = [];
+    porCidade[cidade].push({...f, clienteNome: cli?.nome, vendedor: cli?.vendedor, cidade});
+    if(!COORDS_CIDADES_RS[cidade]) semCoord.add(cidade);
+  });
+  if(semCoord.size) console.log('Mapa — cidades sem coordenada cadastrada (aparecem só no ranking):', [...semCoord]);
+
+  // ---- Mapa ----
+  const mapaEl = document.getElementById('mapa-freezers');
+  if(_mapaLeaflet) { _mapaLeaflet.remove(); _mapaLeaflet = null; }
+  _mapaLeaflet = L.map(mapaEl).setView([-29.6, -52.0], 7);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+    attribution: '© OpenStreetMap', maxZoom: 18
+  }).addTo(_mapaLeaflet);
+
+  const freezerIcon = L.icon({ iconUrl: FREEZER_ICON_B64, iconSize: [34,34], iconAnchor: [17,17], popupAnchor: [0,-14] });
+
+  Object.entries(porCidade).forEach(([cidade, lista]) => {
+    const coord = COORDS_CIDADES_RS[cidade];
+    if(!coord) return;
+    const marker = L.marker(coord, { icon: freezerIcon }).addTo(_mapaLeaflet);
+    marker.bindTooltip(`${cidade} — ${lista.length} freezer(s)`, {direction:'top'});
+    marker.on('click', () => abrirDetalheFreezersCidade(cidade, lista));
+  });
+
+  // ---- Ranking de cidades ----
+  const totalGeral = freezers.length;
+  const ranking = Object.entries(porCidade).sort((a,b)=>b[1].length-a[1].length);
+  document.getElementById('mapa-ranking-cidades').innerHTML = ranking.length ? ranking.map(([cidade,lista])=>{
+    const pct = totalGeral ? ((lista.length/totalGeral)*100).toFixed(1) : '0.0';
+    return `<tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick='abrirDetalheFreezersCidade(${JSON.stringify(cidade)}, ${JSON.stringify(lista.map(f=>({id:f.id,cliente_documento:f.cliente_documento,clienteNome:f.clienteNome,vendedor:f.vendedor,modelo_cod:f.modelo_cod,modelo_desc:f.modelo_desc,numero_serie:f.numero_serie})))})'>
+      <td style="padding:9px 10px;font-weight:600;color:var(--accent2)">${cidade}${!COORDS_CIDADES_RS[cidade]?' <span style="font-size:.68rem;color:var(--warn)">(sem coord. no mapa)</span>':''}</td>
+      <td style="padding:9px 10px">${lista.length}</td>
+      <td style="padding:9px 10px;color:var(--muted)">${pct}%</td>
+      <td style="padding:9px 10px"><div style="background:var(--border);border-radius:4px;height:8px;width:100px;overflow:hidden"><div style="background:var(--accent);height:100%;width:${pct}%"></div></div></td>
+    </tr>`;
+  }).join('') : '<tr><td colspan="4" class="empty-state">Nenhum freezer com cidade cadastrada.</td></tr>';
+}
+
+function abrirDetalheFreezersCidade(cidade, lista) {
+  document.getElementById('modal-mapa-titulo').textContent = `🧊 ${cidade} — ${lista.length} freezer(s)`;
+  document.getElementById('modal-mapa-body').innerHTML = lista.map(f => `
+    <div style="border:1px solid var(--border);border-radius:8px;padding:10px 12px;margin-bottom:8px;background:var(--surface2)">
+      <div style="font-weight:700;font-size:.85rem;color:var(--accent2);cursor:pointer" onclick="abrirDetalhePorDocumento('${f.cliente_documento}','')">${nomeComId(f.clienteNome, f.cliente_documento)}</div>
+      <div style="font-size:.8rem;color:var(--muted)">Cidade: ${cidade} • Vendedor: ${f.vendedor||'—'}</div>
+      <div style="font-size:.8rem;margin-top:4px">🧊 [${f.modelo_cod}] ${f.modelo_desc}${f.numero_serie?' — Nº '+f.numero_serie:''}</div>
+    </div>`).join('');
+  document.getElementById('modal-mapa-freezer').style.display = 'flex';
+}
+
 function zerarDadosTeste() {
   const confirmMsg = 'Tem certeza que deseja ZERAR todos os dados de teste?\n\n⚠️ Esta ação remove todos os registros locais e NÃO pode ser desfeita.\n\nDigite "ZERAR" para confirmar:';
   const resp = prompt(confirmMsg);
@@ -4083,6 +4221,10 @@ function aplicarVisibilidadePerfil(perfil) {
   // Botão "Cadastro de Vendedores" na página Rota: diretoria/gerente/supervisor/suporte — não vendedor
   const btnCadVend = document.getElementById('btn-cad-vendedores');
   if(btnCadVend) btnCadVend.style.display = (perfil !== 'vendedor') ? '' : 'none';
+
+  // Mapa: só gestão (não vendedor)
+  const navMapa = document.getElementById('nav-tab-mapa');
+  if(navMapa) navMapa.style.display = (perfil !== 'vendedor') ? '' : 'none';
 
   // Vendedor: só leitura em Clientes e Freezers (sem adicionar/editar/excluir, sem filtro de outro vendedor)
   ['cli-add-form-wrap','cli-filtro-vendedor-wrap','cli-filtro-semvinculo-wrap','frz-add-form-wrap'].forEach(id=>{
