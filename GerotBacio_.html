@@ -4890,6 +4890,7 @@ async function renderClientesCad() {
   el.innerHTML = '<tr><td colspan="7" style="padding:12px;color:var(--muted)">⏳ Carregando...</td></tr>';
   try {
   const [clientes, freezers] = await Promise.all([sbListarClientesCRM(), sbListarTodosFreezers()]);
+  _crmClientesCache = clientes; // mantém o cache do modal sempre sincronizado, mesmo entrando direto aqui sem passar pelo CRM antes
   console.log('renderClientesCad — clientes carregados:', clientes.length, '— perfil logado:', _loggedPerfil, '— usuário:', _loggedSupervisor);
 
   const freezersPorDoc = {};
@@ -5070,6 +5071,7 @@ async function renderFreezersPage() {
   el.innerHTML = '<tr><td colspan="6" style="padding:12px;color:var(--muted)">⏳ Carregando...</td></tr>';
 
   const [freezers, clientes] = await Promise.all([sbListarTodosFreezers(), sbListarClientesCRM()]);
+  _crmClientesCache = clientes; // idem — mantém o modal funcionando mesmo entrando direto aqui
   const clientePorDoc = {};
   clientes.forEach(c => { if(c.documento) clientePorDoc[c.documento] = c; });
 
