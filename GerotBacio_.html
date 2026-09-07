@@ -308,7 +308,6 @@ tbody td { padding: 11px 12px; }
     <div class="nav-tab" onclick="showPage('freezers',this)" id="nav-tab-freezers"><span style="font-size:1.2rem">🧊</span><span>Freezers</span></div>
     <div class="nav-tab" onclick="showPage('vendas',this)"><span style="font-size:1.2rem">📈</span><span>Vendas</span></div>
     <div class="nav-tab" onclick="showPage('carteira',this)"><span style="font-size:1.2rem">📇</span><span>Carteira</span></div>
-    <div class="nav-tab" id="nav-tab-mapa" onclick="showPage('mapa',this)"><span style="font-size:1.2rem">🗺️</span><span>Mapa</span></div>
     <div class="nav-tab" onclick="showPage('config',this)"><span style="font-size:1.2rem">⚙️</span><span>Config.</span></div>
   </div>
 </nav>
@@ -569,14 +568,18 @@ tbody td { padding: 11px 12px; }
 </div>
 
 <!-- MAPA -->
-<div id="page-mapa" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🗺️ <span>Mapa</span> de Freezers — RS</div></div>
+<!-- Modal Mapa de Freezers (aberto pela página Freezers) -->
+<div id="modal-mapa-page" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:850;align-items:center;justify-content:center;padding:12px">
+  <div class="card" style="max-width:1100px;width:100%;max-height:92vh;overflow-y:auto;margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+      <div class="section-title" style="margin:0">🗺️ <span>Mapa</span> de Freezers — RS</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-mapa-page').style.display='none'">✕ Fechar</button>
+    </div>
 
-  <div class="card" style="margin-bottom:18px;padding:0;overflow:hidden">
-    <div id="mapa-freezers" style="width:100%;height:500px;border-radius:var(--radius)"></div>
-  </div>
+    <div style="margin-bottom:18px;border:1px solid var(--border);border-radius:var(--radius);overflow:hidden">
+      <div id="mapa-freezers" style="width:100%;height:460px"></div>
+    </div>
 
-  <div class="card">
     <div class="card-title">🏙️ Cidades por Quantidade de Freezer</div>
     <div class="table-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.83rem">
@@ -687,6 +690,18 @@ tbody td { padding: 11px 12px; }
         <tbody id="modal-ct-body"><tr><td colspan="6" style="padding:12px;color:var(--muted)">⏳ Carregando...</td></tr></tbody>
       </table>
     </div>
+  </div>
+</div>
+
+<!-- Modal mapa do trajeto da rota (histórico) -->
+<div id="modal-hr-mapa" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:850;align-items:center;justify-content:center;padding:12px">
+  <div class="card" style="max-width:800px;width:100%;max-height:90vh;overflow-y:auto;margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" id="modal-hr-mapa-titulo" style="margin-bottom:0">🗺️ Trajeto da Rota</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-hr-mapa').style.display='none'">✕</button>
+    </div>
+    <div id="hr-mapa-trajeto" style="width:100%;height:420px;border-radius:var(--radius);overflow:hidden;border:1px solid var(--border)"></div>
+    <div id="hr-mapa-aviso" style="font-size:.78rem;color:var(--warn);margin-top:10px"></div>
   </div>
 </div>
 
@@ -1036,6 +1051,7 @@ tbody td { padding: 11px 12px; }
       <div class="field"><label>Buscar por cliente (documento ou nome)</label><input id="frz-f-busca" placeholder="Código ou nome..." oninput="renderFreezersPage()"></div>
       <div id="frz-filtro-modelo-chip" style="display:none;align-items:center;gap:6px;background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 12px;font-size:.8rem"></div>
       <button class="btn btn-secondary" onclick="renderFreezersPage()" style="margin-top:auto">🔄 Atualizar</button>
+      <button class="btn btn-primary" id="btn-ver-mapa-freezers" onclick="abrirModalMapaFreezers()" style="margin-top:auto">🗺️ Ver no Mapa</button>
     </div>
     <div class="table-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.83rem">
@@ -1111,6 +1127,7 @@ tbody td { padding: 11px 12px; }
   <div class="card" style="max-width:520px;width:100%;max-height:85vh;overflow-y:auto;margin:0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
       <div class="card-title" style="margin-bottom:0">✏️ Editar Freezer</div>
+      <span id="edit-frz-status-badge" style="font-size:.72rem;padding:3px 10px;border-radius:6px;font-weight:700"></span>
       <button class="btn btn-secondary" onclick="fecharModalEditFreezer()">✕</button>
     </div>
     <input type="hidden" id="edit-frz-id">
@@ -1141,6 +1158,20 @@ tbody td { padding: 11px 12px; }
         <option value="">Pendente de arquivamento</option>
         <option value="arquivado">Arquivado</option>
       </select>
+    </div>
+    <div class="field" style="margin-top:12px;background:rgba(184,134,11,.08);border:1px solid var(--warn);border-radius:8px;padding:12px">
+      <label style="color:var(--warn)">📒 Registrar Movimentação (Conta Corrente)</label>
+      <select id="edit-frz-tipo-mov" onchange="onTipoMovFreezerChange()" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%;margin-top:6px">
+        <option value="atualizacao">Só atualização de dados (sem movimentação)</option>
+        <option value="troca">Troca de unidade (modelo/série diferente)</option>
+        <option value="devolucao">🔴 Devolução pelo cliente</option>
+        <option value="conserto">🔧 Enviado para conserto</option>
+        <option value="consertado">✅ Consertado no local</option>
+      </select>
+      <div id="edit-frz-nf-devolucao-wrap" style="display:none;margin-top:10px">
+        <label>Nº da NF de Devolução *</label>
+        <input type="text" id="edit-frz-nf-devolucao" placeholder="Obrigatório em caso de devolução" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%">
+      </div>
     </div>
     <div class="field" style="margin-top:12px"><label>Motivo da Alteração (fica registrado na conta corrente)</label><textarea id="edit-frz-motivo" placeholder="Ex: Troca por defeito, atualização de dados..." style="width:100%;min-height:60px;background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text)"></textarea></div>
     <button onclick="salvarEdicaoFreezer()" class="btn btn-primary" style="margin-top:16px;width:100%">💾 Salvar Alteração</button>
@@ -1608,7 +1639,9 @@ async function sbListarFreezersCliente(documento) {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     if(!r.ok) return [];
-    return await r.json();
+    const todos = await r.json();
+    // Devolvido não conta como "instalado" — libera o cliente pra negociar um novo do zero na Rota
+    return todos.filter(f => (f.status_freezer||'ATIVO') !== 'DEVOLVIDO');
   } catch(e) { return []; }
 }
 function onFreezerUnidadeChange(idx) {
@@ -1916,7 +1949,6 @@ function showPage(name,tab){
   if(name==='vendas') { renderVendas(); }
   if(name==='carteira') { renderCarteira(); }
   if(name==='historicorotas') { renderHistoricoRotas(); }
-  if(name==='mapa') { renderMapaFreezers(); }
   if(name==='config') {
     document.getElementById('config-lock').style.display = 'flex';
     document.getElementById('config-content').style.display = 'none';
@@ -2717,7 +2749,7 @@ async function renderCarteira() {
 async function sbListarRotasBrutas() {
   if(!sbUrl()||!sbKey()) return [];
   try {
-    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Rotas?select=data,vendedor,supervisor,rota,cliente_id,cliente_nome,ramo,origem_cliente,status_resultante,valor,obs,obs_cliente,passos,freezer_modelo_desc,freezer_qtd,freezers_negociados,freezer_validado,freezer_temp,freezer_obs,criado_em&order=data.desc&limit=10000`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Rotas?select=data,vendedor,supervisor,rota,cliente_id,cliente_nome,ramo,origem_cliente,status_resultante,valor,obs,obs_cliente,passos,freezer_modelo_desc,freezer_qtd,freezers_negociados,freezer_validado,freezer_temp,freezer_obs,criado_em,geo_lat,geo_lng&order=data.desc&limit=10000`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     return r.ok ? await r.json() : [];
@@ -2798,12 +2830,47 @@ async function renderHistoricoRotas() {
       <td style="padding:9px 10px">${visitados}</td>
       <td style="padding:9px 10px">${prospectados}</td>
       <td style="padding:9px 10px">R$ ${venda.toLocaleString('pt-BR')}</td>
-      <td style="padding:9px 10px"><button onclick='abrirDetalheHistoricoRota(${JSON.stringify(chave)})' style="background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.78rem">👁 Ver</button></td>
+      <td style="padding:9px 10px;white-space:nowrap"><button onclick='abrirDetalheHistoricoRota(${JSON.stringify(chave)})' style="background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.78rem;margin-right:4px">👁 Ver</button><button onclick='abrirMapaRotaHistorico(${JSON.stringify(chave)})' style="background:rgba(0,161,115,.12);border:1px solid var(--ok);color:var(--ok);border-radius:6px;padding:4px 12px;cursor:pointer;font-size:.78rem">🗺️</button></td>
     </tr>`;
   }).join('');
 
   // guarda os grupos montados pro modal de detalhe reusar sem refazer o agrupamento
   window._hrGruposAtual = grupos;
+}
+
+let _hrMapaLeaflet = null;
+function abrirMapaRotaHistorico(chave) {
+  const g = window._hrGruposAtual?.[chave];
+  if(!g) return;
+  document.getElementById('modal-hr-mapa-titulo').textContent = `🗺️ Trajeto — ${g.vendedor} — ${g.data}`;
+  document.getElementById('modal-hr-mapa').style.display = 'flex';
+
+  // Ordena por horário de criação (ordem real em que o vendedor visitou)
+  const pontos = g.pdvs.filter(p=>p.geo_lat && p.geo_lng).sort((a,b)=>(a.criado_em||0)-(b.criado_em||0));
+  const semGeo = g.pdvs.length - pontos.length;
+  document.getElementById('hr-mapa-aviso').textContent = semGeo ? `⚠️ ${semGeo} PDV(s) dessa rota não têm localização registrada e não aparecem no trajeto.` : '';
+
+  const mapaEl = document.getElementById('hr-mapa-trajeto');
+  if(_hrMapaLeaflet) { _hrMapaLeaflet.remove(); _hrMapaLeaflet = null; }
+
+  if(!pontos.length) {
+    mapaEl.innerHTML = '<div class="empty-state" style="padding-top:40px">Nenhum PDV dessa rota tem localização registrada.</div>';
+    return;
+  }
+  mapaEl.innerHTML = '';
+  _hrMapaLeaflet = L.map(mapaEl).setView([pontos[0].geo_lat, pontos[0].geo_lng], 12);
+  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(_hrMapaLeaflet);
+
+  const latlngs = pontos.map(p=>[p.geo_lat, p.geo_lng]);
+  L.polyline(latlngs, {color:'#4a2f22', weight:3, dashArray:'8,8'}).addTo(_hrMapaLeaflet);
+
+  pontos.forEach((p,i) => {
+    const numIcon = L.divIcon({html:`<div style="background:#4a2f22;color:#fff;border-radius:50%;width:26px;height:26px;display:flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;border:2px solid #fff">${i+1}</div>`, className:'', iconSize:[26,26], iconAnchor:[13,13]});
+    L.marker([p.geo_lat, p.geo_lng], {icon:numIcon}).addTo(_hrMapaLeaflet)
+      .bindPopup(`<b>${i+1}. ${p.cliente_nome||'-'}</b><br>${p.ramo||''}`);
+  });
+  _hrMapaLeaflet.fitBounds(latlngs, {padding:[30,30]});
+  setTimeout(()=>_hrMapaLeaflet.invalidateSize(), 150);
 }
 
 function abrirDetalheHistoricoRota(chave) {
@@ -3058,6 +3125,12 @@ const COORDS_CIDADES_RS = {
   'DOIS IRMAOS': [-29.5964, -51.0864], 'ESTANCIA VELHA': [-29.6497, -51.1742],
   'PORTAO': [-29.7003, -51.2467],
 };
+
+async function abrirModalMapaFreezers() {
+  document.getElementById('modal-mapa-page').style.display = 'flex';
+  await renderMapaFreezers();
+  setTimeout(()=>{ if(_mapaLeaflet) _mapaLeaflet.invalidateSize(); }, 150); // corrige o tamanho do mapa quando abre dentro de modal
+}
 
 let _mapaLeaflet = null;
 async function renderMapaFreezers() {
@@ -4023,14 +4096,25 @@ const DIAS_SEMANA_ABREV = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb'];
 const MESES_NOME_AC = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 
 async function renderAcessoDash() {
+  // Lista de usuários REAIS do nosso Bacio_Usuarios (não a lista antiga salva no
+  // localStorage do navegador, que ainda tinha nomes do sistema MAR/GEROT original).
+  let nomesBacio = [];
+  if(sbUrl() && sbKey()) {
+    try {
+      const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?select=nome&order=nome.asc`, {
+        headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
+      });
+      if(r.ok) nomesBacio = (await r.json()).map(u=>u.nome);
+    } catch(e) { console.error('renderAcessoDash — erro ao buscar Bacio_Usuarios', e); }
+  }
+
   // Perfil: supervisor só vê os próprios dados
   const supSel = document.getElementById('acesso-filtro-sup');
   if(supSel) {
     if(perfilVeTudo()) {
       supSel.disabled = false;
       const cur = supSel.value;
-      const sups = getSupNames();
-      supSel.innerHTML = '<option value="">Todos</option>' + sups.map(s=>`<option ${s===cur?'selected':''} value="${s}">${s}</option>`).join('');
+      supSel.innerHTML = '<option value="">Todos</option>' + nomesBacio.map(s=>`<option ${s===cur?'selected':''} value="${s}">${s}</option>`).join('');
     } else {
       supSel.innerHTML = `<option value="${_loggedSupervisor}" selected>${_loggedSupervisor}</option>`;
       supSel.disabled = true;
@@ -4082,7 +4166,7 @@ async function renderAcessoDash() {
     <div class="metric-card" style="--c:var(--danger)"><div class="m-label">Com Geoloc.</div><div class="m-val">${pdvLogs.filter(l=>l.localizacao).length}</div><div class="m-sub">PDVs com coordenadas</div></div>`;
 
   // ── Gráfico diário: cada supervisor fez ≥1 login no dia? ──
-  const supList = filtSup ? [filtSup] : getSupNames();
+  const supList = filtSup ? [filtSup] : nomesBacio;
   const diasUnicos = [...new Set(loginLogs.map(l=>l.timestamp?.substring(0,10)).filter(Boolean))].sort();
   const diarioWrap = document.getElementById('acesso-chart-diario-wrap');
   if(diarioWrap) {
@@ -4113,7 +4197,7 @@ async function renderAcessoDash() {
   }
 
   // Charts por supervisor
-  const supNames = filtSup ? [filtSup] : getSupNames();
+  const supNames = filtSup ? [filtSup] : nomesBacio;
   const loginBySup = supNames.map(s=>loginLogs.filter(l=>l.supervisor===s).length);
   const pdvBySup   = supNames.map(s=>pdvLogs.filter(l=>l.supervisor===s).length);
 
@@ -4221,10 +4305,8 @@ function aplicarVisibilidadePerfil(perfil) {
   // Botão "Cadastro de Vendedores" na página Rota: diretoria/gerente/supervisor/suporte — não vendedor
   const btnCadVend = document.getElementById('btn-cad-vendedores');
   if(btnCadVend) btnCadVend.style.display = (perfil !== 'vendedor') ? '' : 'none';
-
-  // Mapa: só gestão (não vendedor)
-  const navMapa = document.getElementById('nav-tab-mapa');
-  if(navMapa) navMapa.style.display = (perfil !== 'vendedor') ? '' : 'none';
+  const btnVerMapa = document.getElementById('btn-ver-mapa-freezers');
+  if(btnVerMapa) btnVerMapa.style.display = (perfil !== 'vendedor') ? '' : 'none';
 
   // Vendedor: só leitura em Clientes e Freezers (sem adicionar/editar/excluir, sem filtro de outro vendedor)
   ['cli-add-form-wrap','cli-filtro-vendedor-wrap','cli-filtro-semvinculo-wrap','frz-add-form-wrap'].forEach(id=>{
@@ -5219,7 +5301,7 @@ async function renderFreezersPage() {
 
   const escopo = await vendedoresDoEscopo(); // null = vê tudo (gestão); array = só os clientes desses vendedores
   const freezersDoEscopo = escopo ? freezers.filter(f => escopo.includes(clientePorDoc[f.cliente_documento]?.vendedor)) : freezers;
-  renderDashboardFreezers(freezersDoEscopo);
+  renderDashboardFreezers(freezersDoEscopo.filter(f => (f.status_freezer||'ATIVO') !== 'DEVOLVIDO'));
 
   const chip = document.getElementById('frz-filtro-modelo-chip');
   if(chip) {
@@ -5243,7 +5325,7 @@ async function renderFreezersPage() {
       <td style="padding:9px 10px;color:var(--muted)">${f.numero_serie||'s/ nº'}</td>
       <td style="padding:9px 10px;color:var(--muted)">${f.nf||'—'}</td>
       <td style="padding:9px 10px;color:var(--muted)">${f.data_entrega||'—'}</td>
-      <td style="padding:9px 10px;color:var(--muted)">${f.estado_equipamento||'—'}</td>
+      <td style="padding:9px 10px;color:var(--muted)">${(()=>{const s=f.status_freezer||'ATIVO'; if(s==='ATIVO') return f.estado_equipamento||'—'; const m={DEVOLVIDO:['var(--danger)','🔴 Devolvido'],EM_CONSERTO:['var(--warn)','🔧 Em Conserto']}; const[c,l]=m[s]||['var(--muted)',s]; return `<span style="color:${c};font-weight:700">${l}</span>`;})()}</td>
       <td style="padding:9px 10px"><span style="font-size:.72rem;padding:2px 8px;border-radius:5px;background:${contratoArquivado?'rgba(0,161,115,.15)':'rgba(184,134,11,.15)'};color:${contratoArquivado?'var(--ok)':'var(--warn)'}">${contratoArquivado?'Arquivado':'Pendente'}</span></td>
       <td style="padding:9px 10px;white-space:nowrap">
         ${_loggedPerfil!=='vendedor' ? `<button onclick="abrirModalEditFreezer('${f.id}')" style="background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:6px;padding:3px 10px;cursor:pointer;font-size:.75rem;margin-right:4px">✎</button>
@@ -5299,9 +5381,23 @@ async function abrirModalEditFreezer(id) {
   document.getElementById('edit-frz-estado').value = f.estado_equipamento || '';
   document.getElementById('edit-frz-contrato').value = f.contrato_status || '';
   document.getElementById('edit-frz-motivo').value = '';
+  document.getElementById('edit-frz-tipo-mov').value = 'atualizacao';
+  document.getElementById('edit-frz-nf-devolucao').value = '';
+  onTipoMovFreezerChange();
+  const badge = document.getElementById('edit-frz-status-badge');
+  const statusAtual = f.status_freezer || 'ATIVO';
+  const badgeCores = {ATIVO:['var(--ok)','Ativo'], DEVOLVIDO:['var(--danger)','Devolvido'], EM_CONSERTO:['var(--warn)','Em Conserto']};
+  const [cor, lbl] = badgeCores[statusAtual] || badgeCores.ATIVO;
+  badge.style.background = cor+'22'; badge.style.color = cor; badge.style.border = '1px solid '+cor;
+  badge.textContent = lbl;
   document.getElementById('modal-edit-freezer').style.display = 'flex';
 }
 function fecharModalEditFreezer() { document.getElementById('modal-edit-freezer').style.display = 'none'; }
+
+function onTipoMovFreezerChange() {
+  const tipo = document.getElementById('edit-frz-tipo-mov').value;
+  document.getElementById('edit-frz-nf-devolucao-wrap').style.display = (tipo==='devolucao') ? 'block' : 'none';
+}
 
 async function salvarEdicaoFreezer() {
   const id = document.getElementById('edit-frz-id').value;
@@ -5313,13 +5409,28 @@ async function salvarEdicaoFreezer() {
   const estado = document.getElementById('edit-frz-estado').value.trim() || null;
   const contrato = document.getElementById('edit-frz-contrato').value || null;
   const motivo = document.getElementById('edit-frz-motivo').value.trim();
+  const tipoMov = document.getElementById('edit-frz-tipo-mov').value;
+  const nfDevolucao = document.getElementById('edit-frz-nf-devolucao').value.trim() || null;
+
+  if(tipoMov === 'devolucao' && !nfDevolucao) {
+    showToast('⚠️ Informe o número da NF de devolução', '#b8860b');
+    return;
+  }
 
   const antigo = _freezerEditCache;
-  const mudouUnidade = antigo.modelo_cod !== modeloCod || antigo.numero_serie !== serie;
+  const mudouUnidade = tipoMov === 'atualizacao' && (antigo.modelo_cod !== modeloCod || antigo.numero_serie !== serie);
+  const tipoMovFinal = mudouUnidade ? 'troca' : tipoMov;
+
+  // Novo status do equipamento conforme o tipo de movimentação
+  let novoStatus = antigo.status_freezer || 'ATIVO';
+  if(tipoMov === 'devolucao') novoStatus = 'DEVOLVIDO';
+  else if(tipoMov === 'conserto') novoStatus = 'EM_CONSERTO';
+  else if(tipoMov === 'consertado' || tipoMov === 'troca') novoStatus = 'ATIVO';
 
   const ok = await supabaseUpsert('Bacio_Freezers', {
     id, cliente_documento: doc, modelo_cod: modeloCod, modelo_desc: modeloDesc,
-    numero_serie: serie, nf: nf, data_entrega: data, estado_equipamento: estado, contrato_status: contrato
+    numero_serie: serie, nf: nf, data_entrega: data, estado_equipamento: estado, contrato_status: contrato,
+    status_freezer: novoStatus, nf_devolucao: tipoMov==='devolucao' ? nfDevolucao : (antigo.nf_devolucao||null)
   });
   if(!ok) { showToast('❌ Erro ao salvar', '#d6304f'); return; }
 
@@ -5327,9 +5438,10 @@ async function salvarEdicaoFreezer() {
   await supabaseUpsert('Bacio_Freezer_Movimentos', {
     id: 'mov_' + id + '_' + Date.now(),
     freezer_id: id, cliente_documento: doc,
-    tipo_movimento: mudouUnidade ? 'troca' : 'atualizacao',
+    tipo_movimento: tipoMovFinal,
     modelo_cod_antigo: antigo.modelo_cod, modelo_desc_antigo: antigo.modelo_desc, serie_antiga: antigo.numero_serie,
     modelo_cod_novo: modeloCod, modelo_desc_novo: modeloDesc, serie_nova: serie,
+    nf_devolucao: tipoMov==='devolucao' ? nfDevolucao : null,
     observacao: motivo || null, usuario: _loggedSupervisor || 'desconhecido',
     data_movimento: new Date().toISOString().split('T')[0]
   });
@@ -5365,16 +5477,19 @@ async function renderMovimentacoesFreezer() {
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma movimentação encontrada para este filtro.</td></tr>'; return; }
 
-  const tipoLbl = {instalacao:'Instalação', troca:'Troca', atualizacao:'Atualização', retirada:'Retirada'};
-  el.innerHTML = lista.map(m => `
-    <tr style="border-bottom:1px solid var(--border)">
+  const tipoLbl = {instalacao:'Instalação', troca:'Troca', atualizacao:'Atualização', retirada:'Retirada', devolucao:'🔴 Devolução', conserto:'🔧 Enviado p/ Conserto', consertado:'✅ Consertado no Local'};
+  const tipoCor = {devolucao:'var(--danger)', conserto:'var(--warn)', consertado:'var(--ok)'};
+  el.innerHTML = lista.map(m => {
+    const cor = tipoCor[m.tipo_movimento] || 'var(--accent)';
+    return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:8px 10px;color:var(--muted);white-space:nowrap">${m.data_movimento||'—'}</td>
       <td style="padding:8px 10px;font-weight:600">${nomeComId(nomesPorDoc[m.cliente_documento], m.cliente_documento)}</td>
-      <td style="padding:8px 10px"><span style="font-size:.72rem;padding:2px 8px;border-radius:5px;background:rgba(0,102,204,.12);color:var(--accent)">${tipoLbl[m.tipo_movimento]||m.tipo_movimento}</span></td>
+      <td style="padding:8px 10px"><span style="font-size:.72rem;padding:2px 8px;border-radius:5px;background:${cor}22;color:${cor}">${tipoLbl[m.tipo_movimento]||m.tipo_movimento}</span></td>
       <td style="padding:8px 10px;font-size:.78rem;color:var(--muted)">${m.modelo_desc_antigo ? `[${m.modelo_cod_antigo}] Nº ${m.serie_antiga||'-'}` : '—'}</td>
-      <td style="padding:8px 10px;font-size:.78rem">${m.modelo_desc_novo ? `[${m.modelo_cod_novo}] Nº ${m.serie_nova||'-'}` : '—'}</td>
+      <td style="padding:8px 10px;font-size:.78rem">${m.modelo_desc_novo ? `[${m.modelo_cod_novo}] Nº ${m.serie_nova||'-'}` : '—'}${m.nf_devolucao?`<br><span style="color:var(--danger);font-size:.72rem">NF devolução: ${m.nf_devolucao}</span>`:''}</td>
       <td style="padding:8px 10px;font-size:.78rem;color:var(--muted)">${m.observacao||'—'}</td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
 }
 
 async function excluirFreezer(id) {
