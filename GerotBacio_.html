@@ -431,7 +431,7 @@ tbody td { padding: 11px 12px; }
       <option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option>
       <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
     </select></div>
-    <button class="btn btn-secondary" onclick="renderDashboard()" style="margin-top:auto">🔄 Atualizar</button>
+    <button class="btn btn-secondary" onclick="_historicoRotasCache=null;renderDashboard()" style="margin-top:auto">🔄 Atualizar</button>
   </div>
 
   <div id="db-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
@@ -503,6 +503,22 @@ tbody td { padding: 11px 12px; }
       </table>
     </div>
   </div>
+
+  <div class="card" id="vd-top-clientes-card" style="display:none">
+    <div class="card-title" id="vd-top-clientes-titulo">🏆 Clientes Vendidos — do maior para o menor</div>
+    <div class="table-wrap" style="overflow-x:auto">
+      <table style="width:100%;border-collapse:collapse;font-size:.83rem">
+        <thead>
+          <tr style="border-bottom:1px solid var(--border);text-align:left;color:var(--muted);font-size:.72rem;text-transform:uppercase;letter-spacing:.04em">
+            <th style="padding:8px 10px">Cliente</th>
+            <th style="padding:8px 10px">Pedidos</th>
+            <th style="padding:8px 10px">Venda (R$)</th>
+          </tr>
+        </thead>
+        <tbody id="vd-top-clientes-body"></tbody>
+      </table>
+    </div>
+  </div>
 </div>
 
 <!-- CARTEIRA -->
@@ -563,7 +579,7 @@ tbody td { padding: 11px 12px; }
       <option value="07">Julho</option><option value="08">Agosto</option><option value="09">Setembro</option>
       <option value="10">Outubro</option><option value="11">Novembro</option><option value="12">Dezembro</option>
     </select></div>
-    <button class="btn btn-secondary" onclick="renderHistoricoRotas()" style="margin-top:auto">🔄 Atualizar</button>
+    <button class="btn btn-secondary" onclick="_historicoRotasCache=null;renderHistoricoRotas()" style="margin-top:auto">🔄 Atualizar</button>
   </div>
 
   <div class="card">
@@ -2407,6 +2423,34 @@ function renderVendasDrill(rows) {
   } else {
     cardTop.style.display = 'none';
   }
+
+  // Relatório extra: clientes vendidos no período, do maior pro menor (sempre visível,
+  // respeita o filtro de vendedor do drill se estiver dentro de um)
+  const baseClientes = d.vendedor ? rows.filter(r=>r.rca===d.vendedor) : rows;
+  document.getElementById('vd-top-clientes-titulo').textContent = d.vendedor
+    ? `🏆 Clientes Vendidos por ${d.vendedor} — do maior para o menor`
+    : `🏆 Clientes Vendidos — do maior para o menor`;
+  const porCliente = {};
+  baseClientes.forEach(r => {
+    const k = String(r.codcli||'');
+    if(!porCliente[k]) porCliente[k] = {nome: nomeCliDrill(r), valor:0, pedidos:new Set()};
+    porCliente[k].valor += parseFloat(r.valor_total)||0;
+    porCliente[k].pedidos.add(r.pedido);
+  });
+  const cardTopClientes = document.getElementById('vd-top-clientes-card');
+  const bodyClientes = document.getElementById('vd-top-clientes-body');
+  const ordenadoClientes = Object.entries(porCliente).sort((a,b)=>b[1].valor-a[1].valor);
+  if(ordenadoClientes.length) {
+    cardTopClientes.style.display = 'block';
+    bodyClientes.innerHTML = ordenadoClientes.map(([codcli,v])=>`
+      <tr style="border-bottom:1px solid var(--border)">
+        <td style="padding:9px 10px;font-weight:600">${nomeComId(v.nome, codcli)}</td>
+        <td style="padding:9px 10px">${v.pedidos.size}</td>
+        <td style="padding:9px 10px">R$ ${v.valor.toLocaleString('pt-BR')}</td>
+      </tr>`).join('');
+  } else {
+    cardTopClientes.style.display = 'none';
+  }
 }
 function nomeCliDrill(r) { return r.cliente || 'Cliente ' + r.codcli; }
 function drillVendas(nivel, valor) {
@@ -2602,6 +2646,7 @@ async function renderHistoricoRotas() {
 
   if(!_historicoRotasCache) _historicoRotasCache = await sbListarRotasBrutas();
   const brutas = _historicoRotasCache;
+  console.log('Histórico — total de linhas buscadas:', brutas.length, '— datas mais recentes:', [...new Set(brutas.map(r=>r.data))].sort().reverse().slice(0,5));
 
   // Primeira visita de verdade de cada cliente (pelo histórico INTEIRO, não só o filtro atual) —
   // só essa conta como "prospectado"; visitas seguintes do mesmo cliente contam como "visitado".
@@ -4953,7 +4998,9 @@ async function renderFreezersPage() {
   const clientePorDoc = {};
   clientes.forEach(c => { if(c.documento) clientePorDoc[c.documento] = c; });
 
-  renderDashboardFreezers(freezers);
+  const escopo = await vendedoresDoEscopo(); // null = vê tudo (gestão); array = só os clientes desses vendedores
+  const freezersDoEscopo = escopo ? freezers.filter(f => escopo.includes(clientePorDoc[f.cliente_documento]?.vendedor)) : freezers;
+  renderDashboardFreezers(freezersDoEscopo);
 
   const chip = document.getElementById('frz-filtro-modelo-chip');
   if(chip) {
@@ -4962,9 +5009,7 @@ async function renderFreezersPage() {
   }
 
   const busca = (document.getElementById('frz-f-busca')?.value||'').toLowerCase();
-  const escopo = await vendedoresDoEscopo(); // null = vê tudo; array = só clientes desses vendedores
-  let lista = freezers;
-  if(escopo) lista = lista.filter(f => escopo.includes(clientePorDoc[f.cliente_documento]?.vendedor));
+  let lista = freezersDoEscopo;
   if(busca) lista = lista.filter(f => (f.cliente_documento||'').toLowerCase().includes(busca) || (clientePorDoc[f.cliente_documento]?.nome||'').toLowerCase().includes(busca) || (clientePorDoc[f.cliente_documento]?.razao_social||'').toLowerCase().includes(busca));
   if(_frzModeloSelecionado) lista = lista.filter(f => f.modelo_desc === _frzModeloSelecionado);
 
@@ -5312,24 +5357,48 @@ async function renderRoteiro() {
   // ---- Aderência ao Roteiro: do que estava planejado pra hoje, quanto foi de fato lançado? ----
   const planejadosHoje = [...fixosHoje, ...reprogHoje.map(r=>({documento:r.cliente_id, vendedor:r.vendedor}))];
   const elAderencia = document.getElementById('rot-aderencia');
+  window._roteiroLancadosHojeIds = new Set(); // usado abaixo pra pintar de verde os já lançados
   if(!planejadosHoje.length) {
     elAderencia.innerHTML = '';
   } else {
     const rotasBrutas = await sbListarRotasBrutas();
     const lancadosHojeIds = new Set(rotasBrutas.filter(r=>r.data===dataAlvo && dentroDoEscopo(r.vendedor)).map(r=>r.cliente_id));
+    window._roteiroLancadosHojeIds = lancadosHojeIds;
     const chaveCliente = (c) => c.documento || c.id;
     const cumpridos = planejadosHoje.filter(c => lancadosHojeIds.has(chaveCliente(c))).length;
     const totalPlanejado = planejadosHoje.length;
     const pct = totalPlanejado ? Math.round((cumpridos/totalPlanejado)*100) : 0;
     const cor = pct>=80?'var(--ok)':pct>=50?'var(--warn)':'var(--danger)';
+    const tituloAderencia = (isGestao && !vendedorAlvo) ? 'Aderência ao Roteiro — TIME INTEIRO' : `Aderência ao Roteiro — ${vendedorAlvo || _loggedSupervisor}`;
+
+    // Quebra por vendedor (só faz sentido mostrar quando está vendo o time todo)
+    let quebraHtml = '';
+    if(isGestao && !vendedorAlvo) {
+      const porVend = {};
+      planejadosHoje.forEach(c => {
+        const v = c.vendedor||'Sem vendedor';
+        if(!porVend[v]) porVend[v] = {total:0, feito:0};
+        porVend[v].total++;
+        if(lancadosHojeIds.has(chaveCliente(c))) porVend[v].feito++;
+      });
+      quebraHtml = `<div style="margin-top:12px;padding-top:12px;border-top:1px solid var(--border);display:flex;flex-wrap:wrap;gap:10px">
+        ${Object.entries(porVend).sort((a,b)=>(b[1].feito/b[1].total)-(a[1].feito/a[1].total)).map(([v,d])=>{
+          const p2 = Math.round((d.feito/d.total)*100);
+          const c2 = p2>=80?'var(--ok)':p2>=50?'var(--warn)':'var(--danger)';
+          return `<div style="font-size:.8rem"><b style="color:${c2}">${p2}%</b> ${v} (${d.feito}/${d.total})</div>`;
+        }).join('')}
+      </div>`;
+    }
+
     elAderencia.innerHTML = `<div class="card" style="border-color:${cor}">
       <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
         <div style="font-size:2rem;font-weight:800;color:${cor}">${pct}%</div>
         <div>
-          <div style="font-weight:700;font-size:.9rem">Aderência ao Roteiro</div>
+          <div style="font-weight:700;font-size:.9rem">${tituloAderencia}</div>
           <div style="font-size:.8rem;color:var(--muted)">${cumpridos} de ${totalPlanejado} cliente(s) planejado(s) pra ${dataAlvo} foram visitados/lançados</div>
         </div>
       </div>
+      ${quebraHtml}
     </div>`;
   }
 
@@ -5338,11 +5407,13 @@ async function renderRoteiro() {
     ...reprogHoje.map(r=>({clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}))
   ];
 
-  document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>`
-    <div class="roteiro-item">
-      <div class="roteiro-num">${i+1}</div>
-      <div class="roteiro-info"><div class="rn">${nomeComId(it.clienteNome, it.clienteId)}</div><div class="rs">${it.vendedor} • ${it.origem}</div></div>
-    </div>`).join('') : '<div class="empty-state">Nenhum cliente previsto para esta data.</div>';
+  document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>{
+    const feito = window._roteiroLancadosHojeIds.has(it.clienteId);
+    return `<div class="roteiro-item" style="${feito?'background:rgba(0,161,115,.10);border-left:3px solid var(--ok)':''}">
+      <div class="roteiro-num">${feito?'✅':i+1}</div>
+      <div class="roteiro-info"><div class="rn" style="${feito?'color:var(--ok)':''}">${nomeComId(it.clienteNome, it.clienteId)}</div><div class="rs">${it.vendedor} • ${it.origem}${feito?' • <b style=\"color:var(--ok)\">já lançado hoje</b>':''}</div></div>
+    </div>`;
+  }).join('') : '<div class="empty-state">Nenhum cliente previsto para esta data.</div>';
 
   const futuras = reprogs.filter(r => r.reprogramar_para && dentroDoEscopo(r.vendedor))
     .sort((a,b)=>(a.reprogramar_para||'').localeCompare(b.reprogramar_para||''));
