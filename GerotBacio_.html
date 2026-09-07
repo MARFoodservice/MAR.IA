@@ -605,6 +605,17 @@ tbody td { padding: 11px 12px; }
 <!-- Modal detalhe de uma rota (dia) -->
 <!-- Modal lista de clientes por status (Carteira) -->
 <!-- Modal última visita (rápido, ao clicar num cliente) -->
+<!-- Modal detalhe rápido do cliente no Roteiro: endereço/bairro/cidade/contato -->
+<div id="modal-rot-cliente" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center;padding:16px">
+  <div class="card" style="max-width:420px;width:100%;margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" id="modal-rot-titulo" style="margin-bottom:0">Cliente</div>
+      <button class="btn btn-secondary" onclick="document.getElementById('modal-rot-cliente').style.display='none'">✕</button>
+    </div>
+    <div id="modal-rot-body"></div>
+  </div>
+</div>
+
 <div id="modal-ct-visita" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:900;align-items:center;justify-content:center;padding:16px">
   <div class="card" style="max-width:420px;width:100%;margin:0">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
@@ -711,6 +722,11 @@ tbody td { padding: 11px 12px; }
     <div class="form-row cols-2" style="margin-bottom:0">
       <div class="field"><label>Nome</label><input type="text" id="edit-cli-nome" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></div>
       <div class="field"><label>Vendedor</label><select id="edit-cli-vendedor" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></select></div>
+    </div>
+    <div class="form-row cols-3" style="margin-top:12px;margin-bottom:0">
+      <div class="field"><label>Endereço</label><input type="text" id="edit-cli-endereco" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></div>
+      <div class="field"><label>Bairro</label><input type="text" id="edit-cli-bairro" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></div>
+      <div class="field"><label>Contato</label><input type="text" id="edit-cli-contato" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></div>
     </div>
     <div class="form-row cols-2" style="margin-top:12px;margin-bottom:0">
       <div class="field"><label>Cidade</label><select id="edit-cli-cidade" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"><option value="">Selecione...</option></select></div>
@@ -828,6 +844,17 @@ tbody td { padding: 11px 12px; }
         <select id="novo-cli-segmento" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
           <option value="">Selecione...</option>
         </select>
+      </div>
+    </div>
+    <div class="form-row cols-3" style="margin-top:14px;margin-bottom:0">
+      <div class="field"><label>Endereço</label>
+        <input type="text" id="novo-cli-endereco" placeholder="Rua, número..." style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
+      </div>
+      <div class="field"><label>Bairro</label>
+        <input type="text" id="novo-cli-bairro" placeholder="Bairro" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
+      </div>
+      <div class="field"><label>Contato (nome/telefone)</label>
+        <input type="text" id="novo-cli-contato" placeholder="Ex: João (51) 99999-9999" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
       </div>
     </div>
     <div class="form-row cols-3" style="margin-top:14px;margin-bottom:0">
@@ -1664,6 +1691,21 @@ async function salvarFormulario() {
   const data = document.getElementById('f-data').value;
   const sv = pdvs.filter(d=>d.saved);
   if(!sv.length) { showToast('⚠️ Salve pelo menos 1 PDV antes!','#b8860b'); return; }
+
+  // Confere se algum PDV ficou sem geolocalização (obrigatório pra time CLT em rota) —
+  // acontece se o GPS falhou/foi negado no momento de "Salvar PDV". Avisa e deixa a
+  // pessoa decidir se quer tentar de novo ou seguir mesmo assim.
+  const semLocalizacao = sv.filter(d => !d.localizacao);
+  if(semLocalizacao.length) {
+    const nomes = semLocalizacao.map(d=>d.nomeCliente||'(sem nome)').join(', ');
+    const seguir = confirm(
+      `⚠️ ${semLocalizacao.length} PDV(s) SEM localização registrada: ${nomes}\n\n` +
+      `Isso normalmente acontece quando o GPS do celular está desligado ou a permissão de localização foi negada.\n\n` +
+      `Recomendado: cancele, ligue o GPS/permissão de localização do navegador, e clique de novo em "💾 Salvar PDV" nesses clientes antes de enviar a rota.\n\n` +
+      `Confirmar mesmo assim SEM localização nesses PDVs?`
+    );
+    if(!seguir) return;
+  }
 
   const record = {
     id: Date.now(), data, supervisor:sup, vendedor:vend, rota,
@@ -4631,6 +4673,26 @@ async function abrirClientesPorStatus(tipo, valor, label) {
 }
 
 // Popup rápido: cliente foi visitado pelo app? quando foi a última vez?
+function abrirDetalheClienteRoteiro(idx) {
+  const it = window._roteiroItensAtual?.[idx];
+  if(!it) return;
+  document.getElementById('modal-rot-titulo').textContent = it.clienteNome || 'Cliente';
+  const enderecoCompleto = [it.endereco, it.bairro, it.cidade].filter(Boolean).join(', ');
+  const linkMapa = enderecoCompleto ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(enderecoCompleto)}` : null;
+  document.getElementById('modal-rot-body').innerHTML = `
+    <div style="font-size:.85rem;line-height:1.9">
+      <div><b>Endereço:</b> ${it.endereco||'—'}</div>
+      <div><b>Bairro:</b> ${it.bairro||'—'}</div>
+      <div><b>Cidade:</b> ${it.cidade||'—'}</div>
+      <div><b>Contato:</b> ${it.contato||'—'}</div>
+      <div><b>Ramo:</b> ${it.ramo||'—'}</div>
+      <div><b>Vendedor:</b> ${it.vendedor||'—'}</div>
+    </div>
+    ${linkMapa ? `<a href="${linkMapa}" target="_blank" class="btn btn-primary" style="display:block;text-align:center;margin-top:14px;text-decoration:none">📍 Abrir no Google Maps</a>` : `<div style="font-size:.78rem;color:var(--warn);margin-top:12px">⚠️ Sem endereço cadastrado — edite o cliente na página Clientes pra adicionar.</div>`}
+  `;
+  document.getElementById('modal-rot-cliente').style.display = 'flex';
+}
+
 async function verUltimaVisitaCliente(codcli, nome) {
   document.getElementById('modal-ct-visita-titulo').textContent = nome || ('Cliente '+codcli);
   document.getElementById('modal-ct-visita-body').innerHTML = '⏳ Verificando...';
@@ -4780,6 +4842,9 @@ async function adicionarCliente() {
   const vendedor = document.getElementById('novo-cli-vendedor')?.value;
   const segmento = document.getElementById('novo-cli-segmento')?.value.trim();
   const cidade = normalizarCidade(document.getElementById('novo-cli-cidade')?.value.trim());
+  const endereco = document.getElementById('novo-cli-endereco')?.value.trim() || null;
+  const bairro = document.getElementById('novo-cli-bairro')?.value.trim() || null;
+  const contato = document.getElementById('novo-cli-contato')?.value.trim() || null;
   const dia = document.getElementById('novo-cli-dia')?.value || null;
   const frequencia = document.getElementById('novo-cli-frequencia')?.value || 'SEMANAL';
   const semanas = [...document.querySelectorAll('.novo-cli-semana-chk:checked')].map(c=>c.value).join(',') || null;
@@ -4792,6 +4857,7 @@ async function adicionarCliente() {
   const novo = {
     id: 'cli_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
     nome, vendedor, segmento: segmento||null, cidade: cidade||null,
+    endereco, bairro, contato,
     dia_visita: dia, frequencia, semanas_mes: semanas,
     freezer_cod: freezerCod, freezer_desc: freezerDesc, freezer_serie: freezerSerie,
     origem: 'CADASTRO', status: 'aguardando', criado_em: Date.now()
@@ -4801,6 +4867,9 @@ async function adicionarCliente() {
     document.getElementById('novo-cli-nome').value = '';
     document.getElementById('novo-cli-segmento').value = '';
     document.getElementById('novo-cli-cidade').value = '';
+    document.getElementById('novo-cli-endereco').value = '';
+    document.getElementById('novo-cli-bairro').value = '';
+    document.getElementById('novo-cli-contato').value = '';
     document.getElementById('novo-cli-dia').value = '';
     document.getElementById('novo-cli-frequencia').value = 'SEMANAL';
     document.querySelectorAll('.novo-cli-semana-chk').forEach(c=>c.checked=false);
@@ -4887,6 +4956,9 @@ async function abrirModalEditCliente(id) {
   document.getElementById('edit-cli-id').value = id;
   document.getElementById('edit-cli-nome').value = cliente.nome||'';
   document.getElementById('edit-cli-cidade').value = cliente.cidade||'';
+  document.getElementById('edit-cli-endereco').value = cliente.endereco||'';
+  document.getElementById('edit-cli-bairro').value = cliente.bairro||'';
+  document.getElementById('edit-cli-contato').value = cliente.contato||'';
   document.getElementById('edit-cli-segmento').value = cliente.segmento||'';
   document.getElementById('edit-cli-dia').value = cliente.dia_visita!=null ? cliente.dia_visita : '';
   document.getElementById('edit-cli-status').value = cliente.status||'aguardando';
@@ -4915,6 +4987,9 @@ async function salvarEdicaoCliente() {
     nome: document.getElementById('edit-cli-nome').value.trim(),
     vendedor: document.getElementById('edit-cli-vendedor').value,
     cidade: normalizarCidade(document.getElementById('edit-cli-cidade').value.trim()),
+    endereco: document.getElementById('edit-cli-endereco').value.trim() || null,
+    bairro: document.getElementById('edit-cli-bairro').value.trim() || null,
+    contato: document.getElementById('edit-cli-contato').value.trim() || null,
     segmento: document.getElementById('edit-cli-segmento').value.trim(),
     dia_visita: document.getElementById('edit-cli-dia').value || null,
     frequencia: document.getElementById('edit-cli-frequencia').value || 'SEMANAL',
@@ -5295,7 +5370,7 @@ function nomeComId(nome, id) {
 async function sbListarClientesAtivosComDia() {
   if(!sbUrl()||!sbKey()) return [];
   try {
-    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?select=id,nome,vendedor,status,dia_visita,cidade,documento,frequencia,semanas_mes&status=neq.descartado&dia_visita=not.is.null&limit=5000`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?select=id,nome,vendedor,status,dia_visita,cidade,documento,frequencia,semanas_mes,endereco,bairro,contato,segmento&status=neq.descartado&dia_visita=not.is.null&limit=5000`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     if(!r.ok) return [];
@@ -5402,14 +5477,20 @@ async function renderRoteiro() {
     </div>`;
   }
 
+  const clientesAtivosPorDoc = {};
+  clientesAtivos.forEach(c => { if(c.documento) clientesAtivosPorDoc[c.documento] = c; });
+
   const itens = [
-    ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento, vendedor:c.vendedor, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
-    ...reprogHoje.map(r=>({clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}))
+    ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento, vendedor:c.vendedor, cidade:c.cidade||'', endereco:c.endereco, bairro:c.bairro, contato:c.contato, ramo:c.segmento, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
+    ...reprogHoje.map(r=>{ const cli = clientesAtivosPorDoc[r.cliente_id]; return {clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, cidade:cli?.cidade||'', endereco:cli?.endereco, bairro:cli?.bairro, contato:cli?.contato, ramo:cli?.segmento, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}; })
   ];
+  // Agrupa por CIDADE — assim o vendedor faz uma cidade inteira antes de ir pra outra
+  itens.sort((a,b) => (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||''));
+  window._roteiroItensAtual = itens;
 
   document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>{
     const feito = window._roteiroLancadosHojeIds.has(it.clienteId);
-    return `<div class="roteiro-item" style="${feito?'background:rgba(0,161,115,.10);border-left:3px solid var(--ok)':''}">
+    return `<div class="roteiro-item" style="cursor:pointer;${feito?'background:rgba(0,161,115,.10);border-left:3px solid var(--ok)':''}" onclick="abrirDetalheClienteRoteiro(${i})">
       <div class="roteiro-num">${feito?'✅':i+1}</div>
       <div class="roteiro-info"><div class="rn" style="${feito?'color:var(--ok)':''}">${nomeComId(it.clienteNome, it.clienteId)}</div><div class="rs">${it.vendedor} • ${it.origem}${feito?' • <b style=\"color:var(--ok)\">já lançado hoje</b>':''}</div></div>
     </div>`;
