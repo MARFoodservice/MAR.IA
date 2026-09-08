@@ -253,6 +253,7 @@ tbody td { padding: 11px 12px; }
 </style>
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.css" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>.hr-mapa-hora-tooltip{background:#4a2f22;color:#fff;border:none;font-weight:700;font-size:.72rem;padding:2px 6px}.hr-mapa-hora-tooltip::before{border-right-color:#4a2f22}</style>
 </head>
 <body>
@@ -972,6 +973,7 @@ tbody td { padding: 11px 12px; }
         </label>
       </div>
       <button class="btn btn-secondary" onclick="renderClientesCad()" style="margin-top:auto">🔄 Atualizar</button>
+      <button class="btn btn-primary" onclick="exportarClientesExcel()" style="margin-top:auto">📊 Exportar Excel</button>
     </div>
     <div id="cli-resumo-qtd" style="margin-bottom:14px;font-size:.85rem;color:var(--muted)"></div>
     <div class="table-wrap" style="overflow-x:auto">
@@ -1053,6 +1055,7 @@ tbody td { padding: 11px 12px; }
       <div id="frz-filtro-modelo-chip" style="display:none;align-items:center;gap:6px;background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 12px;font-size:.8rem"></div>
       <button class="btn btn-secondary" onclick="renderFreezersPage()" style="margin-top:auto">🔄 Atualizar</button>
       <button class="btn btn-primary" id="btn-ver-mapa-freezers" onclick="abrirModalMapaFreezers()" style="margin-top:auto">🗺️ Ver no Mapa</button>
+      <button class="btn btn-primary" onclick="exportarFreezersExcel()" style="margin-top:auto">📊 Exportar Excel</button>
     </div>
     <div class="table-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.83rem">
@@ -1348,7 +1351,7 @@ function init() {
   dbRaw.forEach(r => { dedup[r.id] = r; });
   saveDB(Object.values(dedup));
 
-  document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-data').value = hojeLocalISO();
   atualizarDiaSemana();
   initPdvs(); renderNav(); renderPdv(0);
   renderSupSelector();
@@ -1357,7 +1360,7 @@ function init() {
   const savedPerfil = localStorage.getItem('coaching_logged_perfil') || 'supervisor';
   const savedSupDoVendedor = localStorage.getItem('coaching_logged_sup_vendedor') || '';
   const savedDate   = localStorage.getItem('coaching_login_date') || '';
-  const hoje        = new Date().toISOString().substring(0,10);
+  const hoje        = hojeLocalISO();
   if(savedUser && savedDate === hoje) {
     _loggedSupervisor = savedUser;
     _loggedPerfil     = savedPerfil;
@@ -1815,7 +1818,7 @@ async function salvarFormulario() {
 
 function limparFormulario() {
   ['f-rota','r-obs','f-positivos','f-desenvolver'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
+  document.getElementById('f-data').value = hojeLocalISO();
   atualizarDiaSemana();
   // Mantém supervisor (travado) e zera vendedor para escolher de novo —
   // MAS nunca zera se o próprio vendedor logou (identidade travada, não "escolhe outro").
@@ -2285,7 +2288,13 @@ function parseDataVendas(s) {
   const d = new Date(s);
   return isNaN(d) ? null : d;
 }
-function isoDia(d) { return d.toISOString().split('T')[0]; }
+// Data local (não UTC) no formato AAAA-MM-DD — usar isso pra "hoje" em vez de
+// toISOString(), que converte pra UTC e adianta o dia à noite no fuso do Brasil.
+function isoDia(d) {
+  const y = d.getFullYear(), m = String(d.getMonth()+1).padStart(2,'0'), dd = String(d.getDate()).padStart(2,'0');
+  return `${y}-${m}-${dd}`;
+}
+function hojeLocalISO() { return isoDia(new Date()); }
 
 async function sbListarCodigosRcaBacio() {
   if(_vendasCodigosRcaCache) return _vendasCodigosRcaCache;
@@ -2378,7 +2387,7 @@ async function renderVendas() {
     const hoje = new Date();
     deEl.value = new Date(hoje.getFullYear(), hoje.getMonth(), 1).toISOString().split('T')[0];
   }
-  if(ateEl && !ateEl.value) ateEl.value = new Date().toISOString().split('T')[0];
+  if(ateEl && !ateEl.value) ateEl.value = hojeLocalISO();
 
   const codigos = await codigosRcaEscopo();
   console.log('Vendas — códigos RCA no escopo do usuário logado:', codigos);
@@ -2639,7 +2648,7 @@ async function sbListarUsuariosComNomeFaturamento() {
 }
 
 async function renderCarteira() {
-  const hoje = new Date().toISOString().split('T')[0];
+  const hoje = hojeLocalISO();
   const usuarios = await sbListarUsuariosComNomeFaturamento();
   const vendedores = usuarios.filter(u=>u.perfil==='vendedor');
   const supervisores = usuarios.filter(u=>u.perfil==='supervisor');
@@ -3399,7 +3408,7 @@ async function fazerLogin() {
     localStorage.setItem('coaching_logged_user',   found.nome);
     localStorage.setItem('coaching_logged_perfil', found.perfil);
     localStorage.setItem('coaching_logged_sup_vendedor', found.supervisor||'');
-    localStorage.setItem('coaching_login_date',    new Date().toISOString().substring(0,10));
+    localStorage.setItem('coaching_login_date',    hojeLocalISO());
 
     // Registrar log
     const loginEntry = {tipo:'login', supervisor: found.nome, perfil: found.perfil, timestamp: new Date().toISOString(), device: navigator.userAgent.substring(0,80)};
@@ -3430,7 +3439,7 @@ async function fazerLogin() {
     localStorage.removeItem('coaching_pdvs_draft');
     pdvs = Array.from({length:N_INICIAL}, newPdv);
     cur = 0;
-    document.getElementById('f-data').value = new Date().toISOString().split('T')[0];
+    document.getElementById('f-data').value = hojeLocalISO();
     atualizarDiaSemana();
     renderNav();
     renderPdv(0);
@@ -3714,7 +3723,7 @@ function salvarTop30(){
 function limparTop30(){
   ['t30-supervisor','t30-vendedor','t30-obs','t30-positivos','t30-desenvolver'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
   const rotaEl=document.getElementById('t30-rota'); if(rotaEl) rotaEl.value='Rota TOP 30';
-  document.getElementById('t30-data').value=new Date().toISOString().split('T')[0];
+  document.getElementById('t30-data').value=hojeLocalISO();
   initT30Pdvs(); clearT30Draft(); t30cur=0; renderT30Nav(); renderT30Pdv(0); updateT30Auto();
 }
 
@@ -4252,7 +4261,7 @@ function exportarAcessoCSV() {
     ...pdvLogs.map(l=>`PDV;${l.supervisor};${l.timestamp};${l.localizacao?.lat||''};${l.localizacao?.lng||''};PDV ${l.pdvIdx} - ${l.nomeCliente} - ${l.perfilRota}`)
   ];
   const blob = new Blob(['\uFEFF'+rows.join('\n')], {type:'text/csv;charset=utf-8'});
-  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `acessos_${new Date().toISOString().split('T')[0]}.csv`; a.click();
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = `acessos_${hojeLocalISO()}.csv`; a.click();
   showToast('✅ CSV exportado!');
 }
 
@@ -4503,7 +4512,7 @@ async function testSupabaseInsert() {
   el.innerHTML = '<span style="color:var(--accent2)">⏳ Testando INSERT...</span>';
   const testRow = {
     id: 'test_' + Date.now(),
-    data: new Date().toISOString().split('T')[0],
+    data: hojeLocalISO(),
     supervisor: _loggedSupervisor || 'TESTE',
     vendedor: 'VENDEDOR TESTE',
     cliente_id: '00000',
@@ -5153,6 +5162,7 @@ async function renderClientesCad() {
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado (veja o console — pode ser filtro de vendedor sem correspondência).</td></tr>'; return; }
 
+  window._clientesListaAtual = lista; // pra exportação em Excel
   el.innerHTML = lista.map(c => {
     const st = STATUS_CRM.find(s=>s.id===c.status) || STATUS_CRM[0];
     const frzList = freezersPorDoc[c.documento] || [];
@@ -5323,6 +5333,7 @@ async function renderFreezersPage() {
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum freezer encontrado.</td></tr>'; return; }
 
+  window._freezersListaAtual = lista.map(f => ({...f, _clienteNome: clientePorDoc[f.cliente_documento]?.nome, _vendedor: clientePorDoc[f.cliente_documento]?.vendedor, _cidade: clientePorDoc[f.cliente_documento]?.cidade})); // pra exportação em Excel
   el.innerHTML = lista.map(f => {
     const cli = clientePorDoc[f.cliente_documento];
     const contratoArquivado = f.contrato_status === 'arquivado';
@@ -5450,7 +5461,7 @@ async function salvarEdicaoFreezer() {
     modelo_cod_novo: modeloCod, modelo_desc_novo: modeloDesc, serie_nova: serie,
     nf_devolucao: tipoMov==='devolucao' ? nfDevolucao : null,
     observacao: motivo || null, usuario: _loggedSupervisor || 'desconhecido',
-    data_movimento: new Date().toISOString().split('T')[0]
+    data_movimento: hojeLocalISO()
   });
 
   showToast('✅ Freezer atualizado e movimento registrado!');
@@ -5617,6 +5628,55 @@ function semanaDoMesDeData(dataStr) {
 }
 // Normaliza texto de cidade: maiúsculo + sem acento, pra evitar duplicidade tipo
 // "CAPAO DA CANOA" vs "CAPÃO DA CANOA"
+function exportarClientesExcel() {
+  const lista = window._clientesListaAtual || [];
+  if(!lista.length) { showToast('Nada pra exportar','#b8860b'); return; }
+  const linhas = lista.map(c => ({
+    'ID/Documento': c.documento || '-',
+    'Nome': c.nome || '',
+    'Razão Social': c.razao_social || '',
+    'Vendedor': c.vendedor || '',
+    'Status CRM': STATUS_CRM.find(s=>s.id===c.status)?.lbl || c.status || '',
+    'Cidade': c.cidade || '',
+    'Bairro': c.bairro || '',
+    'Endereço': c.endereco || '',
+    'Contato': c.contato || '',
+    'Segmento': c.segmento || '',
+    'Dia de Rota': (c.dia_visita!=null && c.dia_visita!=='') ? DIAS_SEMANA[c.dia_visita] : '',
+    'Frequência': c.frequencia || 'SEMANAL',
+    'Semanas do Mês': c.semanas_mes || '',
+    'Origem': c.origem || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Clientes');
+  XLSX.writeFile(wb, `clientes_bacio_${hojeLocalISO()}.xlsx`);
+}
+
+function exportarFreezersExcel() {
+  const lista = window._freezersListaAtual || [];
+  if(!lista.length) { showToast('Nada pra exportar','#b8860b'); return; }
+  const linhas = lista.map(f => ({
+    'Cliente': f._clienteNome || '',
+    'ID/Documento': f.cliente_documento || '',
+    'Vendedor': f._vendedor || '',
+    'Cidade': f._cidade || '',
+    'Modelo': f.modelo_desc || '',
+    'Código Modelo': f.modelo_cod || '',
+    'Nº Série': f.numero_serie || '',
+    'NF': f.nf || '',
+    'Data Entrega': f.data_entrega || '',
+    'Status': f.status_freezer || 'ATIVO',
+    'Estado do Equipamento': f.estado_equipamento || '',
+    'Contrato': f.contrato_status || '',
+    'NF Devolução': f.nf_devolucao || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Freezers');
+  XLSX.writeFile(wb, `freezers_bacio_${hojeLocalISO()}.xlsx`);
+}
+
 function normalizarCidade(s) {
   if(!s) return s;
   return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
@@ -5656,7 +5716,7 @@ async function sbListarVisitasReprogramadas() {
 
 async function renderRoteiro() {
   const dataEl = document.getElementById('rot-f-data');
-  if(!dataEl.value) dataEl.value = new Date().toISOString().split('T')[0];
+  if(!dataEl.value) dataEl.value = hojeLocalISO();
   const dataAlvo = dataEl.value;
   const diaSelSemana = document.getElementById('rot-f-dia-semana')?.value || '';
   const diaSemana = diaSelSemana !== '' ? diaSelSemana : new Date(dataAlvo+'T12:00:00').getDay();
@@ -5940,8 +6000,8 @@ async function renderVespertina() {
   const supervisorLogin = perfilVeTudo() ? (selSup?.value || '') : _loggedSupervisor;
 
   const dataInput = document.getElementById('vesp-data');
-  if(dataInput && !dataInput.value) dataInput.value = new Date().toISOString().split('T')[0];
-  const dataRef = dataInput?.value || new Date().toISOString().split('T')[0];
+  if(dataInput && !dataInput.value) dataInput.value = hojeLocalISO();
+  const dataRef = dataInput?.value || hojeLocalISO();
 
   if(!supervisorLogin) { cont.innerHTML = '<div class="empty-state">Selecione um supervisor</div>'; return; }
 
