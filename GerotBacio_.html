@@ -908,14 +908,19 @@ tbody td { padding: 11px 12px; }
 <div id="page-clientes" class="page">
   <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🏬 <span>Clientes</span> (Bacio_Clientes)</div></div>
   <div class="card" id="cli-add-form-wrap" style="margin-bottom:20px">
-    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Cada cliente ativo (não descartado) com dia fixo definido aparece automaticamente no Roteiro do vendedor. O modelo de freezer é obrigatório e aparece na página Rota quando o vendedor seleciona o cliente.</p>
+    <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Cada cliente ativo (não descartado) com dia fixo definido aparece automaticamente no Roteiro do vendedor. Se ainda não souber o modelo de freezer (cliente não visitado), selecione "Sem freezer definido ainda".</p>
     <div class="form-row cols-3" style="margin-bottom:0">
+      <div class="field"><label>ID / Código na Faturamento (opcional)</label>
+        <input type="text" id="novo-cli-documento" placeholder="Deixe em branco se ainda não tiver" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
+      </div>
       <div class="field"><label>Nome do Cliente</label>
         <input type="text" id="novo-cli-nome" placeholder="Nome do PDV" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%;text-transform:uppercase">
       </div>
       <div class="field"><label>Vendedor</label>
         <select id="novo-cli-vendedor" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%"><option value="">Selecione...</option></select>
       </div>
+    </div>
+    <div class="form-row cols-3" style="margin-top:14px;margin-bottom:0">
       <div class="field"><label>Ramo de Atividade</label>
         <select id="novo-cli-segmento" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
           <option value="">Selecione...</option>
@@ -969,6 +974,7 @@ tbody td { padding: 11px 12px; }
       <div class="field"><label>Modelo de Freezer *</label>
         <select id="novo-cli-freezer" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
           <option value="">Selecione o modelo...</option>
+          <option value="SEM_FREEZER|Sem freezer definido ainda">Sem freezer definido ainda (cliente não visitado)</option>
           <option value="13345|FREEZER VF28RC 220V BACIO DI LATTE">13345 — FREEZER VF28RC 220V BACIO DI LATTE</option>
           <option value="13349|FREEZER NF20RC 220V BACIO DI LATTE">13349 — FREEZER NF20RC 220V BACIO DI LATTE</option>
           <option value="13352|FREEZER NF40S 220V BACIO DI LATTE">13352 — FREEZER NF40S 220V BACIO DI LATTE</option>
@@ -1034,6 +1040,7 @@ tbody td { padding: 11px 12px; }
       <div class="field"><label>Modelo de Freezer</label>
         <select id="novo-frz-modelo" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
           <option value="">Selecione o modelo...</option>
+          <option value="SEM_FREEZER|Sem freezer definido ainda">Sem freezer definido ainda (cliente não visitado)</option>
           <option value="13345|FREEZER VF28RC 220V BACIO DI LATTE">13345 — FREEZER VF28RC 220V BACIO DI LATTE</option>
           <option value="13349|FREEZER NF20RC 220V BACIO DI LATTE">13349 — FREEZER NF20RC 220V BACIO DI LATTE</option>
           <option value="13352|FREEZER NF40S 220V BACIO DI LATTE">13352 — FREEZER NF40S 220V BACIO DI LATTE</option>
@@ -5128,6 +5135,7 @@ async function onFrequenciaClienteChange(prefixo) {
 }
 
 async function adicionarCliente() {
+  const documento = limparCodigoCliente(document.getElementById('novo-cli-documento')?.value.trim()) || null;
   const nome = document.getElementById('novo-cli-nome')?.value.trim().toUpperCase();
   const vendedor = document.getElementById('novo-cli-vendedor')?.value;
   const segmento = document.getElementById('novo-cli-segmento')?.value.trim();
@@ -5141,12 +5149,11 @@ async function adicionarCliente() {
   const freezerVal = document.getElementById('novo-cli-freezer')?.value || '';
   const freezerSerie = document.getElementById('novo-cli-freezer-serie')?.value.trim() || null;
   if(!nome || !vendedor) { showToast('Preencha nome e vendedor', '#b8860b'); return; }
-  if(!freezerVal) { showToast('Selecione o modelo de freezer do cliente', '#b8860b'); return; }
   if(frequencia !== 'SEMANAL' && !semanas) { showToast('Marque pelo menos uma semana do mês pra essa frequência', '#b8860b'); return; }
-  const [freezerCod, freezerDesc] = freezerVal.split('|');
+  const [freezerCod, freezerDesc] = freezerVal && freezerVal !== 'SEM_FREEZER' ? freezerVal.split('|') : [null, null];
   const novo = {
     id: 'cli_' + Date.now() + '_' + Math.random().toString(36).slice(2,7),
-    nome, vendedor, segmento: segmento||null, cidade: cidade||null,
+    nome, vendedor, documento, segmento: segmento||null, cidade: cidade||null,
     endereco, bairro, contato,
     dia_visita: dia, frequencia, semanas_mes: semanas,
     freezer_cod: freezerCod, freezer_desc: freezerDesc, freezer_serie: freezerSerie,
@@ -5154,6 +5161,7 @@ async function adicionarCliente() {
   };
   const ok = await supabaseUpsert('Bacio_Clientes', novo);
   if(ok) {
+    document.getElementById('novo-cli-documento').value = '';
     document.getElementById('novo-cli-nome').value = '';
     document.getElementById('novo-cli-segmento').value = '';
     document.getElementById('novo-cli-cidade').value = '';
@@ -5306,7 +5314,10 @@ async function salvarEdicaoCliente() {
     atualizado_em: Date.now()
   };
   const freezerVal = document.getElementById('edit-cli-freezer').value;
-  if(freezerVal) {
+  if(freezerVal === 'SEM_FREEZER') {
+    patch.freezer_cod = null;
+    patch.freezer_desc = null;
+  } else if(freezerVal) {
     const [freezerCod, freezerDesc] = freezerVal.split('|');
     patch.freezer_cod = freezerCod;
     patch.freezer_desc = freezerDesc;
