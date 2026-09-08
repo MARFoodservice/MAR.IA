@@ -742,6 +742,10 @@ tbody td { padding: 11px 12px; }
     <div class="card-title">Reprogramações pendentes (todas as datas)</div>
     <div id="rot-reprog"></div>
   </div>
+  <div class="card">
+    <div class="card-title">⚠️ Clientes sem dia de rota cadastrado</div>
+    <div id="rot-sem-roteiro"></div>
+  </div>
 </div>
 
 <!-- CRM -->
@@ -1324,7 +1328,7 @@ const saveDB = db => localStorage.setItem('coaching_db', JSON.stringify(db));
 function newPdv() { return {clienteId:'',nomeCliente:'',ramo:'',passos:{},vlr:'',saved:false,marcadoEm:null,localizacao:null,
   freezerValidado:null, freezerSerie:'', freezerTemp:'', freezerObs:'',
   freezerModeloCod:'', freezerModeloDesc:'', freezerQtd:1, freezerListaCliente:[], freezerRegistroId:'',
-  freezersNegociados:[{cod:'',desc:'',qtd:1}], obsCliente:'', ultimaVisita:null,
+  freezersNegociados:[{cod:'',desc:'',qtd:1}], obsCliente:'', ultimaVisita:null, clienteTemDiaFixo:false,
   statusResultante:'aguardando', reprogramarPara:'', reprogMotivo:'',
   bacioClienteId:'', origemCRM:'CADASTRO'};
 }
@@ -1693,6 +1697,15 @@ function savePdv(idx) {
   if(!d.nomeCliente.trim()) { showToast(`⚠️ PDV ${idx+1}: Nome do Cliente é obrigatório!`,'#b8860b'); return; }
   if(!d.ramo) { showToast(`⚠️ PDV ${idx+1}: Ramo é obrigatório!`,'#b8860b'); return; }
   if(!d.statusResultante) { showToast(`⚠️ PDV ${idx+1}: Selecione o Status Resultante da visita!`,'#b8860b'); return; }
+
+  // Cliente sem dia fixo de visita (prospecção nova ou importado sem roteiro definido)
+  // — obrigatório marcar quando será a próxima visita, senão ele "some" do Roteiro.
+  if(!d.clienteTemDiaFixo && !d.reprogramarPara) {
+    showToast(`⚠️ PDV ${idx+1}: Esse cliente ainda não tem dia fixo de rota — preencha "Reprogramar Visita" com a data da próxima visita!`, '#b8860b');
+    const campoReprog = document.getElementById(`reprog-${idx}`);
+    if(campoReprog) { campoReprog.scrollIntoView({behavior:'smooth', block:'center'}); campoReprog.style.borderColor = 'var(--danger)'; campoReprog.focus(); }
+    return;
+  }
 
   // Aviso (não obrigatório) se ID Cliente não preenchido
   if(!d.clienteId) {
@@ -4572,6 +4585,13 @@ async function sbSalvarRota(record) {
     await Promise.all((record.pdvs||[]).map(p =>
       (p.clienteId || p.nomeCliente) ? sbAtualizarStatusClienteCRM(p, record) : Promise.resolve()
     ));
+    // Se o vendedor escolheu um ramo pra um cliente que não tinha (campo virou lista da
+    // Faturamento), grava esse ramo no cadastro do cliente pra não pedir de novo depois.
+    await Promise.all((record.pdvs||[]).map(p =>
+      (p.ramoPreencherCadastro && p.bacioClienteId && p.ramo)
+        ? supabaseUpsert('Bacio_Clientes', {id: p.bacioClienteId, segmento: p.ramo})
+        : Promise.resolve()
+    ));
     _crmClientesCache = []; // força recarregar no CRM/Clientes/Freezers (status/freezer mudou)
     _ultimaVisitaPorClienteCache = null; // idem pro resumo de potencial de venda
     _historicoRotasCache = null; // idem pro Histórico de Rotas e Dashboard
@@ -5059,7 +5079,7 @@ async function popularRamosECidadesCad() {
 async function popularSelectVendedoresCad() {
   if(!sbUrl()||!sbKey()) return;
   try {
-    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?perfil=eq.vendedor&ativo=eq.true&select=nome&order=nome.asc`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?or=(perfil.eq.vendedor,nome.eq.FRONER)&ativo=eq.true&select=nome&order=nome.asc`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     const rows = r.ok ? await r.json() : [];
@@ -5167,7 +5187,11 @@ async function renderClientesCad() {
     const st = STATUS_CRM.find(s=>s.id===c.status) || STATUS_CRM[0];
     const frzList = freezersPorDoc[c.documento] || [];
     let freezerTxt;
-    if(frzList.length === 0) freezerTxt = `<span style="color:var(--warn)">sem freezer!</span>`;
+    if(frzList.length === 0) {
+      freezerTxt = c.freezer_cod === 'CLIENTE'
+        ? `<span style="color:var(--accent2)">🏠 Freezer próprio do cliente</span>`
+        : `<span style="color:var(--warn)">sem freezer!</span>`;
+    }
     else if(frzList.length === 1) freezerTxt = `[${frzList[0].modelo_cod}] ${frzList[0].modelo_desc}`;
     else freezerTxt = `${frzList.length} unidades`;
     return `<tr style="border-bottom:1px solid var(--border)">
@@ -5212,7 +5236,7 @@ async function abrirModalEditCliente(id) {
   if(!sbUrl()||!sbKey()) { vendSel.innerHTML = `<option value="${cliente.vendedor||''}">${cliente.vendedor||''}</option>`; }
   else {
     try {
-      const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?perfil=eq.vendedor&ativo=eq.true&select=nome&order=nome.asc`, {
+      const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?or=(perfil.eq.vendedor,nome.eq.FRONER)&ativo=eq.true&select=nome&order=nome.asc`, {
         headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
       });
       const rows = r.ok ? await r.json() : [];
@@ -5610,6 +5634,7 @@ async function salvarProspeccao() {
   pdvs[idx].ramo = novo.segmento;
   pdvs[idx].bacioClienteId = id;
   pdvs[idx].origemCRM = 'NOVO';
+  pdvs[idx].clienteTemDiaFixo = false; // prospecção nova nunca tem dia fixo ainda
   document.getElementById('modal-prospeccao').style.display = 'none';
   _prospeccaoPdvIdx = null;
   renderPdv(idx);
@@ -5829,6 +5854,25 @@ async function renderRoteiro() {
       <div class="roteiro-num">🔁</div>
       <div class="roteiro-info"><div class="rn">${nomeComId(r.cliente_nome, r.cliente_id)}</div><div class="rs">${r.vendedor} • reprogramado p/ ${r.reprogramar_para} • ${r.reprog_motivo||''}</div></div>
     </div>`).join('') : '<div class="empty-state">Nenhuma reprogramação pendente.</div>';
+
+  // ---- Clientes sem dia de rota cadastrado (não entram no Roteiro de jeito nenhum) ----
+  const todosClientes = await sbListarClientesCRM();
+  const semRoteiro = todosClientes.filter(c => c.status !== 'descartado' && (c.dia_visita == null || c.dia_visita === '') && dentroDoEscopo(c.vendedor));
+  const elSemRoteiro = document.getElementById('rot-sem-roteiro');
+  if(!semRoteiro.length) {
+    elSemRoteiro.innerHTML = '<div class="empty-state">Todo mundo já tem dia de rota cadastrado 🎉</div>';
+  } else {
+    const porVendSemRoteiro = {};
+    semRoteiro.forEach(c => { (porVendSemRoteiro[c.vendedor||'Sem vendedor'] ||= []).push(c); });
+    elSemRoteiro.innerHTML = Object.entries(porVendSemRoteiro).map(([vend, lista]) => `
+      <div style="margin-bottom:10px">
+        <div style="font-weight:700;font-size:.82rem;color:var(--warn);margin-bottom:4px">${vend} — ${lista.length} cliente(s) sem dia de rota</div>
+        ${lista.map(c=>`<div class="roteiro-item" style="cursor:pointer" onclick="abrirDetalhePorDocumento('${c.documento||''}','${c.id}')">
+          <div class="roteiro-num">⚠️</div>
+          <div class="roteiro-info"><div class="rn">${nomeComId(c.nome, c.documento)}</div><div class="rs">${c.cidade||'—'} • cadastre o dia de rota na página Clientes</div></div>
+        </div>`).join('')}
+      </div>`).join('');
+  }
 }
 
 // ── Salvar log de acesso no Supabase ──
@@ -6434,15 +6478,16 @@ async function buscarClientesCompletos(vendedor, supervisor) {
       nome: c.nome, ramo: c.segmento || '',
       origem: 'BACIO', bacioId: c.id,
       freezerCod: c.freezer_cod || '', freezerDesc: c.freezer_desc || '', freezerSerieCad: c.freezer_serie || '',
-      previstoHoje: c.dia_visita != null && String(c.dia_visita) === String(hoje)
+      previstoHoje: c.dia_visita != null && String(c.dia_visita) === String(hoje),
+      temDiaFixo: c.dia_visita != null && c.dia_visita !== ''
     }));
 
   // Evita duplicar cliente que já existe na Faturamento (mesmo documento/codcli)
   const bacioSemDuplicar = doBacioDoVendedor.filter(c => !docsFaturamento.has(String(c.id)));
-  const faturamentoMarcado = semOutro.map(c => ({ ...c, origem: 'FATURAMENTO', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false }));
+  const faturamentoMarcado = semOutro.map(c => ({ ...c, origem: 'FATURAMENTO', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false, temDiaFixo: false }));
 
   const todos = [...bacioSemDuplicar, ...faturamentoMarcado];
-  todos.push({ id: 'OUTRO', nome: '+ Outro (não listado)', ramo: '', origem: '', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false });
+  todos.push({ id: 'OUTRO', nome: '+ Outro (não listado)', ramo: '', origem: '', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false, temDiaFixo: false });
   return todos;
 }
 
@@ -6615,14 +6660,14 @@ async function renderClienteSelect(idx) {
     return;
   }
 
-  const opt = c => ({value:String(c.id), text:`${c.id} — ${c.nome}`, nome:c.nome, ramo:c.ramo, origem:c.origem, bacioid:c.bacioId, freezercod:c.freezerCod, freezerdesc:c.freezerDesc, freezerserie:c.freezerSerieCad});
+  const opt = c => ({value:String(c.id), text:`${c.id} — ${c.nome}`, nome:c.nome, ramo:c.ramo, origem:c.origem, bacioid:c.bacioId, freezercod:c.freezerCod, freezerdesc:c.freezerDesc, freezerserie:c.freezerSerieCad, temdiafixo:c.temDiaFixo});
 
   const hojeClientes = clientes.filter(c => c.id !== 'OUTRO' && c.previstoHoje);
   const restoClientes = clientes.filter(c => c.id !== 'OUTRO' && !c.previstoHoje);
 
   sel._allOptions = [...hojeClientes, ...restoClientes].map(opt);
 
-  const optHtml = c => `<option value="${c.id}" data-nome="${(c.nome||'').replace(/"/g,'&quot;')}" data-ramo="${(c.ramo||'').replace(/"/g,'&quot;')}" data-origemcrm="${c.origem}" data-bacioid="${c.bacioId||''}" data-freezercod="${c.freezerCod||''}" data-freezerdesc="${(c.freezerDesc||'').replace(/"/g,'&quot;')}" data-freezerserie="${(c.freezerSerieCad||'').replace(/"/g,'&quot;')}" ${String(d.clienteId)===String(c.id)?'selected':''}>${c.id + ' — ' + c.nome}</option>`;
+  const optHtml = c => `<option value="${c.id}" data-nome="${(c.nome||'').replace(/"/g,'&quot;')}" data-ramo="${(c.ramo||'').replace(/"/g,'&quot;')}" data-origemcrm="${c.origem}" data-bacioid="${c.bacioId||''}" data-freezercod="${c.freezerCod||''}" data-freezerdesc="${(c.freezerDesc||'').replace(/"/g,'&quot;')}" data-freezerserie="${(c.freezerSerieCad||'').replace(/"/g,'&quot;')}" data-temdiafixo="${!!c.temDiaFixo}" ${String(d.clienteId)===String(c.id)?'selected':''}>${c.id + ' — ' + c.nome}</option>`;
 
   let html = '<option value="">🔍 Selecione ou pesquise acima...</option>';
   if(hojeClientes.length) html += `<optgroup label="📅 Previstos para hoje">${hojeClientes.map(optHtml).join('')}</optgroup>`;
@@ -6689,6 +6734,7 @@ async function onClienteSelectChange(idx) {
   if(opt.value === 'OUTRO') {
     // Limpa campos e torna editáveis para entrada manual
     pdvs[idx].clienteId = ''; pdvs[idx].nomeCliente = ''; pdvs[idx].ramo = '';
+    pdvs[idx].clienteTemDiaFixo = false;
     const ciShowEl = document.getElementById(`ci-show-${idx}`);
     const cnEl     = document.getElementById(`cn-${idx}`);
     const ramoEl   = document.getElementById(`ramo-${idx}`);
@@ -6708,13 +6754,34 @@ async function onClienteSelectChange(idx) {
   pdvs[idx].nomeCliente = opt.dataset.nome || '';
   pdvs[idx].ramo        = opt.dataset.ramo || '';
   pdvs[idx].bacioClienteId = opt.dataset.bacioid || '';
+  pdvs[idx].clienteTemDiaFixo = opt.dataset.temdiafixo === 'true';
   pdvs[idx].origemCRM   = opt.dataset.origemcrm || 'CADASTRO';
   const ciShowEl = document.getElementById(`ci-show-${idx}`);
   const cnEl     = document.getElementById(`cn-${idx}`);
   const ramoEl   = document.getElementById(`ramo-${idx}`);
   if(ciShowEl) { ciShowEl.value = opt.value; ciShowEl.readOnly = true; }
   if(cnEl)     { cnEl.value = opt.dataset.nome||''; cnEl.readOnly = true; }
-  if(ramoEl)   { ramoEl.value = opt.dataset.ramo||''; ramoEl.readOnly = true; ramoEl.style.opacity='.8'; ramoEl.style.cursor='not-allowed'; pdvs[idx].ramo = opt.dataset.ramo||''; }
+  if(ramoEl) {
+    const ramoDoCliente = opt.dataset.ramo||'';
+    if(ramoDoCliente) {
+      // Cliente já tem ramo cadastrado — trava (não editável)
+      ramoEl.value = ramoDoCliente; ramoEl.readOnly = true; ramoEl.style.opacity='.8'; ramoEl.style.cursor='not-allowed';
+      pdvs[idx].ramo = ramoDoCliente;
+    } else {
+      // Cliente SEM ramo cadastrado — troca o campo por uma lista com as opções
+      // reais da Faturamento, pra manter padronizado (e preenche o cadastro do
+      // cliente com essa escolha depois de salvar).
+      pdvs[idx].ramo = '';
+      const ramos = await sbListarRamosFaturamento();
+      const sel = document.createElement('select');
+      sel.id = `ramo-${idx}`;
+      sel.style.cssText = ramoEl.style.cssText || '';
+      sel.className = ramoEl.className;
+      sel.innerHTML = '<option value="">Selecione o ramo (cliente sem ramo cadastrado)...</option>' + ramos.map(r=>`<option value="${r}">${r}</option>`).join('');
+      sel.onchange = () => { pdvs[idx].ramo = sel.value; pdvs[idx].ramoPreencherCadastro = true; };
+      ramoEl.replaceWith(sel);
+    }
+  }
 
   pdvs[idx].freezerModeloCod  = opt.dataset.freezercod || '';
   pdvs[idx].freezerModeloDesc = opt.dataset.freezerdesc || '';
