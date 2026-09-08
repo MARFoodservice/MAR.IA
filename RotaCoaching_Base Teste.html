@@ -5274,7 +5274,14 @@ async function sbGetAgenda(supervisor='', mesRef='') {
   if(!sbUrl()||!sbKey()) return null;
   let params = 'order=data.asc';
   if(supervisor) params += `&supervisor=eq.${encodeURIComponent(supervisor)}`;
-  if(mesRef) params += `&data=gte.${mesRef}-01&data=lte.${mesRef}-31`;
+  if(mesRef) {
+    // Bug corrigido: "-31" fixo gerava data inválida (ex: 2026-09-31) em meses com
+    // menos de 31 dias, fazendo a consulta falhar e voltar vazia. Calcula o último
+    // dia real do mês (28/29/30/31).
+    const [anoM, mesM] = mesRef.split('-').map(Number);
+    const ultimoDia = new Date(anoM, mesM, 0).getDate();
+    params += `&data=gte.${mesRef}-01&data=lte.${mesRef}-${String(ultimoDia).padStart(2,'0')}`;
+  }
   return await supabaseGet('gerot_agenda', params);
 }
 
