@@ -4800,7 +4800,10 @@ async function abrirModalCrmCliente(clienteId) {
     <b style="color:var(--text)">Vendedor:</b> ${cliente?.vendedor||'—'} &nbsp;•&nbsp;
     <b style="color:var(--text)">Cidade:</b> ${cliente?.cidade||'—'} &nbsp;•&nbsp;
     <b style="color:var(--text)">Segmento:</b> ${cliente?.segmento||'—'}<br>
-    <b style="color:var(--text)">Dia Fixo de Visita:</b> ${cliente?.dia_visita!=null && cliente.dia_visita!=='' ? DIAS_SEMANA[cliente.dia_visita] : '—'}
+    <b style="color:var(--text)">Dia Fixo de Visita:</b> ${cliente?.dia_visita!=null && cliente.dia_visita!=='' ? DIAS_SEMANA[cliente.dia_visita] : '—'}<br>
+    ${cliente?.contato ? `<b style="color:var(--text)">Contato:</b> ${cliente.contato}<br>` : ''}
+    ${cliente?.origem==='AGAS' ? `<b style="color:var(--text)">Origem:</b> <span style="color:var(--accent2)">🎪 Feira AGAS</span><br>` : ''}
+    ${cliente?.obs_origem ? `<b style="color:var(--text)">Obs. da origem:</b> ${cliente.obs_origem}<br>` : ''}
   </div>`;
 
   const freezersHtml = `<div class="card-title" style="margin-bottom:8px">🧊 Freezers Instalados (${freezers.length})</div>` +
