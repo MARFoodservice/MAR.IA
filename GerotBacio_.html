@@ -5078,7 +5078,7 @@ async function onFrequenciaClienteChange(prefixo) {
 }
 
 async function adicionarCliente() {
-  const nome = document.getElementById('novo-cli-nome')?.value.trim();
+  const nome = document.getElementById('novo-cli-nome')?.value.trim().toUpperCase();
   const vendedor = document.getElementById('novo-cli-vendedor')?.value;
   const segmento = document.getElementById('novo-cli-segmento')?.value.trim();
   const cidade = normalizarCidade(document.getElementById('novo-cli-cidade')?.value.trim());
@@ -5226,7 +5226,7 @@ function fecharModalEditCliente() { document.getElementById('modal-edit-cliente'
 async function salvarEdicaoCliente() {
   const id = document.getElementById('edit-cli-id').value;
   const patch = {
-    nome: document.getElementById('edit-cli-nome').value.trim(),
+    nome: document.getElementById('edit-cli-nome').value.trim().toUpperCase(),
     vendedor: document.getElementById('edit-cli-vendedor').value,
     cidade: normalizarCidade(document.getElementById('edit-cli-cidade').value.trim()),
     endereco: document.getElementById('edit-cli-endereco').value.trim() || null,
@@ -5587,7 +5587,7 @@ function cancelarProspeccao() {
 async function salvarProspeccao() {
   const idx = _prospeccaoPdvIdx;
   if(idx==null) return;
-  const nome = document.getElementById('prosp-nome').value.trim();
+  const nome = document.getElementById('prosp-nome').value.trim().toUpperCase();
   const segmento = document.getElementById('prosp-segmento').value;
   const cidade = document.getElementById('prosp-cidade').value;
   if(!nome) { showToast('Informe o nome do cliente','#b8860b'); return; }
