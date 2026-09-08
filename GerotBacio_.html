@@ -790,7 +790,9 @@ tbody td { padding: 11px 12px; }
       <div class="field"><label>Contato</label><input type="text" id="edit-cli-contato" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"></div>
     </div>
     <div class="form-row cols-2" style="margin-top:12px;margin-bottom:0">
-      <div class="field"><label>Cidade</label><select id="edit-cli-cidade" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"><option value="">Selecione...</option></select></div>
+      <div class="field"><label>Cidade</label><select id="edit-cli-cidade" onchange="onCidadeSelectChange('edit')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%"><option value="">Selecione...</option></select>
+        <input type="text" id="edit-cli-cidade-outra" placeholder="Digite o nome da cidade..." style="display:none;margin-top:6px;background:var(--surface2);border:1px solid var(--warn);border-radius:8px;padding:10px 12px;color:var(--text);width:100%">
+      </div>
       <div class="field"><label>Ramo de Atividade</label>
         <select id="edit-cli-segmento" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%">
           <option value="">Selecione...</option>
@@ -933,7 +935,8 @@ tbody td { padding: 11px 12px; }
     </div>
     <div class="form-row cols-3" style="margin-top:14px;margin-bottom:0">
       <div class="field"><label>Cidade</label>
-        <select id="novo-cli-cidade" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%"><option value="">Selecione...</option></select>
+        <select id="novo-cli-cidade" onchange="onCidadeSelectChange('novo')" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%"><option value="">Selecione...</option></select>
+        <input type="text" id="novo-cli-cidade-outra" placeholder="Digite o nome da cidade..." style="display:none;margin-top:6px;background:var(--surface2);border:1px solid var(--warn);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
       </div>
       <div class="field"><label>Dia Fixo de Visita</label>
         <select id="novo-cli-dia" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);font-family:'DM Sans',sans-serif;width:100%">
@@ -5078,7 +5081,7 @@ async function sbListarCidadesFaturamento() {
 async function popularRamosECidadesCad() {
   const [ramos, cidades] = await Promise.all([sbListarRamosFaturamento(), sbListarCidadesFaturamento()]);
   const optsRamo = '<option value="">Selecione...</option>' + ramos.map(r=>`<option value="${r}">${r}</option>`).join('');
-  const optsCidade = '<option value="">Selecione...</option>' + cidades.map(c=>`<option value="${c}">${c}</option>`).join('');
+  const optsCidade = '<option value="">Selecione...</option>' + cidades.map(c=>`<option value="${c}">${c}</option>`).join('') + '<option value="__OUTRA__">+ Outra cidade (digitar)</option>';
   ['novo-cli-segmento','edit-cli-segmento'].forEach(id=>{
     const el = document.getElementById(id); if(!el) return;
     const cur = el.value; el.innerHTML = optsRamo; if(ramos.includes(cur)) el.value = cur;
@@ -5087,6 +5090,20 @@ async function popularRamosECidadesCad() {
     const el = document.getElementById(id); if(!el) return;
     const cur = el.value; el.innerHTML = optsCidade; if(cidades.includes(cur)) el.value = cur;
   });
+}
+
+function onCidadeSelectChange(prefixo) {
+  const sel = document.getElementById(`${prefixo}-cli-cidade`);
+  const outra = document.getElementById(`${prefixo}-cli-cidade-outra`);
+  if(!sel || !outra) return;
+  outra.style.display = sel.value === '__OUTRA__' ? 'block' : 'none';
+  if(sel.value === '__OUTRA__') outra.focus();
+}
+// Retorna a cidade escolhida — se for "+ Outra cidade", pega o texto digitado no lugar
+function cidadeSelecionada(prefixo) {
+  const sel = document.getElementById(`${prefixo}-cli-cidade`);
+  if(sel?.value === '__OUTRA__') return document.getElementById(`${prefixo}-cli-cidade-outra`)?.value.trim() || '';
+  return sel?.value.trim() || '';
 }
 
 async function popularSelectVendedoresCad() {
@@ -5114,7 +5131,7 @@ async function adicionarCliente() {
   const nome = document.getElementById('novo-cli-nome')?.value.trim().toUpperCase();
   const vendedor = document.getElementById('novo-cli-vendedor')?.value;
   const segmento = document.getElementById('novo-cli-segmento')?.value.trim();
-  const cidade = normalizarCidade(document.getElementById('novo-cli-cidade')?.value.trim());
+  const cidade = normalizarCidade(cidadeSelecionada('novo'));
   const endereco = document.getElementById('novo-cli-endereco')?.value.trim() || null;
   const bairro = document.getElementById('novo-cli-bairro')?.value.trim() || null;
   const contato = document.getElementById('novo-cli-contato')?.value.trim() || null;
@@ -5140,6 +5157,8 @@ async function adicionarCliente() {
     document.getElementById('novo-cli-nome').value = '';
     document.getElementById('novo-cli-segmento').value = '';
     document.getElementById('novo-cli-cidade').value = '';
+    document.getElementById('novo-cli-cidade-outra').value = '';
+    document.getElementById('novo-cli-cidade-outra').style.display = 'none';
     document.getElementById('novo-cli-endereco').value = '';
     document.getElementById('novo-cli-bairro').value = '';
     document.getElementById('novo-cli-contato').value = '';
@@ -5234,7 +5253,16 @@ async function abrirModalEditCliente(id) {
   await popularRamosECidadesCad(); // garante que os selects já têm as opções antes de setar o valor atual
   document.getElementById('edit-cli-id').value = id;
   document.getElementById('edit-cli-nome').value = cliente.nome||'';
-  document.getElementById('edit-cli-cidade').value = cliente.cidade||'';
+  const selCidade = document.getElementById('edit-cli-cidade');
+  const opcoesExistentes = [...selCidade.options].map(o=>o.value);
+  if(cliente.cidade && !opcoesExistentes.includes(cliente.cidade)) {
+    selCidade.value = '__OUTRA__';
+    document.getElementById('edit-cli-cidade-outra').value = cliente.cidade;
+  } else {
+    selCidade.value = cliente.cidade||'';
+    document.getElementById('edit-cli-cidade-outra').value = '';
+  }
+  onCidadeSelectChange('edit');
   document.getElementById('edit-cli-endereco').value = cliente.endereco||'';
   document.getElementById('edit-cli-bairro').value = cliente.bairro||'';
   document.getElementById('edit-cli-contato').value = cliente.contato||'';
@@ -5266,7 +5294,7 @@ async function salvarEdicaoCliente() {
   const patch = {
     nome: document.getElementById('edit-cli-nome').value.trim().toUpperCase(),
     vendedor: document.getElementById('edit-cli-vendedor').value,
-    cidade: normalizarCidade(document.getElementById('edit-cli-cidade').value.trim()),
+    cidade: normalizarCidade(cidadeSelecionada('edit')),
     endereco: document.getElementById('edit-cli-endereco').value.trim() || null,
     bairro: document.getElementById('edit-cli-bairro').value.trim() || null,
     contato: document.getElementById('edit-cli-contato').value.trim() || null,
