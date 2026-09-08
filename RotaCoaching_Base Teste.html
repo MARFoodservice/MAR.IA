@@ -5691,7 +5691,7 @@ async function renderVespertina() {
   const perDateRca = {}, perDateTotal = {};
   (vendasRows||[]).forEach(v => {
     const dt = String(v.data_lancamento).substring(0,10);
-    const rca = v.rca || '';
+    const rca = (v.rca || '').trim(); // normaliza — a tabela "vendas" às vezes traz o rca com espaço sobrando
     const val = parseFloat(v.valor_total)||0;
     perDateTotal[dt] = (perDateTotal[dt]||0) + val;
     if(!perDateRca[dt]) perDateRca[dt] = {};
@@ -5740,7 +5740,8 @@ async function renderVespertina() {
     const rotaInfo = porDiaRota[d.date];
     const vendedorRota = rotaInfo ? [...rotaInfo.vendedores][0] : '';
     const vendedorAgenda = porDiaAgenda[d.date] || '';
-    const vendedorEfetivo = vendedorRota || vendedorAgenda;
+    // .trim() normaliza pra bater com o rca da tabela "vendas", que às vezes vem com espaço sobrando
+    const vendedorEfetivo = (vendedorRota || vendedorAgenda).trim();
 
     const vendaEquipeDia = perDateTotal[d.date] || 0;
     const vendaVendedorDia = vendedorEfetivo ? (perDateRca[d.date]?.[vendedorEfetivo] || 0) : 0;
