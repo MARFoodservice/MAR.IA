@@ -797,6 +797,19 @@ tbody td { padding: 11px 12px; }
         </select>
       </div>
     </div>
+    <div class="form-row cols-1" style="margin-top:12px;margin-bottom:0">
+      <div class="field"><label>Freezer / Equipamento</label>
+        <select id="edit-cli-freezer" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%">
+          <option value="">Ainda sem freezer definido</option>
+          <option value="13345|FREEZER VF28RC 220V BACIO DI LATTE">13345 — FREEZER VF28RC 220V BACIO DI LATTE</option>
+          <option value="13349|FREEZER NF20RC 220V BACIO DI LATTE">13349 — FREEZER NF20RC 220V BACIO DI LATTE</option>
+          <option value="13352|FREEZER NF40S 220V BACIO DI LATTE">13352 — FREEZER NF40S 220V BACIO DI LATTE</option>
+          <option value="13353|FREEZER VF50RC 220V BACIO DI LATTE">13353 — FREEZER VF50RC 220V BACIO DI LATTE</option>
+          <option value="13562|FREEZER HOR 216 2V353 BACIO DI LATTE">13562 — FREEZER HOR 216 2V353 BACIO DI LATTE</option>
+          <option value="CLIENTE|Freezer do Cliente (equipamento próprio, sem instalação)">🏠 Freezer do Cliente (equipamento próprio, sem instalação)</option>
+        </select>
+      </div>
+    </div>
     <div class="form-row cols-2" style="margin-top:12px;margin-bottom:0">
       <div class="field"><label>Dia Fixo de Visita</label>
         <select id="edit-cli-dia" style="background:var(--surface2);border:1px solid var(--border);border-radius:8px;padding:10px 12px;color:var(--text);width:100%">
@@ -5229,6 +5242,7 @@ async function abrirModalEditCliente(id) {
   document.getElementById('edit-cli-dia').value = cliente.dia_visita!=null ? cliente.dia_visita : '';
   document.getElementById('edit-cli-status').value = cliente.status||'aguardando';
   document.getElementById('edit-cli-frequencia').value = cliente.frequencia || 'SEMANAL';
+  document.getElementById('edit-cli-freezer').value = cliente.freezer_cod ? `${cliente.freezer_cod}|${cliente.freezer_desc}` : '';
   document.querySelectorAll('.edit-cli-semana-chk').forEach(c=>{ c.checked = (cliente.semanas_mes||'').split(',').includes(c.value); });
   onFrequenciaClienteChange('edit');
 
@@ -5263,6 +5277,12 @@ async function salvarEdicaoCliente() {
     status: document.getElementById('edit-cli-status').value,
     atualizado_em: Date.now()
   };
+  const freezerVal = document.getElementById('edit-cli-freezer').value;
+  if(freezerVal) {
+    const [freezerCod, freezerDesc] = freezerVal.split('|');
+    patch.freezer_cod = freezerCod;
+    patch.freezer_desc = freezerDesc;
+  }
   const ok = await supabaseUpsert('Bacio_Clientes', {id, ...patch});
   if(ok) {
     _crmClientesCache = [];
