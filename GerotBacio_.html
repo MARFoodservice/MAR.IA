@@ -153,15 +153,15 @@ tbody td { padding: 11px 12px; }
   #db-cards { grid-template-columns: 1fr 1fr !important; }
 
   /* NAV — ícones em baixo tipo app */
-  nav { flex-direction: column; padding: 0; position: fixed; bottom: 0; top: auto; left: 0; right: 0; border-top: 1px solid var(--border); border-bottom: none; z-index: 200; }
+  nav { flex-direction: column; padding: 0; position: fixed; bottom: 0; top: auto; left: 0; right: 0; border-top: 1px solid var(--border); border-bottom: none; z-index: 950; }
   .nav-logo { display: none; }
   /* Badge de perfil e botão Sair NÃO entram na pilha da barra de baixo — ficam
      fixos no topo (são filhos de <nav>, mas position:fixed escapa do fluxo do pai) */
-  nav > button, #perfil-badge { position: fixed !important; top: 8px; z-index: 250; margin: 0 !important; }
+  nav > button, #perfil-badge { position: fixed !important; top: 8px; z-index: 960; margin: 0 !important; }
   nav > button { right: 8px; }
   #perfil-badge { right: 90px; }
-  .nav-tabs { width: 100%; display: flex; justify-content: space-around; overflow-x: auto; }
-  .nav-tab { flex: 1; min-width: 52px; padding: 10px 4px 8px; font-size: 0.62rem; text-align: center; border-bottom: none; border-top: 3px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; }
+  .nav-tabs { width: 100%; display: flex; justify-content: space-around; overflow-x: auto; position: relative; z-index: 951; pointer-events: auto; }
+  .nav-tab { flex: 1; min-width: 52px; padding: 10px 4px 8px; font-size: 0.62rem; text-align: center; border-bottom: none; border-top: 3px solid transparent; display: flex; flex-direction: column; align-items: center; gap: 2px; position: relative; z-index: 951; pointer-events: auto; cursor: pointer; }
   .nav-tab.active { border-top-color: var(--accent); border-bottom: none; }
   /* Page padding: account for fixed bottom nav */
   .page { padding: 60px 14px 90px; }
@@ -344,29 +344,11 @@ tbody td { padding: 11px 12px; }
       </div>
     </div>
   </div>
-  <div id="pdv-nav" style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:20px;align-items:center"></div>
   <div id="pdv-content"></div>
   <div id="resultado-section" style="margin-top:24px">
-    <div class="card">
-      <div class="card-title">📝 Resultado da Rota</div>
-      <div class="field" style="margin-bottom:18px">
-        <label>Observações Gerais</label>
-        <textarea id="r-obs" placeholder="Pontos relevantes da rota..." style="width:100%;min-height:100px;resize:vertical;box-sizing:border-box"></textarea>
-      </div>
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px">
-        <div class="field">
-          <label>Pontos Positivos</label>
-          <textarea id="f-positivos" placeholder="O que o vendedor fez bem..." style="width:100%;min-height:160px;resize:vertical;box-sizing:border-box"></textarea>
-        </div>
-        <div class="field">
-          <label>Pontos a Desenvolver</label>
-          <textarea id="f-desenvolver" placeholder="O que precisa melhorar..." style="width:100%;min-height:160px;resize:vertical;box-sizing:border-box"></textarea>
-        </div>
-      </div>
-    </div>
     <div style="display:flex;gap:12px;margin-top:16px">
-      <button onclick="if(confirm('Limpar todos os dados do formulário atual?'))limparFormulario()" class="btn btn-secondary" style="flex:1;padding:16px;font-size:1rem">🗑️ Limpar Formulário</button>
-      <button onclick="salvarFormulario()" class="btn btn-primary" style="flex:2;padding:16px;font-size:1rem">💾 Salvar Rota Completa</button>
+      <button onclick="if(confirm('Limpar os dados desse cliente e começar de novo?'))limparFormulario()" class="btn btn-secondary" style="flex:1;padding:16px;font-size:1rem">🗑️ Limpar</button>
+      <button onclick="salvarFormulario()" class="btn btn-primary" style="flex:2;padding:16px;font-size:1rem">💾 Salvar Cliente</button>
     </div>
   </div>
 </div>
@@ -1342,7 +1324,7 @@ function getMIX() {
 function saveMIX(m) { localStorage.setItem('coaching_mix', JSON.stringify(m)); }
 let MIX = getMIX();
 
-const N_INICIAL = 8;
+const N_INICIAL = 1;
 let cur = 0, pdvs = [];
 
 const getDB = () => JSON.parse(localStorage.getItem('coaching_db')||'[]');
@@ -1380,8 +1362,14 @@ function init() {
 
   document.getElementById('f-data').value = hojeLocalISO();
   atualizarDiaSemana();
-  initPdvs(); renderNav(); renderPdv(0);
+  initPdvs();
   renderSupSelector();
+  // Salva automaticamente o preenchimento em andamento — protege contra o navegador
+  // ser fechado/recarregado no meio do preenchimento (troca de app, GPS forçando
+  // reload, pouca memória no Android). Sem isso, dado digitado mas ainda não
+  // "salvo" se perdia se o navegador reiniciasse antes do clique em Salvar Cliente.
+  document.getElementById('pdv-content').addEventListener('input', () => { readDOM(cur); saveDraft(); });
+  document.getElementById('pdv-content').addEventListener('change', () => { readDOM(cur); saveDraft(); });
   // Restaura sessão salva — expira no dia seguinte
   const savedUser   = localStorage.getItem('coaching_logged_user');
   const savedPerfil = localStorage.getItem('coaching_logged_perfil') || 'supervisor';
@@ -1393,7 +1381,7 @@ function init() {
     _loggedPerfil     = savedPerfil;
     _loggedSupervisorDoVendedor = savedSupDoVendedor;
     document.getElementById('login-screen').style.display = 'none';
-    aplicarVisibilidadePerfil(savedPerfil);
+    aplicarVisibilidadePerfil(savedPerfil); // já trava supervisor/vendedor pro perfil vendedor, ANTES de renderizar o PDV
     if(savedPerfil !== 'vendedor') {
       const fSup = document.getElementById('f-supervisor');
       if(fSup) { fSup.value = savedUser; onSupervisorChange(true); }
@@ -1409,17 +1397,14 @@ function init() {
     localStorage.removeItem('coaching_login_date');
     localStorage.removeItem('coaching_login_date');
   }
+  renderPdv(0); // sempre por último — já com supervisor/vendedor corretos no DOM
   // Usuários carregados do Supabase no login
   }
 
 // ---- NAV ----
 function renderNav() {
-  document.getElementById('pdv-nav').innerHTML = pdvs.map((d,i)=>`
-    <div class="pdv-btn ${i===cur?'active':''} ${d.saved?'saved':''}" onclick="switchTo(${i})">
-      PDV ${i+1}${d.nomeCliente?' — '+d.nomeCliente.slice(0,10):''}
-      <span class="dot"></span>
-    </div>`).join('') +
-    `<div class="pdv-btn" onclick="adicionarPdv()" title="Adicionar novo PDV" style="border-color:var(--accent);color:var(--accent);font-size:1.1rem;font-weight:800;padding:8px 14px;min-width:38px;text-align:center">+</div>`;
+  // Não usa mais abas de PDV — fluxo agora é 1 cliente por vez, salvando direto.
+  // Mantido como no-op pra não quebrar chamadas antigas que ainda restarem.
 }
 
 // ---- SWITCH ----
@@ -1621,7 +1606,6 @@ function renderPdv(idx) {
       </div>
     </div>
     ` : ''}
-    <button class="btn-save-pdv" onclick="savePdv(${idx})">💾 Salvar PDV ${idx+1}</button>
   `;
 }
 
@@ -1711,59 +1695,6 @@ function validarIdentificacao() {
   return true;
 }
 
-function savePdv(idx) {
-  if(!validarIdentificacao()) return;
-  readDOM(idx);
-  const d = pdvs[idx];
-
-  // Validações obrigatórias
-  if(!d.nomeCliente.trim()) { showToast(`⚠️ PDV ${idx+1}: Nome do Cliente é obrigatório!`,'#b8860b'); return; }
-  if(!d.ramo) { showToast(`⚠️ PDV ${idx+1}: Ramo é obrigatório!`,'#b8860b'); return; }
-  if(!d.statusResultante) { showToast(`⚠️ PDV ${idx+1}: Selecione o Status Resultante da visita!`,'#b8860b'); return; }
-
-  // Cliente sem dia fixo de visita (prospecção nova ou importado sem roteiro definido)
-  // — obrigatório marcar quando será a próxima visita, senão ele "some" do Roteiro.
-  if(!d.clienteTemDiaFixo && !d.reprogramarPara) {
-    showToast(`⚠️ PDV ${idx+1}: Esse cliente ainda não tem dia fixo de rota — preencha "Reprogramar Visita" com a data da próxima visita!`, '#b8860b');
-    const campoReprog = document.getElementById(`reprog-${idx}`);
-    if(campoReprog) { campoReprog.scrollIntoView({behavior:'smooth', block:'center'}); campoReprog.style.borderColor = 'var(--danger)'; campoReprog.focus(); }
-    return;
-  }
-
-  // Aviso (não obrigatório) se ID Cliente não preenchido
-  if(!d.clienteId) {
-    if(!confirm(`⚠️ PDV ${idx+1}: Código ID não está preenchido.\nConfirma salvar mesmo assim?\n(OK = confirmar | Cancelar = voltar e preencher)`)) return;
-  }
-
-  // Timestamp e geolocalização (alta precisão via GPS)
-  pdvs[idx].marcadoEm = new Date().toISOString();
-  if(navigator.geolocation) {
-    navigator.geolocation.getCurrentPosition(
-      pos => {
-        pdvs[idx].localizacao = {lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy};
-        console.log('📍 Localização capturada:', pos.coords.latitude, pos.coords.longitude, 'precisão:', pos.coords.accuracy+'m');
-        saveDraft();
-        registrarAcessoPdv(idx);
-      },
-      (err) => {
-        console.warn('⚠️ Erro de geolocalização:', err.message);
-        showToast('⚠️ Não foi possível obter localização precisa: ' + err.message, '#b8860b');
-        saveDraft();
-        registrarAcessoPdv(idx);
-      },
-      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
-    );
-  } else {
-    saveDraft();
-    registrarAcessoPdv(idx);
-  }
-
-  pdvs[idx].saved=true;
-  saveDraft();
-  renderNav();
-  updateAuto();
-  showToast(`✅ PDV ${idx+1} salvo!`);
-}
 
 function registrarAcessoPdv(idx) {
   const sup = document.getElementById('f-supervisor')?.value || _loggedSupervisor || '';
@@ -1797,74 +1728,88 @@ function updateAuto() {
 // ---- CONFIG GOOGLE SHEETS ----
 
 // ---- SALVAR FORMULÁRIO ----
+// ---- SALVAR CLIENTE (envia direto pro Supabase, um de cada vez) ----
 async function salvarFormulario() {
   if(!validarIdentificacao()) return;
-  readDOM(cur);
+  const idx = cur;
+  readDOM(idx);
+  const d = pdvs[idx];
+
+  // Validações obrigatórias
+  if(!d.nomeCliente.trim()) { showToast(`⚠️ Nome do Cliente é obrigatório!`,'#b8860b'); return; }
+  if(!d.ramo) { showToast(`⚠️ Ramo é obrigatório!`,'#b8860b'); return; }
+  if(!d.statusResultante) { showToast(`⚠️ Selecione o Status Resultante da visita!`,'#b8860b'); return; }
+
+  // Cliente sem dia fixo de visita (prospecção nova ou importado sem roteiro definido)
+  // — obrigatório marcar quando será a próxima visita, senão ele "some" do Roteiro.
+  if(!d.clienteTemDiaFixo && !d.reprogramarPara) {
+    showToast(`⚠️ Esse cliente ainda não tem dia fixo de rota — preencha "Reprogramar Visita" com a data da próxima visita!`, '#b8860b');
+    const campoReprog = document.getElementById(`reprog-${idx}`);
+    if(campoReprog) { campoReprog.scrollIntoView({behavior:'smooth', block:'center'}); campoReprog.style.borderColor = 'var(--danger)'; campoReprog.focus(); }
+    return;
+  }
+
+  // Aviso (não obrigatório) se ID Cliente não preenchido
+  if(!d.clienteId) {
+    if(!confirm(`⚠️ Código ID não está preenchido.\nConfirma salvar mesmo assim?\n(OK = confirmar | Cancelar = voltar e preencher)`)) return;
+  }
+
+  const btn = document.querySelector('#resultado-section .btn-primary');
+  if(btn) { btn.textContent = '⏳ Salvando...'; btn.disabled = true; }
+
+  // Geolocalização (obrigatória pra time CLT em rota) — espera o resultado (ou o
+  // timeout) antes de continuar, pra já ir junto no envio deste cliente.
+  d.marcadoEm = new Date().toISOString();
+  await new Promise(resolve => {
+    if(!navigator.geolocation) { resolve(); return; }
+    navigator.geolocation.getCurrentPosition(
+      pos => { d.localizacao = {lat: pos.coords.latitude, lng: pos.coords.longitude, acc: pos.coords.accuracy}; resolve(); },
+      (err) => { console.warn('⚠️ Erro de geolocalização:', err.message); resolve(); },
+      { enableHighAccuracy: true, timeout: 10000, maximumAge: 0 }
+    );
+  });
+  registrarAcessoPdv(idx);
+
+  if(!d.localizacao) {
+    const seguir = confirm(
+      `⚠️ Não foi possível registrar sua localização (GPS desligado ou permissão negada).\n\n` +
+      `Recomendado: ative o GPS/localização do navegador e tente salvar de novo.\n\n` +
+      `Confirmar mesmo assim SEM localização?`
+    );
+    if(!seguir) { if(btn) { btn.textContent = '💾 Salvar Cliente'; btn.disabled = false; } return; }
+  }
+
   const sup  = document.getElementById('f-supervisor').value.trim();
   const vend = document.getElementById('f-vendedor').value.trim();
   const rota = document.getElementById('f-rota').value.trim();
   const data = document.getElementById('f-data').value;
-  const sv = pdvs.filter(d=>d.saved);
-  if(!sv.length) { showToast('⚠️ Salve pelo menos 1 PDV antes!','#b8860b'); return; }
-
-  // Confere se algum PDV ficou sem geolocalização (obrigatório pra time CLT em rota) —
-  // acontece se o GPS falhou/foi negado no momento de "Salvar PDV". Avisa e deixa a
-  // pessoa decidir se quer tentar de novo ou seguir mesmo assim.
-  const semLocalizacao = sv.filter(d => !d.localizacao);
-  if(semLocalizacao.length) {
-    const nomes = semLocalizacao.map(d=>d.nomeCliente||'(sem nome)').join(', ');
-    const seguir = confirm(
-      `⚠️ ${semLocalizacao.length} PDV(s) SEM localização registrada: ${nomes}\n\n` +
-      `Isso normalmente acontece quando o GPS do celular está desligado ou a permissão de localização foi negada.\n\n` +
-      `Recomendado: cancele, ligue o GPS/permissão de localização do navegador, e clique de novo em "💾 Salvar PDV" nesses clientes antes de enviar a rota.\n\n` +
-      `Confirmar mesmo assim SEM localização nesses PDVs?`
-    );
-    if(!seguir) return;
-  }
 
   const record = {
     id: Date.now(), data, supervisor:sup, vendedor:vend, rota,
-    pdvs: JSON.parse(JSON.stringify(sv)),
-    resultado: {
-      visitados:   sv.length,
-      positivados: sv.filter(d=>d.positivou==='S').length,
-      cadastros:   sv.filter(d=>d.cadastrou==='S').length,
-      venda:       sv.reduce((s,d)=>s+(+d.vlr||0),0),
-    },
-    obs: document.getElementById('r-obs').value,
-    feedback: { positivos: document.getElementById('f-positivos').value, desenvolver: document.getElementById('f-desenvolver').value }
+    pdvs: [JSON.parse(JSON.stringify(d))],
   };
 
-  // Salva local sempre
-  const db = getDB(); db.unshift(record); saveDB(db);
-
-  // Envia ao Supabase — só limpa o formulário se REALMENTE salvou.
-  // Em caso de erro, mantém tudo preenchido (vendedor, PDVs) pra não perder o trabalho.
   showToast('⏳ Salvando no Supabase...','#8a6a4f');
   const ok = await sbSalvarRota(record);
+  if(btn) { btn.textContent = '💾 Salvar Cliente'; btn.disabled = false; }
   if(ok) {
-    showToast('✅ Rota salva no Supabase!');
-    limparFormulario();
+    showToast(`✅ ${d.nomeCliente} salvo!`);
+    // Zera só o cliente atual (mantém Supervisor/Vendedor/Rota/Data, já que é o mesmo dia)
+    pdvs[idx] = newPdv();
+    renderPdv(idx);
+    saveDraft(); // sobrescreve o rascunho com o formulário já limpo — não reaparece o cliente salvo
+    if(_loggedPerfil === 'vendedor') renderSupSelectorComPerfil(); // reforça o vendedor travado
   } else {
-    // Não sobrescreve o toast de erro detalhado que o supabasePost já mostrou —
-    // só garante que nada é perdido (sem limpar formulário/PDVs).
-    console.error('Falha ao salvar rota no Supabase — dados mantidos no formulário para nova tentativa.');
+    console.error('Falha ao salvar cliente no Supabase — dados mantidos no formulário para nova tentativa.');
   }
 }
 
 function limparFormulario() {
-  ['f-rota','r-obs','f-positivos','f-desenvolver'].forEach(id=>{const e=document.getElementById(id);if(e)e.value='';});
-  document.getElementById('f-data').value = hojeLocalISO();
-  atualizarDiaSemana();
-  // Mantém supervisor (travado) e zera vendedor para escolher de novo —
-  // MAS nunca zera se o próprio vendedor logou (identidade travada, não "escolhe outro").
-  if(_loggedPerfil !== 'vendedor') {
-    const fVend = document.getElementById('f-vendedor');
-    if(fVend) fVend.value = '';
-  }
-  _clientesCache = {};
-  initPdvs(); clearDraft(); cur=0; renderNav(); renderPdv(0); updateAuto();
-  showToast('🗑️ Formulário limpo!');
+  pdvs[cur] = newPdv();
+  renderPdv(cur);
+  saveDraft();
+  if(_loggedPerfil === 'vendedor') renderSupSelectorComPerfil();
+  showToast('🗑️ Limpo!');
 }
 
 // ---- SYNC DO GOOGLE SHEETS → localStorage ----
@@ -5890,19 +5835,36 @@ async function renderRoteiro() {
   const clientesAtivosPorDoc = {};
   clientesAtivos.forEach(c => { if(c.documento) clientesAtivosPorDoc[c.documento] = c; });
 
+  // Freezer instalado por cliente — pra indicar na tela e ordenar quem tem primeiro
+  const freezersTodos = await sbListarTodosFreezers();
+  const freezerPorDoc = {};
+  freezersTodos.forEach(f => {
+    if((f.status_freezer||'ATIVO') !== 'ATIVO') return; // devolvido não conta como "tem freezer"
+    if(!freezerPorDoc[f.cliente_documento]) freezerPorDoc[f.cliente_documento] = [];
+    freezerPorDoc[f.cliente_documento].push(f);
+  });
+  const freezerTxtDoCliente = (clienteId) => {
+    const lista = freezerPorDoc[clienteId];
+    if(!lista || !lista.length) return 'Sem Freezer';
+    if(lista.length === 1) return `[${lista[0].modelo_cod}] ${lista[0].modelo_desc}`;
+    return `${lista.length}x freezer (${lista.map(f=>f.modelo_cod).join(', ')})`;
+  };
+
   const itens = [
     ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento, vendedor:c.vendedor, cidade:c.cidade||'', endereco:c.endereco, bairro:c.bairro, contato:c.contato, ramo:c.segmento, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
     ...reprogHoje.map(r=>{ const cli = clientesAtivosPorDoc[r.cliente_id]; return {clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, cidade:cli?.cidade||'', endereco:cli?.endereco, bairro:cli?.bairro, contato:cli?.contato, ramo:cli?.segmento, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}; })
   ];
-  // Agrupa por CIDADE — assim o vendedor faz uma cidade inteira antes de ir pra outra
-  itens.sort((a,b) => (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||''));
+  itens.forEach(it => { it.temFreezer = !!(freezerPorDoc[it.clienteId] && freezerPorDoc[it.clienteId].length); it.freezerTxt = freezerTxtDoCliente(it.clienteId); });
+  // Quem TEM freezer primeiro; dentro de cada grupo, agrupa por CIDADE
+  itens.sort((a,b) => (b.temFreezer - a.temFreezer) || (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||''));
   window._roteiroItensAtual = itens;
 
   document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>{
     const feito = window._roteiroLancadosHojeIds.has(it.clienteId);
     return `<div class="roteiro-item" style="cursor:pointer;${feito?'background:rgba(0,161,115,.10);border-left:3px solid var(--ok)':''}" onclick="abrirDetalheClienteRoteiro(${i})">
       <div class="roteiro-num">${feito?'✅':i+1}</div>
-      <div class="roteiro-info"><div class="rn" style="${feito?'color:var(--ok)':''}">${nomeComId(it.clienteNome, it.clienteId)}</div><div class="rs">${it.vendedor} • ${it.origem}${feito?' • <b style=\"color:var(--ok)\">já lançado hoje</b>':''}</div></div>
+      <div class="roteiro-info"><div class="rn" style="${feito?'color:var(--ok)':''}">${nomeComId(it.clienteNome, it.clienteId)}</div><div class="rs">${it.vendedor} • ${it.origem}${feito?' • <b style=\"color:var(--ok)\">já lançado hoje</b>':''}</div>
+      <div class="rs" style="color:${it.temFreezer?'var(--ok)':'var(--warn)'};font-weight:600">🧊 ${it.freezerTxt}</div></div>
     </div>`;
   }).join('') : '<div class="empty-state">Nenhum cliente previsto para esta data.</div>';
 
@@ -6875,6 +6837,7 @@ async function onClienteSelectChange(idx) {
   }
 
   renderPdv(idx); // re-renderiza pra travar/destravar o select de modelo conforme o cadastro
+  saveDraft(); // protege a seleção do cliente contra fechamento/recarregamento do navegador
 }
 
 
