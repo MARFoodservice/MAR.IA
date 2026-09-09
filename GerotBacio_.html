@@ -2316,11 +2316,33 @@ async function sbListarVendasBacio() {
   if(!codigos.length || !sbUrl() || !sbKey()) { _vendasCache = []; return []; }
   try {
     const filtro = 'in.(' + codigos.join(',') + ')';
-    const r = await fetch(`${sbUrl()}/rest/v1/vendas?select=pedido,codprod,descricao,departamento,qt,codrca,rca,codcli,cliente,valor_total,peso_liquido,ramo_ativ,data_faturamento,prev_faturamento&codrca=${filtro}&order=data_faturamento.desc&limit=8000`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/vendas?select=pedido,codprod,descricao,departamento,qt,codrca,rca,codcli,cliente,valor_total,peso_liquido,ramo_ativ,data_lancamento,data_faturamento,prev_faturamento&codrca=${filtro}&order=data_lancamento.desc&limit=8000`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
-    const rows = r.ok ? await r.json() : [];
-    rows.forEach(r => { r._data = parseDataVendas(r.data_faturamento) || parseDataVendas(r.prev_faturamento); });
+    let rows = r.ok ? await r.json() : [];
+
+    // Blindagem contra código de RCA reaproveitado por outra pessoa no ERP:
+    // o filtro é só por codrca (número), mas se esse número já foi usado por
+    // outra pessoa antes (comum quando alguém sai da empresa e o código é
+    // reciclado), viria venda de gente de fora do time junto. Aqui cruza
+    // com o nome esperado — só passa se o nome bater (ignorando maiúsculas).
+    const usuarios = await sbListarUsuariosComNomeFaturamento();
+    const nomesEsperados = {}; // codrca (string) -> nome esperado (maiúsculo)
+    usuarios.forEach(u => { if(u.codigo_rca) nomesEsperados[String(u.codigo_rca)] = (u.nome_faturamento||u.nome||'').toUpperCase(); });
+    const antesDoFiltro = rows.length;
+    const nomesDivergentes = new Set();
+    if(Object.keys(nomesEsperados).length) {
+      rows = rows.filter(row => {
+        const esperado = nomesEsperados[String(row.codrca)];
+        if(!esperado) return true; // sem referência pra checar, deixa passar
+        const bate = (row.rca||'').trim().toUpperCase() === esperado;
+        if(!bate) nomesDivergentes.add(`codrca ${row.codrca}: esperado "${esperado}", veio "${row.rca}"`);
+        return bate;
+      });
+    }
+    if(nomesDivergentes.size) console.warn('⚠️ Vendas — linhas descartadas por código de RCA reaproveitado por outra pessoa:', [...nomesDivergentes], `(${antesDoFiltro - rows.length} de ${antesDoFiltro} linhas removidas)`);
+
+    rows.forEach(r => { r._data = parseDataVendas(r.data_lancamento); }); // relatório de VENDAS = data do lançamento; faturamento/previsão são datas futuras, não devem contar como "quando vendeu"
     _vendasCache = rows;
     return rows;
   } catch(e) { _vendasCache = []; return []; }
@@ -2348,7 +2370,7 @@ function aplicarFiltrosVendas(rows) {
   const subcat = document.getElementById('vd-f-subcat')?.value;
   let lista = rows;
   const semData = lista.filter(r=>!r._data).length;
-  if(semData) console.log(`Vendas — ${semData} de ${lista.length} linha(s) SEM data reconhecida (campo data_faturamento não bateu com nenhum formato esperado). Exemplo:`, lista.find(r=>!r._data)?.data_faturamento);
+  if(semData) console.log(`Vendas — ${semData} de ${lista.length} linha(s) SEM data reconhecida (campo data_lancamento não bateu com nenhum formato esperado). Exemplo:`, lista.find(r=>!r._data)?.data_lancamento);
   if(de) { const dDe = new Date(de+'T00:00:00'); lista = lista.filter(r=>r._data && r._data >= dDe); }
   if(ate) { const dAte = new Date(ate+'T23:59:59'); lista = lista.filter(r=>r._data && r._data <= dAte); }
   if(ramo) lista = lista.filter(r=>(r.ramo_ativ||'')===ramo);
@@ -2492,7 +2514,7 @@ function renderVendasDrill(rows) {
     tbody.innerHTML = Object.entries(grupos).sort((a,b)=>b[1].reduce((s,r)=>s+(+r.valor_total||0),0)-a[1].reduce((s,r)=>s+(+r.valor_total||0),0)).map(([k,rs])=>`
       <tr style="border-bottom:1px solid var(--border);cursor:pointer" onclick="drillVendas('pedido','${k}')">
         <td style="padding:9px 10px;font-weight:600;color:var(--accent2)">${k}</td>
-        <td style="padding:9px 10px">${rs[0]?.data_faturamento||'—'}</td>
+        <td style="padding:9px 10px">${rs[0]?.data_lancamento||'—'}</td>
         <td style="padding:9px 10px">R$ ${rs.reduce((s,r)=>s+(+r.valor_total||0),0).toLocaleString('pt-BR')}</td>
         <td style="padding:9px 10px">${rs.reduce((s,r)=>s+(+r.qt||0),0)}</td>
       </tr>`).join('') || '<tr><td colspan="4" class="empty-state">Sem dados para o filtro atual.</td></tr>';
