@@ -5279,12 +5279,27 @@ async function salvarEdicaoCliente() {
 }
 
 async function excluirClienteCad(id) {
-  if(!confirm('Excluir este cliente?')) return;
+  if(!confirm('Excluir este cliente? Isso também limpa reprogramações de visita pendentes dele (pra não ficar "fantasma" no Roteiro). O histórico de visitas já realizadas continua preservado.')) return;
   try {
+    // Descobre a chave usada em Bacio_Rotas.cliente_id (documento quando existe,
+    // senão o próprio id interno — é assim que prospecção sem código é gravada).
+    const cliente = _crmClientesCache.find(c=>c.id===id);
+    const chave = cliente?.documento || id;
+
+    // Limpa reprogramações PENDENTES desse cliente — sem isso, ele continua
+    // aparecendo no Roteiro (Reprogramações/Clientes previstos) mesmo depois
+    // de excluído do cadastro, já que essa informação vive numa tabela separada.
+    await fetch(`${sbUrl()}/rest/v1/Bacio_Rotas?cliente_id=eq.${encodeURIComponent(chave)}&reprogramar_para=not.is.null`, {
+      method:'PATCH',
+      headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey(),'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({reprogramar_para: null})
+    });
+
     await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?id=eq.${encodeURIComponent(id)}`, {
       method:'DELETE', headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     _crmClientesCache = [];
+    _historicoRotasCache = null; // Roteiro/Histórico/Dashboard recarregam do zero também
     showToast('Cliente removido', 'var(--danger)');
     renderClientesCad();
   } catch(e) { showToast('❌ '+e.message, '#d6304f'); }
