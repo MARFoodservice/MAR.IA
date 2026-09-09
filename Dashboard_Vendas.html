@@ -364,6 +364,19 @@ tr:hover td{background:rgba(255,255,255,0.025);}
     </tr></thead><tbody id="tb-cli"></tbody></table></div>
   </div>
 
+
+  <!-- TELEVENDAS -->
+  <div class="cc" style="margin-bottom:14px;">
+    <div class="ct">📞 Televendas <span class="expand-hint">(clique no vendedor para ver clientes)</span></div>
+    <div class="tbl-scroll"><table id="t-tv"><thead><tr>
+      <th onclick="srt('t-tv',0)">Vendedor</th>
+      <th class="num" onclick="srt('t-tv',1,'n')">Valor</th>
+      <th class="num" onclick="srt('t-tv',2,'n')">Clientes</th>
+      <th class="num" onclick="srt('t-tv',3,'n')">Pedidos</th>
+      <th class="num" onclick="srt('t-tv',4,'n')">Peso Liq.</th>
+    </tr></thead><tbody id="tb-tv"></tbody></table></div>
+  </div>
+
   <!-- DIÁRIOS -->
   <div class="sec-label">📈 Evolução Diária</div>
   <div class="cc" style="margin-bottom:14px;"><div class="ct">💰 Venda por Dia</div><div class="ch-wrap" style="height:190px;"><canvas id="ch-day-val"></canvas></div></div>
@@ -749,7 +762,7 @@ function render(){
   renderDepto(data);renderProduto(data);
   renderSupervisor(data);
   renderVendedor(data);
-  renderClientes(data);renderDailyCharts(data);renderMensalChart(data);
+  renderClientes(data);renderTelevendas(data);renderDailyCharts(data);renderMensalChart(data);
   renderTendencia();
 }
 
@@ -1125,6 +1138,177 @@ function renderProduto(data){
         ${x.itens.length>200?`<div style="font-size:9px;color:var(--text2);margin-top:5px;">Mostrando 200 de ${x.itens.length}</div>`:''}
       </div></td>
     </tr>`;
+  });
+  tb.innerHTML=html;
+}
+
+// ── TELEVENDAS ──
+// Tatiana tem 2 RCAs — agrupadas pelo nome (match parcial)
+const TV_NAMES=['NATALIA BOMBARDELLI VANZELLA','TATIANA LACERDA BACELLAR','ARIANE','CAMILA','CRISTIELLEN'];
+function isTelevendas(rca){
+  if(!rca)return false;
+  const u=rca.toUpperCase();
+  return TV_NAMES.some(n=>u.includes(n.split(' ')[0])&&(n.split(' ').length<2||u.includes(n.split(' ')[1]||'')));
+}
+// Chave de agrupamento: para Tatiana, retorna sempre o mesmo nome canônico
+function tvKey(rca){
+  if(!rca)return rca;
+  const u=rca.toUpperCase();
+  if(u.includes('TATIANA'))return 'TATIANA LACERDA BACELLAR';
+  return rca;
+}
+
+function renderTelevendas(data){
+  const tvData=data.filter(r=>isTelevendas(r.rca));
+  const m={};
+  tvData.forEach(r=>{
+    const k=tvKey(r.rca);
+    if(!m[k])m[k]={nome:k,rcas:new Set(),val:0,clis:new Set(),peds:new Set(),pl:0,itens:[]};
+    m[k].val+=vf(r);
+    m[k].pl+=parseFloat(r.peso_liquido||0);
+    if(r.rca)m[k].rcas.add(r.rca);
+    if(r.codcli!=null)m[k].clis.add(r.codcli);
+    if(r.pedido!=null)m[k].peds.add(r.pedido);
+    m[k].itens.push(r);
+  });
+  const rows=Object.values(m).sort((a,b)=>b.val-a.val);
+  const tb=g('tb-tv');
+  if(!rows.length){tb.innerHTML='<tr><td colspan="5" class="empty">Sem dados de Televendas no periodo</td></tr>';return;}
+  let html='';
+  rows.forEach((x,i)=>{
+    const eid='etv-'+i;
+    const isTatiana=x.nome.toUpperCase().includes('TATIANA');
+    // Nivel 1: vendedor → clientes (ou RCAs para Tatiana)
+    if(isTatiana){
+      // Drill: Tatiana → RCA → Cliente → Produtos
+      const rcaMap={};
+      x.itens.forEach(r=>{
+        const rk=r.rca||'N/A';
+        if(!rcaMap[rk])rcaMap[rk]={nome:r.rca||'N/A',val:0,clis:new Set(),peds:new Set(),pl:0,itens:[]};
+        rcaMap[rk].val+=vf(r);rcaMap[rk].pl+=parseFloat(r.peso_liquido||0);
+        if(r.codcli!=null)rcaMap[rk].clis.add(r.codcli);if(r.pedido!=null)rcaMap[rk].peds.add(r.pedido);
+        rcaMap[rk].itens.push(r);
+      });
+      const rcaRows=Object.values(rcaMap).sort((a,b)=>b.val-a.val);
+      html+=`<tr class="clickable-row" onclick="toggleExp('${eid}',this)">
+        <td>▶ ${x.nome} <span style="font-size:9px;color:var(--text2)">(${[...x.rcas].length} regiões)</span></td>
+        <td class="num vval" data-val="${x.val}">${fmt(x.val)}</td>
+        <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
+        <td class="num" data-val="${x.peds.size}">${x.peds.size.toLocaleString()}</td>
+        <td class="num" data-val="${x.pl}">${x.pl.toFixed(2)}</td>
+      </tr>
+      <tr class="expand-row" id="${eid}">
+        <td colspan="5" class="expand-cell"><div class="expand-inner">
+          <table id="etvr-${i}"><thead><tr>
+            <th onclick="srt2('etvr-${i}',0)">Região / RCA</th>
+            <th class="num" onclick="srt2('etvr-${i}',1,'n')">Valor</th>
+            <th class="num" onclick="srt2('etvr-${i}',2,'n')">Clientes</th>
+            <th class="num" onclick="srt2('etvr-${i}',3,'n')">Pedidos</th>
+            <th class="num" onclick="srt2('etvr-${i}',4,'n')">Peso Liq.</th>
+          </tr></thead><tbody>${
+            rcaRows.map((rv,ri)=>{
+              const reid='etvrc-'+i+'-'+ri;
+              const cliMap={};
+              rv.itens.forEach(r=>{
+                const ck=r.codcli!=null?r.codcli:(r.cliente||'N/A');
+                if(!cliMap[ck])cliMap[ck]={cod:r.codcli,nome:r.cliente||'N/A',val:0,pl:0,itens:[]};
+                cliMap[ck].val+=vf(r);cliMap[ck].pl+=parseFloat(r.peso_liquido||0);cliMap[ck].itens.push(r);
+              });
+              const cliRows2=Object.values(cliMap).sort((a,b)=>b.val-a.val);
+              return `<tr class="clickable-row" onclick="toggleExp('${reid}',this)">
+                <td>▶ ${rv.nome}</td>
+                <td class="num vval" data-val="${rv.val}">${fmt(rv.val)}</td>
+                <td class="num" data-val="${rv.clis.size}">${rv.clis.size}</td>
+                <td class="num" data-val="${rv.peds.size}">${rv.peds.size}</td>
+                <td class="num" data-val="${rv.pl}">${rv.pl.toFixed(2)}</td>
+              </tr>
+              <tr class="expand-row" id="${reid}">
+                <td colspan="5" class="expand-cell"><div class="expand-inner">
+                  <table id="etvrc2-${i}-${ri}"><thead><tr>
+                    <th onclick="srt2('etvrc2-${i}-${ri}',0)">Cliente</th>
+                    <th class="num" onclick="srt2('etvrc2-${i}-${ri}',1,'n')">Valor</th>
+                    <th class="num" onclick="srt2('etvrc2-${i}-${ri}',2,'n')">Peso Liq.</th>
+                  </tr></thead><tbody>${
+                    cliRows2.map((cl,ci)=>{
+                      const clid='etvrcl-'+i+'-'+ri+'-'+ci;
+                      return `<tr class="clickable-row" onclick="toggleExp('${clid}',this)">
+                        <td>▶ ${cl.nome}</td>
+                        <td class="num vval" data-val="${cl.val}">${fmt(cl.val)}</td>
+                        <td class="num" data-val="${cl.pl}">${cl.pl.toFixed(2)}</td>
+                      </tr>
+                      <tr class="expand-row" id="${clid}">
+                        <td colspan="3" class="expand-cell"><div class="expand-inner">
+                          <table><thead><tr>
+                            <th>Produto</th><th class="num">Valor</th><th class="num">P.Médio</th><th class="num">QT</th><th class="num">Peso</th>
+                          </tr></thead><tbody>${
+                            cl.itens.map(r=>`<tr>
+                              <td>${r.descricao||'-'}</td>
+                              <td class="num vval">${fmt(vf(r))}</td>
+                              <td class="num">${fmt(parseFloat(r.qt||0)>0?vf(r)/parseFloat(r.qt):0)}</td>
+                              <td class="num">${parseFloat(r.qt||0).toFixed(0)}</td>
+                              <td class="num">${parseFloat(r.peso_liquido||0).toFixed(2)}</td>
+                            </tr>`).join('')
+                          }</tbody></table>
+                        </div></td>
+                      </tr>`;
+                    }).join('')
+                  }</tbody></table>
+                </div></td>
+              </tr>`;
+            }).join('')
+          }</tbody></table>
+        </div></td>
+      </tr>`;
+    } else {
+      // Drill: vendedor → cliente → produtos
+      const cliMap={};
+      x.itens.forEach(r=>{
+        const ck=r.codcli!=null?r.codcli:(r.cliente||'N/A');
+        if(!cliMap[ck])cliMap[ck]={cod:r.codcli,nome:r.cliente||'N/A',val:0,pl:0,itens:[]};
+        cliMap[ck].val+=vf(r);cliMap[ck].pl+=parseFloat(r.peso_liquido||0);cliMap[ck].itens.push(r);
+      });
+      const cliRows=Object.values(cliMap).sort((a,b)=>b.val-a.val);
+      html+=`<tr class="clickable-row" onclick="toggleExp('${eid}',this)">
+        <td>▶ ${x.nome}</td>
+        <td class="num vval" data-val="${x.val}">${fmt(x.val)}</td>
+        <td class="num" data-val="${x.clis.size}">${x.clis.size.toLocaleString()}</td>
+        <td class="num" data-val="${x.peds.size}">${x.peds.size.toLocaleString()}</td>
+        <td class="num" data-val="${x.pl}">${x.pl.toFixed(2)}</td>
+      </tr>
+      <tr class="expand-row" id="${eid}">
+        <td colspan="5" class="expand-cell"><div class="expand-inner">
+          <table id="etvc-${i}"><thead><tr>
+            <th onclick="srt2('etvc-${i}',0)">Cliente</th>
+            <th class="num" onclick="srt2('etvc-${i}',1,'n')">Valor</th>
+            <th class="num" onclick="srt2('etvc-${i}',2,'n')">Peso Liq.</th>
+          </tr></thead><tbody>${
+            cliRows.map((cl,ci)=>{
+              const clid='etvcl-'+i+'-'+ci;
+              return `<tr class="clickable-row" onclick="toggleExp('${clid}',this)">
+                <td>▶ ${cl.nome}</td>
+                <td class="num vval" data-val="${cl.val}">${fmt(cl.val)}</td>
+                <td class="num" data-val="${cl.pl}">${cl.pl.toFixed(2)}</td>
+              </tr>
+              <tr class="expand-row" id="${clid}">
+                <td colspan="3" class="expand-cell"><div class="expand-inner">
+                  <table><thead><tr>
+                    <th>Produto</th><th class="num">Valor</th><th class="num">P.Médio</th><th class="num">QT</th><th class="num">Peso</th>
+                  </tr></thead><tbody>${
+                    cl.itens.map(r=>`<tr>
+                      <td>${r.descricao||'-'}</td>
+                      <td class="num vval">${fmt(vf(r))}</td>
+                      <td class="num">${fmt(parseFloat(r.qt||0)>0?vf(r)/parseFloat(r.qt):0)}</td>
+                      <td class="num">${parseFloat(r.qt||0).toFixed(0)}</td>
+                      <td class="num">${parseFloat(r.peso_liquido||0).toFixed(2)}</td>
+                    </tr>`).join('')
+                  }</tbody></table>
+                </div></td>
+              </tr>`;
+            }).join('')
+          }</tbody></table>
+        </div></td>
+      </tr>`;
+    }
   });
   tb.innerHTML=html;
 }
