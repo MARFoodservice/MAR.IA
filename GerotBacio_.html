@@ -4619,8 +4619,24 @@ async function sbAtualizarStatusClienteCRM(p, record) {
   // documento só é setado quando o clienteId é um código externo (ex: codcli da Faturamento),
   // nunca quando é um id interno nosso (novo_/cli_) — senão sobrescreve o documento real do cliente.
   const idExterno = p.clienteId && !/^(novo_|cli_)/.test(String(p.clienteId));
+
+  // Descobre o ID INTERNO correto do cliente antes de gravar. Sem isso, um cliente
+  // vindo da Faturamento (sem "bacioId" preenchido no momento da seleção) gerava um
+  // ID novo com base no nome — criando um card duplicado no CRM em vez de atualizar
+  // o cliente que já existia, e por isso o status "ficava preso" no card antigo.
+  let idCorreto = p.bacioClienteId;
+  if(!idCorreto && idExterno) {
+    try {
+      const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?documento=eq.${encodeURIComponent(p.clienteId)}&select=id&limit=1`, {
+        headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
+      });
+      const rows = r.ok ? await r.json() : [];
+      if(rows[0]?.id) idCorreto = rows[0].id;
+    } catch(e) { /* segue com o fallback abaixo se der erro */ }
+  }
+
   const payload = {
-    id: p.bacioClienteId || ('cli_' + String(p.clienteId||p.nomeCliente).replace(/[^a-zA-Z0-9]/g,'').toLowerCase()),
+    id: idCorreto || ('cli_' + String(p.clienteId||p.nomeCliente).replace(/[^a-zA-Z0-9]/g,'').toLowerCase()),
     nome: p.nomeCliente || '',
     segmento: p.ramo || null,
     vendedor: record.vendedor || null,
