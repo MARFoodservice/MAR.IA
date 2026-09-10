@@ -1334,6 +1334,7 @@ function newPdv() { return {clienteId:'',nomeCliente:'',ramo:'',passos:{},vlr:''
   freezerValidado:null, freezerSerie:'', freezerTemp:'', freezerObs:'',
   freezerModeloCod:'', freezerModeloDesc:'', freezerQtd:1, freezerListaCliente:[], freezerRegistroId:'',
   freezersNegociados:[{cod:'',desc:'',qtd:1}], obsCliente:'', ultimaVisita:null, clienteTemDiaFixo:false,
+  editandoRotaId:null, criadoEmOriginal:null, obsClienteAntiga:'',
   statusResultante:'aguardando', reprogramarPara:'', reprogMotivo:'',
   bacioClienteId:'', origemCRM:'CADASTRO'};
 }
@@ -1437,9 +1438,16 @@ function renderPdv(idx) {
 
   const hasFreezerInstalado = (d.freezerListaCliente||[]).length > 0;
 
-  // Banner com o histórico da última visita — pra o vendedor saber o que já foi falado/negociado
+  // Banner: modo EDIÇÃO (já lançado hoje) ou histórico normal da última visita
   let historicoHtml = '';
-  if(d.ultimaVisita) {
+  if(d.editandoRotaId) {
+    const hora = d.criadoEmOriginal ? new Date(Number(d.criadoEmOriginal)).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}) : '';
+    historicoHtml = `<div style="margin-bottom:14px;padding:12px 14px;background:rgba(184,134,11,.10);border:1px solid var(--warn);border-radius:8px">
+      <div style="font-size:.8rem;font-weight:700;color:var(--warn);margin-bottom:6px">✏️ EDITANDO lançamento de hoje${hora?` (feito às ${hora})`:''} — só é possível editar no mesmo dia</div>
+      ${d.obsClienteAntiga ? `<div style="font-size:.8rem;color:var(--text)"><b>Observação já registrada:</b> ${d.obsClienteAntiga}</div>` : ''}
+      <div style="font-size:.76rem;color:var(--muted);margin-top:6px">Escreva abaixo só a observação NOVA (ex: "cliente retornou ao meio-dia e fechou negócio") — ela será somada à de cima, nada se perde. Ajuste o Status Resultante se mudou.</div>
+    </div>`;
+  } else if(d.ultimaVisita) {
     const uv = d.ultimaVisita;
     const stUv = STATUS_CRM.find(s=>s.id===uv.status_resultante);
     const negUv = Array.isArray(uv.freezers_negociados) ? uv.freezers_negociados : [];
@@ -1784,16 +1792,25 @@ async function salvarFormulario() {
   const rota = document.getElementById('f-rota').value.trim();
   const data = document.getElementById('f-data').value;
 
+  // Modo edição: concatena a observação NOVA com a que já existia, nada se perde.
+  const dParaSalvar = JSON.parse(JSON.stringify(d));
+  if(d.editandoRotaId && d.obsClienteAntiga) {
+    const horaAgora = new Date().toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'});
+    dParaSalvar.obsCliente = dParaSalvar.obsCliente
+      ? `${d.obsClienteAntiga} | [Atualização ${horaAgora}]: ${dParaSalvar.obsCliente}`
+      : d.obsClienteAntiga;
+  }
+
   const record = {
     id: Date.now(), data, supervisor:sup, vendedor:vend, rota,
-    pdvs: [JSON.parse(JSON.stringify(d))],
+    pdvs: [dParaSalvar],
   };
 
   showToast('⏳ Salvando no Supabase...','#8a6a4f');
   const ok = await sbSalvarRota(record);
   if(btn) { btn.textContent = '💾 Salvar Cliente'; btn.disabled = false; }
   if(ok) {
-    showToast(`✅ ${d.nomeCliente} salvo!`);
+    showToast(d.editandoRotaId ? `✅ ${d.nomeCliente} atualizado!` : `✅ ${d.nomeCliente} salvo!`);
     // Zera só o cliente atual (mantém Supervisor/Vendedor/Rota/Data, já que é o mesmo dia)
     pdvs[idx] = newPdv();
     renderPdv(idx);
@@ -4539,7 +4556,7 @@ async function testSupabaseInsert() {
 async function sbSalvarRota(record) {
   if(!sbUrl()||!sbKey()) return false;
   const rows = (record.pdvs||[]).map(p => ({
-    id:           String(record.id) + '_pdv_' + String(p.clienteId||'').replace(/[^a-zA-Z0-9]/g,'') + '_' + Math.random().toString(36).slice(2,7),
+    id:           p.editandoRotaId || (String(record.id) + '_pdv_' + String(p.clienteId||'').replace(/[^a-zA-Z0-9]/g,'') + '_' + Math.random().toString(36).slice(2,7)),
     cliente_id:   p.clienteId||null,
     cliente_nome: p.nomeCliente||'',
     vendedor:     record.vendedor,
@@ -4566,7 +4583,7 @@ async function sbSalvarRota(record) {
     obs:          record.obs||'',
     geo_lat:      p.localizacao?.lat||null,
     geo_lng:      p.localizacao?.lng||null,
-    criado_em:    Date.now()
+    criado_em:    p.editandoRotaId ? (p.criadoEmOriginal || Date.now()) : Date.now()
   }));
   const ok = await supabaseUpsert('Bacio_Rotas', rows);
   // Só sincroniza o status do cliente no CRM se a visita REALMENTE foi salva —
@@ -6873,7 +6890,26 @@ async function onClienteSelectChange(idx) {
   // foi falado/negociado antes, e pré-preenche o freezer negociado se ainda não tem instalado.
   const visitasAnteriores = await sbListarVisitasDoCliente(opt.value);
   pdvs[idx].ultimaVisita = visitasAnteriores[0] || null;
-  if(!freezers.length && pdvs[idx].ultimaVisita) {
+
+  // Se já existe um lançamento de HOJE pra esse cliente, entra em modo EDIÇÃO em cima
+  // dele (em vez de criar um segundo registro duplicado) — só é permitido no mesmo dia.
+  if(pdvs[idx].ultimaVisita && pdvs[idx].ultimaVisita.data === hojeLocalISO()) {
+    const uv = pdvs[idx].ultimaVisita;
+    pdvs[idx].editandoRotaId = uv.id;
+    pdvs[idx].criadoEmOriginal = uv.criado_em;
+    pdvs[idx].obsClienteAntiga = uv.obs_cliente || '';
+    pdvs[idx].statusResultante = uv.status_resultante || '';
+    pdvs[idx].vlr = uv.valor || 0;
+    if(Array.isArray(uv.freezers_negociados) && uv.freezers_negociados.length) {
+      pdvs[idx].freezersNegociados = uv.freezers_negociados.map(n=>({cod:n.cod||'', desc:n.desc||'', qtd:n.qtd||1}));
+    }
+  } else {
+    pdvs[idx].editandoRotaId = null;
+    pdvs[idx].criadoEmOriginal = null;
+    pdvs[idx].obsClienteAntiga = '';
+  }
+
+  if(!freezers.length && pdvs[idx].ultimaVisita && !pdvs[idx].editandoRotaId) {
     const neg = Array.isArray(pdvs[idx].ultimaVisita.freezers_negociados) ? pdvs[idx].ultimaVisita.freezers_negociados : [];
     if(neg.length) {
       pdvs[idx].freezersNegociados = neg.map(n=>({cod:n.cod||'', desc:n.desc||'', qtd:n.qtd||1}));
