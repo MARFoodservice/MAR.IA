@@ -716,7 +716,6 @@ tbody td { padding: 11px 12px; }
     <button class="btn btn-secondary" onclick="renderRoteiro()" style="margin-top:auto">🔄 Atualizar</button>
   </div>
   <div id="rot-aderencia" style="margin-bottom:18px"></div>
-  <div id="rot-debug" style="margin-bottom:18px;font-size:.72rem;color:var(--muted);background:var(--surface2);border:1px dashed var(--border);border-radius:8px;padding:10px;display:none"></div>
   <div class="card">
     <div class="card-title">Clientes previstos para o dia</div>
     <div id="rot-lista"></div>
@@ -5874,22 +5873,6 @@ async function renderRoteiro() {
     const rotasBrutas = await sbListarRotasBrutas();
     const lancadosHojeIds = new Set(rotasBrutas.filter(r=>r.data===dataAlvo && dentroDoEscopo(r.vendedor)).map(r=>r.cliente_id));
     window._roteiroLancadosHojeIds = lancadosHojeIds;
-    console.log('Roteiro — diagnóstico:', {dataAlvo, escopo, vendedorAlvo});
-    console.log('Roteiro — cliente_id lançados hoje (Set):', [...lancadosHojeIds]);
-    console.log('Roteiro — datas encontradas em rotasBrutas (amostra):', [...new Set(rotasBrutas.map(r=>r.data))].slice(0,10));
-    // Painel visível na tela (não precisa abrir console do navegador) — some sozinho
-    // quando não há nenhum planejado; fica visível pra ajudar a diagnosticar.
-    const dbg = document.getElementById('rot-debug');
-    if(dbg) {
-      dbg.style.display = 'block';
-      const chaveClienteDbg = (c) => c.documento || c.id;
-      dbg.innerHTML = `🔍 DIAGNÓSTICO (temporário)<br>
-        dataAlvo: ${dataAlvo} | vendedorAlvo: ${vendedorAlvo||'(todos)'}<br>
-        Datas encontradas nas rotas: ${[...new Set(rotasBrutas.map(r=>r.data))].slice(0,8).join(', ')}<br>
-        Qtd. lançados hoje (Set): ${lancadosHojeIds.size}<br>
-        IDs no Set: ${[...lancadosHojeIds].slice(0,15).join(' | ')}<br>
-        Chaves dos planejados: ${planejadosHoje.map(chaveClienteDbg).slice(0,15).join(' | ')}`;
-    }
     const chaveCliente = (c) => c.documento || c.id;
     const cumpridos = planejadosHoje.filter(c => lancadosHojeIds.has(chaveCliente(c))).length;
     const totalPlanejado = planejadosHoje.length;
