@@ -199,7 +199,7 @@ body{font-family:'Barlow',sans-serif;background:var(--navy);color:var(--text);mi
     <div class="stat-item s-gold"><div class="stat-val" id="st-media">—</div><div class="stat-lbl">Média</div></div>
     <div class="stat-item s-success"><div class="stat-val" id="st-alta">—</div><div class="stat-lbl">Alta</div></div>
     <div class="stat-item s-foam"><div class="stat-val" id="st-subcats">—</div><div class="stat-lbl">Sub/cli</div></div>
-    <div class="stat-item s-alert"><div class="stat-val" id="st-cov">—</div><div class="stat-lbl">Mix%</div></div>
+    <div class="stat-item s-alert"><div class="stat-val" id="st-cov">—</div><div class="stat-lbl">Mix</div></div>
 
   </div>
 
@@ -571,6 +571,23 @@ function getCoverage(c){
   });
   return Math.round((ok/itens.length)*100);
 }
+function getOkCount(c){
+  const itens=getItens(c.ramo);if(!itens.length)return null;
+  let ok=0;
+  itens.forEach(item=>{
+    if(item.tipo==='individual'&&c.subcats.has(item.sub))ok++;
+    else if(item.tipo==='grupo'&&item.subs.some(s=>c.subcats.has(s)))ok++;
+    else if(item.tipo==='expandido'){const p=c.produtos[item.sub];if(p&&p.has(item.prod))ok++;}
+    else if(item.tipo==='grupo_prod'){
+      const p=c.produtos[item.sub];
+      if(p&&item.subs&&item.subs.size>0){
+        const prodSet=new Set(item.subs instanceof Set?[...item.subs]:(Array.isArray(item.subs)?item.subs:[]));
+        if(prodSet.size>0&&[...prodSet].some(prod=>p.has(prod)))ok++;
+      }
+    }
+  });
+  return ok;
+}
 function covColor(pct){if(pct===null)return'var(--text-dim)';return pct>=70?'var(--success)':pct>=40?'var(--gold)':'var(--alert)';}
 function covCls(pct){if(pct===null)return'cov-none';return pct>=70?'cov-high':pct>=40?'cov-mid':'cov-low';}
 function fillCls(pct){return pct>=70?'fill-high':pct>=40?'fill-mid':'fill-low';}
@@ -583,7 +600,8 @@ function renderAll(){
   document.getElementById('st-media').textContent=covs.filter(v=>v>=40&&v<70).length;
   document.getElementById('st-alta').textContent=covs.filter(v=>v>=70).length;
   document.getElementById('st-subcats').textContent=clients.length?(clients.reduce((a,c)=>a+c.subcats.size,0)/clients.length).toFixed(1):0;
-  document.getElementById('st-cov').textContent=(covs.length?Math.round(covs.reduce((a,b)=>a+b,0)/covs.length):0)+'%';
+  const oks=clients.map(c=>getOkCount(c)).filter(v=>v!==null);
+  document.getElementById('st-cov').textContent=(oks.length?oks.reduce((a,b)=>a+b,0)/oks.length:0).toFixed(1).replace('.',',');
   const de=document.getElementById('mix-de').value;
   const ate=document.getElementById('mix-ate').value;
 
@@ -600,9 +618,11 @@ function renderRamos(clients){
   const ramos=Object.entries(ramoMap).map(([ramo,cls])=>{
     const covs=cls.map(c=>getCoverage(c)).filter(v=>v!==null);
     const avgCov=covs.length?Math.round(covs.reduce((a,b)=>a+b,0)/covs.length):null;
+    const oksR=cls.map(c=>getOkCount(c)).filter(v=>v!==null);
+    const avgOk=oksR.length?(oksR.reduce((a,b)=>a+b,0)/oksR.length):null;
     const avgSubs=cls.length?(cls.reduce((a,c)=>a+c.subcats.size,0)/cls.length).toFixed(1):0;
     const temConfig=!!(MIX_CONFIG[ramo]?.size||GRUPOS_CONFIG[ramo]?.length||Object.keys(GRUPOS_PROD_CONFIG[ramo]||{}).length||EXPANDIDOS_CONFIG[ramo]&&Object.keys(EXPANDIDOS_CONFIG[ramo]).length);
-    return{ramo,count:cls.length,avgCov,avgSubs,temConfig};
+    return{ramo,count:cls.length,avgCov,avgOk,avgSubs,temConfig};
   }).filter(r=>r.temConfig).sort((a,b)=>(b.avgCov||0)-(a.avgCov||0));
 
   document.getElementById('main-panel').innerHTML=`
@@ -617,7 +637,7 @@ function renderRamos(clients){
           <div class="rc-meta">👥 ${r.count} cli &nbsp;•&nbsp; 📦 ${r.avgSubs} sub/cli</div>
           <div class="cov-bar-wrap"><div class="cov-bar-fill ${fillCls(r.avgCov||0)}" style="width:${r.avgCov||0}%"></div></div>
         </div>
-        <div class="rc-pct" style="color:${covColor(r.avgCov)}">${r.avgCov!==null?r.avgCov+'%':'—'}</div>
+        <div class="rc-pct" style="color:${covColor(r.avgCov)}">${r.avgOk!==null?r.avgOk.toFixed(1).replace('.',','):'—'}</div>
       </div>`).join('')}
     ${!ramos.length?'<div class="empty">Nenhum ramo com mix configurado.</div>':''}
   `;
@@ -637,10 +657,11 @@ function renderLista(clients){
     </div>
     ${clients.map(c=>{
       const pct=getCoverage(c);
+      const okC=getOkCount(c);
       return`<div class="client-card" onclick="selectCliente('${c.codcli}')">
         <div class="cc-top">
           <div class="cc-nome">${esc(c.cliente||'—')}</div>
-          <div class="cc-pct ${covCls(pct)}">${pct!==null?pct+'%':'—'}</div>
+          <div class="cc-pct ${covCls(pct)}">${okC!==null?okC:'—'}</div>
         </div>
         <div class="cc-meta">${fmtMoney(c.fat)} &nbsp;<span class="cc-ramo">${esc(c.ramo||'')}</span></div>
         ${pct!==null?`<div class="cov-bar-wrap"><div class="cov-bar-fill ${fillCls(pct)}" style="width:${pct}%"></div></div>`:''}
@@ -698,7 +719,7 @@ function renderColuna(col){
       <div class="cc2"><div class="cc2-v">${itens.length}</div><div class="cc2-l">Obrig.</div></div>
       <div class="cc2 c-ok"><div class="cc2-v">${ok}</div><div class="cc2-l">Comprou</div></div>
       <div class="cc2 c-nok"><div class="cc2-v">${falta}</div><div class="cc2-l">Faltam</div></div>
-      <div class="cc2" style="color:${covColor(pct)}"><div class="cc2-v">${pct!==null?pct+'%':'—'}</div><div class="cc2-l">Cobertura</div></div>
+      <div class="cc2" style="color:${covColor(pct)}"><div class="cc2-v">${pct!==null?ok:'—'}</div><div class="cc2-l">Cobertura</div></div>
       <div class="cc2"><div class="cc2-v">${benchItems.length}</div><div class="cc2-l">+Vendidos</div></div>
       <div class="cc2 c-foam"><div class="cc2-v">${subcats.length}</div><div class="cc2-l">Subcats</div></div>
     </div>
