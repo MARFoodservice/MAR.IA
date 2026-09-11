@@ -3409,7 +3409,7 @@ function renderRanking() {
   let supRows = Object.entries(supMap).map(([sup, cls]) => {
     const m = calcRankMetrics(cls);
     return { key: sup, label: sup, ...m, selected: sup === _rankSupSelecionado };
-  }).sort((a,b) => (b.cov||0) - (a.cov||0));
+  }).sort((a,b) => (b.ok||0) - (a.ok||0));
 
   // Aplicar filtros inteligentes
   supRows = supRows.filter(r => {
@@ -3456,7 +3456,7 @@ function renderVendedoresRanking(supFiltro) {
   let vendRows = Object.entries(rcaMap).map(([rca, data]) => {
     const m = calcRankMetrics(data.clientes);
     return { key: rca, label: rca, sub: supFiltro ? null : data.supervisor, ...m };
-  }).sort((a,b) => (b.cov||0) - (a.cov||0));
+  }).sort((a,b) => (b.ok||0) - (a.ok||0));
 
   // Aplicar filtros inteligentes de vendedor
   const f = getRankFilters('vend');
