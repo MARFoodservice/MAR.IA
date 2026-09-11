@@ -1870,6 +1870,45 @@ function getCoverage(client) {
   return Math.round((hits / totalItens) * 100);
 }
 
+function getOkCount(client) {
+  const ramo = client.ramo;
+  const obrig = MIX_CONFIG[ramo] || new Set();
+  const grupos = GRUPOS_CONFIG[ramo] || [];
+  const expandidos = EXPANDIDOS_CONFIG[ramo] || {};
+  const gruposProd = GRUPOS_PROD_CONFIG[ramo] || {};
+
+  const subsEmGrupo = new Set(grupos.flatMap(g => g.subcategorias));
+  const subsExpandidas = new Set([...Object.keys(expandidos), ...Object.keys(gruposProd)]);
+  const compSet = new Set(client.subcategorias);
+  const clientProds = client.produtos || {};
+
+  const individuais = [...obrig].filter(s => !subsEmGrupo.has(s) && !subsExpandidas.has(s));
+  const totalGruposProd = Object.values(gruposProd).reduce((a, arr) => a + arr.length, 0);
+  const totalItens = individuais.length + grupos.length
+    + Object.values(expandidos).reduce((a, s) => a + (s instanceof Set ? s.size : 0), 0)
+    + totalGruposProd;
+
+  if (totalItens === 0) return null;
+
+  let hits = 0;
+  individuais.forEach(sub => { if (compSet.has(sub)) hits++; });
+  grupos.forEach(g => { if (g.subcategorias.some(sub => compSet.has(sub))) hits++; });
+  Object.entries(expandidos).forEach(([sub, prods]) => {
+    const cp = clientProds[sub] instanceof Set ? clientProds[sub] : new Set();
+    const prodSet = prods instanceof Set ? prods : new Set(prods);
+    prodSet.forEach(prod => { if (cp.has(prod)) hits++; });
+  });
+  Object.entries(gruposProd).forEach(([sub, gps]) => {
+    const cp = clientProds[sub] instanceof Set ? clientProds[sub] : new Set();
+    gps.forEach(g => {
+      const prodSet = new Set(g.subs instanceof Set ? [...g.subs] : (Array.isArray(g.subs) ? g.subs : []));
+      if (prodSet.size > 0 && [...prodSet].some(prod => cp.has(prod))) hits++;
+    });
+  });
+
+  return hits;
+}
+
 function applyFilters() {
   const rca = document.getElementById('filterRCA').value;
   const ramo = document.getElementById('filterRamo').value;
@@ -1954,9 +1993,10 @@ function renderClientList() {
 
   list.innerHTML = filteredClients.map((c, i) => {
     const pct = getCoverage(c);
+    const okC = getOkCount(c);
     const covClass = getCovClass(pct);
     const isActive = selectedClient && selectedClient.cod === c.cod ? 'active' : '';
-    const pctLabel = pct !== null ? `<span class="coverage-badge ${covClass}">${pct}%</span>` : '';
+    const pctLabel = pct !== null ? `<span class="coverage-badge ${covClass}">${okC}</span>` : '';
     return `<div class="client-item ${isActive}" onclick="selectClient(${i})">
       <div class="client-name">${c.nome}</div>
       <div class="client-meta">
@@ -1974,10 +2014,12 @@ function renderClientList() {
 // ============================================
 function updateStats() {
   const total = filteredClients.length;
-  let baixa = 0, media = 0, alta = 0, sumPct = 0, countPct = 0, sumSubcats = 0;
+  let baixa = 0, media = 0, alta = 0, sumPct = 0, countPct = 0, sumSubcats = 0, sumOk = 0, countOk = 0;
   filteredClients.forEach(c => {
     const p = getCoverage(c);
     sumSubcats += c.subcategorias.length;
+    const okC = getOkCount(c);
+    if (okC !== null) { sumOk += okC; countOk++; }
     if (p === null) return;
     countPct++;
     sumPct += p;
@@ -1991,9 +2033,10 @@ function updateStats() {
   document.getElementById('statMedia').textContent = media;
   document.getElementById('statAlta').textContent = alta;
   const covMedia = countPct > 0 ? (sumPct / countPct) : null;
+  const okMedia = countOk > 0 ? (sumOk / countOk) : null;
   const covColor = covMedia === null ? 'var(--foam)' : covMedia >= 70 ? '#2ecc71' : covMedia >= 40 ? '#f5a623' : '#ff4d4d';
   const covEl = document.getElementById('statMediaRamo');
-  covEl.textContent = covMedia !== null ? covMedia.toFixed(2) + '%' : '—';
+  covEl.textContent = okMedia !== null ? okMedia.toFixed(1).replace('.', ',') : '—';
   covEl.style.color = covColor;
   document.getElementById('statMediaSubcats').textContent = total > 0 ? (sumSubcats / total).toFixed(1) : '—';
 
@@ -2124,7 +2167,7 @@ function renderDetail() {
           <div class="num" style="font-size:24px;">${itensObrig.length-hits}</div><div class="lbl">Faltam 🔴</div>
         </div>
         <div class="cov-card" style="min-width:80px;text-align:center;padding:8px 12px;border-color:${progressColor}44;">
-          <div class="num" style="font-size:24px;color:${progressColor};">${pct!==null?pct+'%':'—'}</div><div class="lbl">Cobertura</div>
+          <div class="num" style="font-size:24px;color:${progressColor};">${pct!==null?hits:'—'}</div><div class="lbl">Cobertura</div>
         </div>
         <div class="cov-card blue" style="min-width:80px;text-align:center;padding:8px 12px;">
           <div class="num" style="font-size:24px;">${subRanked.length}</div><div class="lbl">+ Vendidos 180d</div>
@@ -2179,11 +2222,15 @@ function renderCardsMixObrigatorio(ramo, supervisor, rca) {
     // Calcula cobertura média por ramo
     const ramoData = ramos.map(r => {
       const cl = clientesCtx.filter(c => c.ramo === r);
-      let sum = 0, cnt = 0;
-      cl.forEach(c => { const p = getCoverage(c); if (p !== null) { sum += p; cnt++; } });
+      let sum = 0, cnt = 0, sumOk = 0, cntOk = 0;
+      cl.forEach(c => {
+        const p = getCoverage(c); if (p !== null) { sum += p; cnt++; }
+        const okC = getOkCount(c); if (okC !== null) { sumOk += okC; cntOk++; }
+      });
       const cov = cnt > 0 ? Math.round(sum / cnt) : null;
+      const okAvg = cntOk > 0 ? (sumOk / cntOk) : null;
       const { itensObrig } = getItensObrig(r);
-      return { ramo: r, clientes: cl, total: cl.length, cov, temConfig: itensObrig.length > 0 };
+      return { ramo: r, clientes: cl, total: cl.length, cov, okAvg, temConfig: itensObrig.length > 0 };
     });
 
     // Separa: com config (ordena por cov desc) e sem config
@@ -2193,7 +2240,7 @@ function renderCardsMixObrigatorio(ramo, supervisor, rca) {
     const renderRamoCard = (rd) => {
       const color = rd.cov === null ? 'var(--text-dim)' : rd.cov >= 70 ? '#2ecc71' : rd.cov >= 40 ? '#f5a623' : '#ff4d4d';
       const pct = rd.cov !== null ? rd.cov : 0;
-      const pctLabel = rd.cov !== null ? `${rd.cov}%` : '—';
+      const pctLabel = rd.okAvg !== null ? `${rd.okAvg.toFixed(1).replace('.', ',')}` : '—';
       const mediaSubcats = rd.total > 0 ? (rd.clientes.reduce((a,c) => a + c.subcategorias.length, 0) / rd.total).toFixed(1) : '—';
 
       return `<div class="ramo-rank-card" onclick="selecionarRamoDoRanking('${rd.ramo.replace(/'/g,"\\'")}')">
@@ -2324,9 +2371,13 @@ function gerarCardsPenetracao(ramo, clientes, clicavel) {
   }
   const total = clientes.length;
 
-  let sumPct = 0, cntPct = 0;
-  clientes.forEach(c => { const p = getCoverage(c); if (p !== null) { sumPct += p; cntPct++; } });
+  let sumPct = 0, cntPct = 0, sumOk = 0, cntOk = 0;
+  clientes.forEach(c => {
+    const p = getCoverage(c); if (p !== null) { sumPct += p; cntPct++; }
+    const okC = getOkCount(c); if (okC !== null) { sumOk += okC; cntOk++; }
+  });
   const media = cntPct > 0 ? Math.round(sumPct / cntPct) : 0;
+  const mediaOk = cntOk > 0 ? (sumOk / cntOk) : 0;
   const mediaColor = media >= 70 ? '#2ecc71' : media >= 40 ? '#f5a623' : '#ff4d4d';
 
   const tipoTag = {
@@ -2357,7 +2408,7 @@ function gerarCardsPenetracao(ramo, clientes, clicavel) {
 
   const header = !clicavel ? `
     <div style="font-family:'Barlow Condensed',sans-serif;font-size:16px;font-weight:700;color:var(--text-dim);margin-bottom:8px;">${ramo}</div>
-    <div style="font-size:11px;color:${mediaColor};margin-bottom:10px;font-weight:600;">Cobertura média: ${media}% · ${total} clientes</div>` : '';
+    <div style="font-size:11px;color:${mediaColor};margin-bottom:10px;font-weight:600;">Cobertura média: ${mediaOk.toFixed(1).replace('.', ',')} · ${total} clientes</div>` : '';
 
   return header + itensHTML;
 }
@@ -3292,15 +3343,18 @@ function popularFiltroRankingSup() {
 
 function calcRankMetrics(clientes) {
   // Cobertura média do mix
-  let sumCov = 0, cntCov = 0, sumSubs = 0;
+  let sumCov = 0, cntCov = 0, sumSubs = 0, sumOk = 0, cntOk = 0;
   clientes.forEach(c => {
     const p = getCoverage(c);
     if (p !== null) { sumCov += p; cntCov++; }
+    const okC = getOkCount(c);
+    if (okC !== null) { sumOk += okC; cntOk++; }
     sumSubs += c.subcategorias.length;
   });
   const cov = cntCov > 0 ? parseFloat((sumCov / cntCov).toFixed(2)) : null;
+  const ok = cntOk > 0 ? (sumOk / cntOk) : null;
   const subcats = clientes.length > 0 ? (sumSubs / clientes.length).toFixed(1) : '—';
-  return { cov, subcats, total: clientes.length };
+  return { cov, ok, subcats, total: clientes.length };
 }
 
 function rankColor(v) {
@@ -3330,7 +3384,7 @@ function renderRankRows(tbody, rows, onClickFn) {
           <div class="rank-bar-mini-fill" style="width:${pct}%;background:linear-gradient(90deg,${color}88,${color});"></div>
         </div>
       </td>
-      <td class="rank-pct" style="color:${color};">${r.cov !== null ? r.cov.toFixed(2) + '%' : '—'}</td>
+      <td class="rank-pct" style="color:${color};">${r.ok !== null && r.ok !== undefined ? r.ok.toFixed(1).replace('.', ',') : '—'}</td>
       <td class="rank-subcats">${r.subcats}</td>
       <td class="rank-clientes">${r.total}</td>
     </tr>`;
