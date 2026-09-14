@@ -5341,16 +5341,22 @@ async function salvarEdicaoCliente() {
 // cliente for cadastrado de novo, dá pra ver que ele já foi descartado antes.
 async function arquivarClienteDescartado(id) {
   if(!confirm('Arquivar esse cliente descartado? Ele some da visão do CRM, mas o histórico continua guardado — não é excluído.')) return;
-  const ok = await supabaseUpsert('Bacio_Clientes', {
-    id, arquivado: true, arquivado_em: Date.now(), arquivado_por: _loggedSupervisor || 'desconhecido'
-  });
-  if(ok) {
-    showToast('🗄️ Cliente arquivado');
-    _crmClientesCache = [];
-    renderCRM();
-  } else {
-    showToast('❌ Erro ao arquivar', '#d6304f');
-  }
+  try {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?id=eq.${encodeURIComponent(id)}`, {
+      method:'PATCH',
+      headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey(),'Content-Type':'application/json','Prefer':'return=minimal'},
+      body: JSON.stringify({arquivado: true, arquivado_em: Date.now(), arquivado_por: _loggedSupervisor || 'desconhecido'})
+    });
+    if(r.ok) {
+      showToast('🗄️ Cliente arquivado');
+      _crmClientesCache = [];
+      renderCRM();
+    } else {
+      const t = await r.text();
+      console.error('arquivarClienteDescartado — erro', r.status, t);
+      showToast('❌ Erro ao arquivar', '#d6304f');
+    }
+  } catch(e) { showToast('❌ '+e.message, '#d6304f'); }
 }
 
 function verClientesArquivados() {
