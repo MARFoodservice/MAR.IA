@@ -6626,16 +6626,29 @@ async function buscarClientesCompletos(vendedor, supervisor) {
   const dataFormAtual = document.getElementById('f-data')?.value || hojeLocalISO();
   const docsFaturamento = new Set(semOutro.map(c => String(c.id)));
 
+  // Reprogramações pendentes desse vendedor pra hoje — o Roteiro já soma isso com
+  // o dia fixo, então essa lista de "previstos hoje" precisa fazer o mesmo, senão
+  // aparece um número menor aqui do que no Roteiro pro mesmo dia.
+  const reprogsHoje = await sbListarVisitasReprogramadas();
+  const reprogsDoVendedorHoje = new Set(
+    reprogsHoje.filter(r => r.vendedor === vendedor && r.reprogramar_para === dataFormAtual).map(r => String(r.cliente_id))
+  );
+
   const doBacioDoVendedor = doBacio
     .filter(c => c.vendedor === vendedor && c.status !== 'descartado')
-    .map(c => ({
-      id: c.documento || c.id,
-      nome: c.nome, ramo: c.segmento || '',
-      origem: 'BACIO', bacioId: c.id,
-      freezerCod: c.freezer_cod || '', freezerDesc: c.freezer_desc || '', freezerSerieCad: c.freezer_serie || '',
-      previstoHoje: c.dia_visita != null && String(c.dia_visita) === String(hoje) && clienteNaFrequenciaData(c, dataFormAtual),
-      temDiaFixo: c.dia_visita != null && c.dia_visita !== ''
-    }));
+    .map(c => {
+      const chave = c.documento || c.id;
+      const previstoPorDiaFixo = c.dia_visita != null && String(c.dia_visita) === String(hoje) && clienteNaFrequenciaData(c, dataFormAtual);
+      const previstoPorReprogramacao = reprogsDoVendedorHoje.has(String(chave));
+      return {
+        id: chave,
+        nome: c.nome, ramo: c.segmento || '',
+        origem: 'BACIO', bacioId: c.id,
+        freezerCod: c.freezer_cod || '', freezerDesc: c.freezer_desc || '', freezerSerieCad: c.freezer_serie || '',
+        previstoHoje: previstoPorDiaFixo || previstoPorReprogramacao,
+        temDiaFixo: c.dia_visita != null && c.dia_visita !== ''
+      };
+    });
 
   // Evita duplicar cliente que já existe na Faturamento (mesmo documento/codcli)
   const bacioSemDuplicar = doBacioDoVendedor.filter(c => !docsFaturamento.has(String(c.id)));
