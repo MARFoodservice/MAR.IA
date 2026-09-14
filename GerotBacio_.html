@@ -5728,11 +5728,43 @@ function semanaDoMesDeData(dataStr) {
 // Checa se o cliente está "na semana certa" pra frequência quinzenal/mensal — usado
 // tanto no Roteiro quanto na lista "Previstos para hoje" da página Rota (precisam
 // bater exatamente igual, senão os dois lugares mostram listas diferentes).
+// Número da semana ISO do ano (padrão internacional, semana começa segunda) — ao
+// contrário de dividir por dia do mês, isso nunca "reseta" na virada do mês,
+// então uma alternância quinzenal (semana sim, semana não) fica sempre correta,
+// mesmo em meses que não começam numa segunda-feira.
+function semanaISODeData(dataStr) {
+  const d = new Date(dataStr+'T12:00:00');
+  const alvo = new Date(d.valueOf());
+  const diaSemanaSeg0 = (d.getDay() + 6) % 7; // segunda=0 ... domingo=6
+  alvo.setDate(alvo.getDate() - diaSemanaSeg0 + 3); // quinta-feira da semana atual
+  const primeiraQuinta = new Date(alvo.getFullYear(), 0, 4);
+  const diffDias = Math.round((alvo - primeiraQuinta) / (24*60*60*1000));
+  return 1 + Math.round(diffDias / 7);
+}
+
 function clienteNaFrequenciaData(c, dataStr) {
   if(!c.frequencia || c.frequencia === 'SEMANAL') return true;
   if(!c.semanas_mes) return true;
+  const semanas = c.semanas_mes.split(',').map(s=>s.trim());
+  if(c.frequencia === 'QUINZENAL') {
+    // Quinzenal = alternância CONTÍNUA (semana sim, semana não), usando a paridade
+    // da semana ISO — nunca trava em virada de mês. Convenção mantida igual ao
+    // cadastro já existente: quem tem "1" ou "3" = grupo das semanas ÍMPARES;
+    // quem tem "2" ou "4" = grupo das semanas PARES.
+    const semanaAtual = semanaISODeData(dataStr);
+    // Calibrado pela realidade de hoje (14/09/2026 = semana ISO 38, par) — hoje
+    // precisa cair no grupo "1,3" (Litoral). A partir daqui a alternância semanal
+    // contínua já fica sempre certa, sem depender de mês.
+    const grupoImparBate = semanaAtual % 2 === 0;
+    const grupoParBate = semanaAtual % 2 === 1;
+    const grupoImpar = semanas.includes('1') || semanas.includes('3');
+    const grupoPar = semanas.includes('2') || semanas.includes('4');
+    return (grupoImparBate && grupoImpar) || (grupoParBate && grupoPar);
+  }
+  // Mensal/Bimestral continuam pelo critério de "semana do mês" (1-5, dia do mês),
+  // já que aí faz sentido reiniciar a contagem a cada mês.
   const semanaDoMes = semanaDoMesDeData(dataStr);
-  return c.semanas_mes.split(',').map(s=>s.trim()).includes(String(semanaDoMes));
+  return semanas.includes(String(semanaDoMes));
 }
 // Dia da semana (0=Dom...6=Sáb) de uma data "AAAA-MM-DD", sem risco de virar o dia
 // errado por causa de fuso horário (usa meio-dia como âncora, nunca cruza meia-noite).
