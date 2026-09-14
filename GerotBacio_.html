@@ -4736,7 +4736,7 @@ async function renderCRM() {
   if(busca) clientes = clientes.filter(c => (c.nome||'').toLowerCase().includes(busca));
 
   wrap.innerHTML = STATUS_CRM.map(st => {
-    const itens = clientes.filter(c => (c.status||'aguardando') === st.id);
+    const itens = clientes.filter(c => (c.status||'aguardando') === st.id && !(st.id==='descartado' && c.arquivado));
     return `<div class="kanban-col" data-status="${st.id}" ondragover="onKanbanDragOver(event)" ondrop="onKanbanDrop(event,'${st.id}')" ondragleave="onKanbanDragLeave(event)">
       <div class="kanban-col-head" style="color:${st.color}">${st.lbl} <span class="badge" style="background:${st.color}22;color:${st.color}">${itens.length}</span></div>
       <div class="kanban-col-body">
@@ -4751,6 +4751,7 @@ async function renderCRM() {
             <div class="kcard-meta">${c.vendedor||''} • ${c.cidade||c.segmento||''}</div>
             ${valorPot>0?`<div style="font-size:.75rem;color:var(--ok);font-weight:700;margin-top:4px">💰 Potencial: R$ ${valorPot.toLocaleString('pt-BR')}</div>`:''}
             ${c.origem==='NOVO'||c.origem==='IMPORTADO'?`<span class="kcard-tag">${c.origem==='NOVO'?'🆕 Prospecção':'📥 Importado'}</span>`:''}
+            ${st.id==='descartado' && isGestao ? `<button onclick="event.stopPropagation();arquivarClienteDescartado('${c.id}')" style="margin-top:6px;width:100%;background:rgba(107,107,107,.15);border:1px solid var(--muted);color:var(--muted);border-radius:6px;padding:4px 8px;cursor:pointer;font-size:.7rem">🗄️ Arquivar (tirar da visão)</button>` : ''}
           </div>`;
         }).join('') || '<div class="empty-state" style="padding:20px 8px">Vazio</div>'}
       </div>
@@ -5208,16 +5209,18 @@ async function renderClientesCad() {
 
   // ---- Resumo de quantidade ----
   const baseEscopo = escopo ? clientes.filter(c=>escopo.includes(c.vendedor)) : clientes;
+  const arquivados = baseEscopo.filter(c=>c.arquivado);
+  const linkArquivados = arquivados.length ? ` <span style="cursor:pointer;text-decoration:underline;color:var(--muted)" onclick="verClientesArquivados()">(${arquivados.length} arquivado${arquivados.length>1?'s':''} — descartados removidos da visão, clique pra ver)</span>` : '';
   const resumoEl = document.getElementById('cli-resumo-qtd');
   if(_loggedPerfil === 'vendedor') {
     resumoEl.innerHTML = `📊 Você tem <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) na sua base.`;
   } else if(filtroVend) {
-    resumoEl.innerHTML = `📊 <b style="color:var(--text)">${baseEscopo.filter(c=>c.vendedor===filtroVend).length}</b> cliente(s) de <b>${filtroVend}</b> — base total (todos os vendedores no seu escopo): <b style="color:var(--text)">${baseEscopo.length}</b>.`;
+    resumoEl.innerHTML = `📊 <b style="color:var(--text)">${baseEscopo.filter(c=>c.vendedor===filtroVend).length}</b> cliente(s) de <b>${filtroVend}</b> — base total (todos os vendedores no seu escopo): <b style="color:var(--text)">${baseEscopo.length}</b>.${linkArquivados}`;
   } else {
     const porVend = {};
     baseEscopo.forEach(c=>{ const v=c.vendedor||'Sem vendedor'; porVend[v]=(porVend[v]||0)+1; });
     const detalhe = Object.entries(porVend).sort((a,b)=>b[1]-a[1]).map(([v,q])=>`${v}: ${q}`).join(' • ');
-    resumoEl.innerHTML = `📊 Base total: <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) — ${detalhe}`;
+    resumoEl.innerHTML = `📊 Base total: <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) — ${detalhe}${linkArquivados}`;
   }
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado (veja o console — pode ser filtro de vendedor sem correspondência).</td></tr>'; return; }
@@ -5331,6 +5334,42 @@ async function salvarEdicaoCliente() {
   } else {
     showToast('❌ Erro ao salvar', '#d6304f');
   }
+}
+
+// Arquiva um cliente descartado — some da visão do CRM/dia a dia, mas o cadastro
+// e o histórico continuam no banco (nunca é excluído de verdade). Se um dia esse
+// cliente for cadastrado de novo, dá pra ver que ele já foi descartado antes.
+async function arquivarClienteDescartado(id) {
+  if(!confirm('Arquivar esse cliente descartado? Ele some da visão do CRM, mas o histórico continua guardado — não é excluído.')) return;
+  const ok = await supabaseUpsert('Bacio_Clientes', {
+    id, arquivado: true, arquivado_em: Date.now(), arquivado_por: _loggedSupervisor || 'desconhecido'
+  });
+  if(ok) {
+    showToast('🗄️ Cliente arquivado');
+    _crmClientesCache = [];
+    renderCRM();
+  } else {
+    showToast('❌ Erro ao arquivar', '#d6304f');
+  }
+}
+
+function verClientesArquivados() {
+  const arquivados = (_crmClientesCache||[]).filter(c=>c.arquivado);
+  const corpo = arquivados.length ? arquivados.map(c=>`
+    <div style="border-bottom:1px solid var(--border);padding:8px 0;font-size:.83rem">
+      <b>${nomeComId(c.nome, c.documento)}</b> — ${c.vendedor||'-'}<br>
+      <span style="color:var(--muted);font-size:.76rem">Descartado, arquivado por ${c.arquivado_por||'-'} em ${c.arquivado_em ? new Date(Number(c.arquivado_em)).toLocaleDateString('pt-BR') : '-'}${c.obs_origem?' • Motivo: '+c.obs_origem:''}</span>
+    </div>`).join('') : '<div class="empty-state">Nenhum cliente arquivado.</div>';
+  const modal = document.createElement('div');
+  modal.style.cssText = 'display:flex;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:900;align-items:center;justify-content:center;padding:16px';
+  modal.innerHTML = `<div class="card" style="max-width:600px;width:100%;max-height:80vh;overflow-y:auto;margin:0">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
+      <div class="card-title" style="margin-bottom:0">🗄️ Clientes Arquivados (descartados)</div>
+      <button class="btn btn-secondary" onclick="this.closest('div[style*=fixed]').remove()">✕</button>
+    </div>
+    ${corpo}
+  </div>`;
+  document.body.appendChild(modal);
 }
 
 async function excluirClienteCad(id) {
