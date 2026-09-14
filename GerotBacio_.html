@@ -5931,21 +5931,36 @@ async function renderRoteiro() {
 
   const itens = [
     ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento||c.id, vendedor:c.vendedor, cidade:c.cidade||'', endereco:c.endereco, bairro:c.bairro, contato:c.contato, ramo:c.segmento, ordemVisita:c.ordem_visita, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
-    ...reprogHoje.map(r=>{ const cli = clientesAtivosPorDoc[r.cliente_id]; return {clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, cidade:cli?.cidade||'', endereco:cli?.endereco, bairro:cli?.bairro, contato:cli?.contato, ramo:cli?.segmento, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}; })
+    ...reprogHoje.map(r=>{ const cli = clientesAtivosPorDoc[r.cliente_id]; return {clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, cidade:cli?.cidade||'', endereco:cli?.endereco, bairro:cli?.bairro, contato:cli?.contato, ramo:cli?.segmento, ordemVisita:cli?.ordem_visita, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}; })
   ];
-  itens.forEach(it => { it.temFreezer = !!(freezerPorDoc[it.clienteId] && freezerPorDoc[it.clienteId].length); it.freezerTxt = freezerTxtDoCliente(it.clienteId); });
+  // Um mesmo cliente pode ter dia fixo E uma reprogramação que caiu na mesma data
+  // (ex: reprogramou pra uma segunda-feira, e o dia fixo dele também é segunda) —
+  // sem isso, ele aparecia 2x na lista. Junta os dois num só, guardando o motivo
+  // da reprogramação junto (não perde a informação, só não duplica o card).
+  const itensPorCliente = {};
+  const itensUnicos = [];
+  itens.forEach(it => {
+    const existente = itensPorCliente[it.clienteId];
+    if(!existente) {
+      itensPorCliente[it.clienteId] = it;
+      itensUnicos.push(it);
+    } else if(it.origem.startsWith('Reprogramado')) {
+      existente.origem += ' • ' + it.origem;
+    }
+  });
+  itensUnicos.forEach(it => { it.temFreezer = !!(freezerPorDoc[it.clienteId] && freezerPorDoc[it.clienteId].length); it.freezerTxt = freezerTxtDoCliente(it.clienteId); });
   // Quem TEM ordem manual definida vai primeiro, respeitando a sequência exata; o
   // resto continua com o critério antigo (freezer primeiro, depois cidade).
-  itens.sort((a,b) => {
+  itensUnicos.sort((a,b) => {
     const oa = a.ordemVisita, ob = b.ordemVisita;
     if(oa!=null && ob!=null) return oa - ob;
     if(oa!=null) return -1;
     if(ob!=null) return 1;
     return (b.temFreezer - a.temFreezer) || (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||'');
   });
-  window._roteiroItensAtual = itens;
+  window._roteiroItensAtual = itensUnicos;
 
-  document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>{
+  document.getElementById('rot-lista').innerHTML = itensUnicos.length ? itensUnicos.map((it,i)=>{
     const feito = window._roteiroLancadosHojeIds.has(it.clienteId);
     return `<div class="roteiro-item" style="cursor:pointer;${feito?'background:rgba(0,161,115,.10);border-left:3px solid var(--ok)':''}" onclick="abrirDetalheClienteRoteiro(${i})">
       <div class="roteiro-num">${feito?'✅':i+1}</div>
