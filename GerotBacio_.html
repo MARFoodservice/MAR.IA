@@ -5809,7 +5809,7 @@ function nomeComId(nome, id) {
 async function sbListarClientesAtivosComDia() {
   if(!sbUrl()||!sbKey()) return [];
   try {
-    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?select=id,nome,vendedor,status,dia_visita,cidade,documento,frequencia,semanas_mes,endereco,bairro,contato,segmento&status=neq.descartado&dia_visita=not.is.null&limit=5000`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Clientes?select=id,nome,vendedor,status,dia_visita,cidade,documento,frequencia,semanas_mes,endereco,bairro,contato,segmento,ordem_visita&status=neq.descartado&dia_visita=not.is.null&limit=5000`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
     if(!r.ok) return [];
@@ -5930,12 +5930,19 @@ async function renderRoteiro() {
   };
 
   const itens = [
-    ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento||c.id, vendedor:c.vendedor, cidade:c.cidade||'', endereco:c.endereco, bairro:c.bairro, contato:c.contato, ramo:c.segmento, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
+    ...fixosHoje.map(c=>({clienteNome:c.nome, clienteId:c.documento||c.id, vendedor:c.vendedor, cidade:c.cidade||'', endereco:c.endereco, bairro:c.bairro, contato:c.contato, ramo:c.segmento, ordemVisita:c.ordem_visita, origem:(c.cidade?c.cidade+' — ':'')+'Dia fixo — '+(STATUS_CRM.find(s=>s.id===c.status)?.lbl||c.status)})),
     ...reprogHoje.map(r=>{ const cli = clientesAtivosPorDoc[r.cliente_id]; return {clienteNome:r.cliente_nome, clienteId:r.cliente_id, vendedor:r.vendedor, cidade:cli?.cidade||'', endereco:cli?.endereco, bairro:cli?.bairro, contato:cli?.contato, ramo:cli?.segmento, origem:'Reprogramado — '+(r.reprog_motivo||'sem motivo')}; })
   ];
   itens.forEach(it => { it.temFreezer = !!(freezerPorDoc[it.clienteId] && freezerPorDoc[it.clienteId].length); it.freezerTxt = freezerTxtDoCliente(it.clienteId); });
-  // Quem TEM freezer primeiro; dentro de cada grupo, agrupa por CIDADE
-  itens.sort((a,b) => (b.temFreezer - a.temFreezer) || (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||''));
+  // Quem TEM ordem manual definida vai primeiro, respeitando a sequência exata; o
+  // resto continua com o critério antigo (freezer primeiro, depois cidade).
+  itens.sort((a,b) => {
+    const oa = a.ordemVisita, ob = b.ordemVisita;
+    if(oa!=null && ob!=null) return oa - ob;
+    if(oa!=null) return -1;
+    if(ob!=null) return 1;
+    return (b.temFreezer - a.temFreezer) || (a.cidade||'zzz').localeCompare(b.cidade||'zzz') || (a.clienteNome||'').localeCompare(b.clienteNome||'');
+  });
   window._roteiroItensAtual = itens;
 
   document.getElementById('rot-lista').innerHTML = itens.length ? itens.map((it,i)=>{
