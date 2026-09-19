@@ -314,9 +314,18 @@ tbody td { padding: 11px 12px; }
   </div>
 </nav>
 
-<div id="page-form" class="page active">
+<div id="page-home" class="page active">
+  <div style="text-align:center;margin-bottom:24px">
+    <div class="section-title" style="justify-content:center;margin-bottom:4px">🏠 <span>Menu</span> Principal</div>
+    <div style="color:var(--muted);font-size:.85rem">Toque num item pra abrir</div>
+  </div>
+  <div id="home-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px"></div>
+</div>
+
+<div id="page-form" class="page">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:24px;flex-wrap:wrap;gap:12px">
     <div style="display:flex;align-items:center;gap:12px">
+      <button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button>
       <div class="section-title" style="margin-bottom:0">Execução Comercial — <span>MAR Foods</span></div>
     </div>
     <button id="btn-cad-vendedores" onclick="abrirCadVendedores()" style="background:var(--surface2);border:1px solid var(--accent);color:var(--accent);border-radius:9px;padding:10px 18px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem">👤 Cadastro de Vendedores</button>
@@ -362,10 +371,11 @@ tbody td { padding: 11px 12px; }
       onkeydown="if(event.key==='Enter')verificarSenhaAcesso()">
     <div id="acesso-erro" style="color:var(--danger);font-size:.85rem;display:none">Senha incorreta</div>
     <button onclick="verificarSenhaAcesso()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 32px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700">Acessar</button>
+    <button onclick="voltarInicio()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;text-decoration:underline">← Voltar ao Menu</button>
   </div>
   <div id="acesso-content" style="display:none">
   <div style="display:flex;align-items:center;gap:12px;margin-bottom:24px;flex-wrap:wrap">
-    <button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button>
+    <button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button>
     <div class="section-title" style="margin-bottom:0">🔐 <span>Acessos</span></div>
     <button onclick="renderAcessoDash()" style="margin-left:auto;background:var(--accent);color:#fff;border:none;border-radius:9px;padding:9px 18px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700;font-size:.85rem">🔄 Atualizar</button>
     <button onclick="exportarAcessoCSV()" style="background:var(--surface2);border:1px solid var(--border);color:var(--text);border-radius:9px;padding:9px 18px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.85rem">⬇ CSV</button>
@@ -405,7 +415,7 @@ tbody td { padding: 11px 12px; }
 
 
 <div id="page-dashboard" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">📊 <span>Dashboard</span> Operacional</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">📊 <span>Dashboard</span> Operacional</div></div>
 
   <div class="filter-row" style="margin-bottom:18px;flex-wrap:wrap;gap:12px">
     <div class="field" id="db-f-vendedor-wrap"><label>Vendedor</label><select id="db-f-vendedor" onchange="renderDashboard()"><option value="">Todos</option></select></div>
@@ -446,7 +456,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- VENDAS -->
 <div id="page-vendas" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">📈 <span>Vendas</span> — Time Bacio</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">📈 <span>Vendas</span> — Time Bacio</div></div>
 
   <div class="filter-row" style="margin-bottom:18px;flex-wrap:wrap;gap:12px">
     <div class="field"><label>De</label><input type="date" id="vd-f-de" onchange="renderVendas()"></div>
@@ -509,7 +519,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- CARTEIRA -->
 <div id="page-carteira" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">📇 <span>Carteira</span> de Clientes</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">📇 <span>Carteira</span> de Clientes</div></div>
 
   <div class="filter-row" style="margin-bottom:18px;flex-wrap:wrap;gap:12px">
     <div class="field" id="ct-f-vendedor-wrap"><label>Vendedor</label><select id="ct-f-vendedor" onchange="renderCarteira()"><option value="">Todos</option></select></div>
@@ -594,7 +604,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- HISTÓRICO DE ROTAS -->
 <div id="page-historicorotas" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🗂️ <span>Histórico</span> de Rotas</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">🗂️ <span>Histórico</span> de Rotas</div></div>
 
   <div class="filter-row" style="margin-bottom:18px;flex-wrap:wrap;gap:12px">
     <div class="field" id="hr-f-vendedor-wrap"><label>Vendedor</label><select id="hr-f-vendedor" onchange="renderHistoricoRotas()"><option value="">Todos</option></select></div>
@@ -701,7 +711,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- ROTEIRO -->
 <div id="page-roteiro" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🗺️ <span>Roteiro</span> de Visitas</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">🗺️ <span>Roteiro</span> de Visitas</div></div>
   <div class="filter-row" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
     <div class="field" id="rot-f-vendedor-wrap"><label>Vendedor</label><select id="rot-f-vendedor" onchange="renderRoteiro()"></select></div>
     <div class="field"><label>Cidade</label><select id="rot-f-cidade" onchange="renderRoteiro()"><option value="">Todas</option></select></div>
@@ -732,7 +742,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- CRM -->
 <div id="page-crm" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">📌 <span>CRM</span> — Painel de Clientes</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">📌 <span>CRM</span> — Painel de Clientes</div></div>
   <div class="filter-row" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
     <div class="field" id="crm-f-vendedor-wrap"><label>Vendedor</label><select id="crm-f-vendedor" onchange="renderCRM()"><option value="">Todos</option></select></div>
     <div class="field"><label>Cidade</label><select id="crm-f-cidade" onchange="renderCRM()"><option value="">Todas</option></select></div>
@@ -848,9 +858,13 @@ tbody td { padding: 11px 12px; }
       onkeydown="if(event.key==='Enter')verificarSenhaCad()">
     <div id="cad-erro" style="color:var(--danger);font-size:.85rem;display:none">Senha incorreta</div>
     <button onclick="verificarSenhaCad()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 32px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700">Acessar</button>
+    <button onclick="voltarInicio()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;text-decoration:underline">← Voltar ao Menu</button>
   </div>
   <div id="cad-content" style="display:none">
-    <div class="section-title">📋 <span>Cadastros</span></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button>
+      <div class="section-title" style="margin-bottom:0">📋 <span>Cadastros</span></div>
+    </div>
     <div class="card" style="margin-bottom:20px">
       <div class="card-title">Supervisores <span style="font-size:.75rem;color:var(--muted);font-weight:400">(gerenciado via Supabase)</span></div>
       <div id="sup-config-list" style="margin-bottom:16px"></div>
@@ -888,7 +902,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- CLIENTES -->
 <div id="page-clientes" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🏬 <span>Clientes</span> (Bacio_Clientes)</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">🏬 <span>Clientes</span> (Bacio_Clientes)</div></div>
   <div class="card" id="cli-add-form-wrap" style="margin-bottom:20px">
     <p style="font-size:.82rem;color:var(--muted);margin-bottom:14px">Cada cliente ativo (não descartado) com dia fixo definido aparece automaticamente no Roteiro do vendedor. Se ainda não souber o modelo de freezer (cliente não visitado), selecione "Sem freezer definido ainda".</p>
     <div class="form-row cols-3" style="margin-bottom:0">
@@ -1005,7 +1019,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- FREEZERS -->
 <div id="page-freezers" class="page">
-  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Rota</button><div class="section-title" style="margin:0">🧊 <span>Freezers</span> por Cliente</div></div>
+  <div style="display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button><div class="section-title" style="margin:0">🧊 <span>Freezers</span> por Cliente</div></div>
 
   <div class="card" style="margin-bottom:20px">
     <div class="card-title">📊 Visão Geral — Quantidade por Modelo</div>
@@ -1201,9 +1215,13 @@ tbody td { padding: 11px 12px; }
       onkeydown="if(event.key==='Enter')verificarSenha()">
     <div id="senha-erro" style="color:var(--danger);font-size:.85rem;display:none">Senha incorreta</div>
     <button onclick="verificarSenha()" style="background:var(--accent);color:#fff;border:none;border-radius:10px;padding:12px 32px;cursor:pointer;font-family:'Syne',sans-serif;font-weight:700">Acessar</button>
+    <button onclick="voltarInicio()" style="background:none;border:none;color:var(--muted);cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;text-decoration:underline">← Voltar ao Menu</button>
   </div>
   <div id="config-content" style="display:none">
-    <div class="section-title">⚙️ <span>Configurações</span></div>
+    <div style="display:flex;align-items:center;gap:12px;margin-bottom:16px;flex-wrap:wrap">
+      <button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem;flex-shrink:0">← Menu</button>
+      <div class="section-title" style="margin-bottom:0">⚙️ <span>Configurações</span></div>
+    </div>
     <div class="card" style="border-color:rgba(0,136,255,.4)">
       <div class="card-title" style="color:var(--accent2)">🗄️ Integração Supabase</div>
       <p style="font-size:.85rem;color:var(--muted);margin-bottom:16px">Tabelas: <code style="color:var(--accent2);background:var(--surface2);padding:2px 6px;border-radius:4px">Bacio_Rotas</code>, <code style="color:var(--accent2);background:var(--surface2);padding:2px 6px;border-radius:4px">Bacio_Usuarios</code>, <code style="color:var(--accent2);background:var(--surface2);padding:2px 6px;border-radius:4px">Bacio_Clientes</code>, <code style="color:var(--accent2);background:var(--surface2);padding:2px 6px;border-radius:4px">Bacio_Acessos</code>.</p>
@@ -1389,8 +1407,8 @@ function init() {
     }
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('page-form').classList.add('active');
-    document.querySelector('.nav-tab').classList.add('active');
+    document.getElementById('page-home').classList.add('active');
+    renderHomeCards();
   } else if(savedUser && savedDate !== hoje) {
     // Sessão de outro dia — limpa e exige novo login
     localStorage.removeItem('coaching_logged_user');
@@ -1914,8 +1932,32 @@ function filtrarRotasQualificadas(gruposDia) {
   return gruposDia.filter(g => (g.resultado?.visitados||0) >= ROTA_MIN_PDVS);
 }
 
-function voltarInicio() { showPage('form', document.querySelector('.nav-tab')); }
-
+function voltarInicio() { showPage('home'); }
+function renderHomeCards() {
+  const el = document.getElementById('home-cards');
+  if(!el) return;
+  const perfil = _loggedPerfil;
+  const itens = [
+    {page:'form', icone:'📋', titulo:'Rota', cor:'var(--accent)', sempre:true},
+    {page:'roteiro', icone:'🗺️', titulo:'Roteiro', cor:'#0891b2', sempre:true},
+    {page:'crm', icone:'📌', titulo:'CRM', cor:'#d6304f', sempre:true},
+    {page:'dashboard', icone:'📊', titulo:'Dashboard', cor:'#8a6a4f', sempre:true},
+    {page:'historicorotas', icone:'🗂️', titulo:'Histórico', cor:'#b8860b', sempre:true},
+    {page:'clientes', icone:'🏬', titulo:'Clientes', cor:'#4a2f22', sempre:true},
+    {page:'freezers', icone:'🧊', titulo:'Freezers', cor:'#0066cc', sempre:true},
+    {page:'vendas', icone:'📈', titulo:'Vendas', cor:'#00a173', sempre:true},
+    {page:'carteira', icone:'📇', titulo:'Carteira', cor:'#7c4a3d', sempre:true},
+    {page:'acesso', icone:'🔐', titulo:'Acesso', cor:'#6b6b6b', perfis:['gerente','suporte','diretoria']},
+    {page:'cadastros', icone:'⚙️', titulo:'Cadastros', cor:'#6b6b6b', perfis:['suporte','diretoria']},
+    {page:'config', icone:'🛠️', titulo:'Config.', cor:'#6b6b6b', perfis:['suporte','diretoria']},
+  ];
+  const visiveis = itens.filter(it => it.sempre || (it.perfis||[]).includes(perfil));
+  el.innerHTML = visiveis.map(it => `
+    <div class="home-card" style="border-color:${it.cor}" onclick="showPage('${it.page}')">
+      <span style="font-size:2.2rem">${it.icone}</span>
+      <div class="home-card-title" style="color:${it.cor}">${it.titulo}</div>
+    </div>`).join('');
+}
 function showPage(name,tab){
   document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
   document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
@@ -1943,6 +1985,7 @@ function showPage(name,tab){
       setTimeout(()=>document.getElementById('cad-senha').focus(), 100);
     }
   }
+  if(name==='home') { renderHomeCards(); }
   if(name==='crm') { renderCRM(); }
   if(name==='clientes') { popularSelectVendedoresCad(); popularRamosECidadesCad(); renderClientesCad(); }
   if(name==='freezers') { renderFreezersPage(); }
@@ -2889,7 +2932,7 @@ function abrirMapaRotaHistorico(chave) {
   }
   mapaEl.innerHTML = '';
   _hrMapaLeaflet = L.map(mapaEl).setView([pontos[0].geo_lat, pontos[0].geo_lng], 12);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 18 }).addTo(_hrMapaLeaflet);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(_hrMapaLeaflet);
 
   const latlngs = pontos.map(p=>[p.geo_lat, p.geo_lng]);
   L.polyline(latlngs, {color:'#4a2f22', weight:3, dashArray:'8,8'}).addTo(_hrMapaLeaflet);
@@ -3189,8 +3232,8 @@ async function renderMapaFreezers() {
   const mapaEl = document.getElementById('mapa-freezers');
   if(_mapaLeaflet) { _mapaLeaflet.remove(); _mapaLeaflet = null; }
   _mapaLeaflet = L.map(mapaEl).setView([-29.6, -52.0], 7);
-  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
-    attribution: '© OpenStreetMap', maxZoom: 18
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+    attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19, subdomains: 'abcd'
   }).addTo(_mapaLeaflet);
 
   const freezerIcon = L.icon({ iconUrl: FREEZER_ICON_B64, iconSize: [34,34], iconAnchor: [17,17], popupAnchor: [0,-14] });
@@ -3466,8 +3509,8 @@ async function fazerLogin() {
 
     document.querySelectorAll('.page').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.nav-tab').forEach(t=>t.classList.remove('active'));
-    document.getElementById('page-form').classList.add('active');
-    document.querySelector('.nav-tab').classList.add('active');
+    document.getElementById('page-home').classList.add('active');
+    renderHomeCards();
     showToast('✅ Bem-vindo, ' + found.nome + '! (' + found.perfil + ')');
 
   } catch(e) {
