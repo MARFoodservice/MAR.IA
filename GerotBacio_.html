@@ -1947,13 +1947,14 @@ function renderHomeCards() {
     {page:'freezers', icone:'🧊', titulo:'Freezers', cor:'#0066cc', sempre:true},
     {page:'vendas', icone:'📈', titulo:'Vendas', cor:'#00a173', sempre:true},
     {page:'carteira', icone:'📇', titulo:'Carteira', cor:'#7c4a3d', sempre:true},
+    {url:'https://docs.google.com/forms/d/e/1FAIpQLSdLQFxp35yMRPjDcmzD-qr8bMv3gxfMVuGqF1sQxjSG97n2sg/viewform', icone:'📝', titulo:'Forms', cor:'#673ab7', sempre:true},
     {page:'acesso', icone:'🔐', titulo:'Acesso', cor:'#6b6b6b', perfis:['gerente','suporte','diretoria']},
     {page:'cadastros', icone:'⚙️', titulo:'Cadastros', cor:'#6b6b6b', perfis:['suporte','diretoria']},
     {page:'config', icone:'🛠️', titulo:'Config.', cor:'#6b6b6b', perfis:['suporte','diretoria']},
   ];
   const visiveis = itens.filter(it => it.sempre || (it.perfis||[]).includes(perfil));
   el.innerHTML = visiveis.map(it => `
-    <div class="home-card" style="border-color:${it.cor}" onclick="showPage('${it.page}')">
+    <div class="home-card" style="border-color:${it.cor}" onclick="${it.url ? `window.open('${it.url}','_blank')` : `showPage('${it.page}')`}">
       <span style="font-size:2.2rem">${it.icone}</span>
       <div class="home-card-title" style="color:${it.cor}">${it.titulo}</div>
     </div>`).join('');
