@@ -380,8 +380,20 @@ function montarMensagemWhats(nomeExibicao, agregado, meta, mesLabel, perdidos, d
 }
 
 // ---------- TABS ----------
+let cadastrosLiberado = false;
+const SENHA_CADASTROS = 'Comerci@al';
+
 document.querySelectorAll('.tab-btn').forEach(btn=>{
   btn.addEventListener('click', ()=>{
+    if(btn.dataset.tab === 'cadastros' && !cadastrosLiberado){
+      const senha = window.prompt('Digite a senha para acessar Cadastros:');
+      if(senha === null) return; // cancelou
+      if(senha !== SENHA_CADASTROS){
+        alert('Senha incorreta.');
+        return;
+      }
+      cadastrosLiberado = true;
+    }
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
     btn.classList.add('ativo');
     document.getElementById('tab-painel').classList.toggle('hidden', btn.dataset.tab!=='painel');
