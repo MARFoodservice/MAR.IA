@@ -523,7 +523,8 @@ function linhaGerotContainer(id, metasBatidas, subHtml){
 function agregarGerotPorSupervisor(gerotDetalhe, nomeExibicao){
   const norm = (nomeExibicao||'').trim().toUpperCase();
   const linhas = gerotDetalhe.filter(d => (d.supervisor||'').trim().toUpperCase() === norm);
-  const rotas = linhas.reduce((acc,l)=>acc+Number(l.rotas),0);
+  // "rotas" é do supervisor/dia (não por vendedor) — vem repetido em cada linha, por isso usamos o maior valor, não soma
+  const rotas = linhas.length ? Math.max(...linhas.map(l=>Number(l.rotas))) : 0;
   const pdvsTotal = linhas.reduce((acc,l)=>acc+Number(l.pdvs_total),0);
   const cadastros = linhas.reduce((acc,l)=>acc+Number(l.cadastros),0);
   const vendaTotal = linhas.reduce((acc,l)=>acc+Number(l.venda_total),0);
@@ -534,7 +535,9 @@ function agregarGerotPorSupervisor(gerotDetalhe, nomeExibicao){
 
 function agregarTelevendasGerot(gerotDetalhe){
   const linhas = gerotDetalhe.filter(d => ehTelevendas(d.vendedor));
-  const rotas = linhas.reduce((acc,l)=>acc+Number(l.rotas),0);
+  // Tele Vendas mistura vendedoras de supervisores reais diferentes — "rotas" aqui é aproximado
+  // (maior valor entre os supervisores delas, não soma), já que rota é por supervisor/dia, não por vendedora
+  const rotas = linhas.length ? Math.max(...linhas.map(l=>Number(l.rotas))) : 0;
   const pdvsTotal = linhas.reduce((acc,l)=>acc+Number(l.pdvs_total),0);
   const cadastros = linhas.reduce((acc,l)=>acc+Number(l.cadastros),0);
   const vendaTotal = linhas.reduce((acc,l)=>acc+Number(l.venda_total),0);
@@ -983,16 +986,19 @@ function ativarDrillDown(){
         // conteúdo já veio pronto no HTML, só alterna visibilidade
       } else if(['gerotRotas','gerotPdvs','gerotCadastros','gerotVenda'].includes(chave)){
         const vendedores = card._gerotVendedores;
+        // "rotas" é por supervisor/dia (não por vendedor), então pdvs/venda aqui são contribuição
+        // total do vendedor nos dias qualificados — não uma média "por rota" individual.
         const campoMap = {
-          gerotRotas:     v => Number(v.rotas),
-          gerotPdvs:      v => Number(v.rotas) > 0 ? Math.round((Number(v.pdvs_total)/Number(v.rotas))*10)/10 : 0,
+          gerotPdvs:      v => Number(v.pdvs_total),
           gerotCadastros: v => Number(v.cadastros),
-          gerotVenda:     v => Number(v.rotas) > 0 ? Math.round(Number(v.venda_total)/Number(v.rotas)) : 0
+          gerotVenda:     v => Number(v.venda_total)
         };
         const formatarMap = {
-          gerotRotas: v => v, gerotPdvs: v => v, gerotCadastros: v => v, gerotVenda: v => formatarMoeda(v)
+          gerotPdvs: v => v, gerotCadastros: v => v, gerotVenda: v => formatarMoeda(v)
         };
-        if(!vendedores){
+        if(chave === 'gerotRotas'){
+          drillEl.innerHTML = '<div class="drill-empty">Rotas são contadas por supervisor/dia (todos os vendedores juntos) — não dá pra repartir por vendedor individual.</div>';
+        } else if(!vendedores){
           drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
         } else if(!vendedores.length){
           drillEl.innerHTML = '<div class="drill-empty">Nenhum dado do GEROT neste mês.</div>';
