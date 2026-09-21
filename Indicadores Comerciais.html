@@ -1,0 +1,1198 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Indicadores Comerciais</title>
+<style>
+  *{box-sizing:border-box}
+  body{
+    margin:0; padding:28px;
+    background:#0e0e0e; color:#eee;
+    font-family:-apple-system,'Segoe UI',Roboto,Helvetica,Arial,sans-serif;
+  }
+  .topo{
+    display:flex; justify-content:space-between; align-items:center;
+    max-width:1400px; margin:0 auto 24px; flex-wrap:wrap; gap:12px;
+  }
+  h1{font-size:20px; font-weight:700; color:#fff; margin:0}
+  .tabs{display:flex; gap:6px}
+  .tab-btn{
+    background:#1a1a1a; border:1px solid #2a2a2a; color:#9a9a9a;
+    padding:8px 16px; border-radius:8px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  .tab-btn.ativo{background:#2a2a2a; color:#fff; border-color:#3a3a3a}
+  .mes-box{display:flex; align-items:center; gap:8px}
+  .mes-box label{font-size:12px; color:#8a8a8a}
+  input[type=month], input[type=text], input[type=tel], input[type=number]{
+    background:#1a1a1a; border:1px solid #2a2a2a; color:#fff;
+    border-radius:6px; padding:7px 10px; font-size:13px; font-family:inherit;
+  }
+  button.acao{
+    background:#2a2a2a; border:1px solid #3a3a3a; color:#fff;
+    padding:8px 14px; border-radius:6px; font-size:13px; font-weight:600; cursor:pointer;
+  }
+  button.acao:hover{background:#333}
+  button.acao.primario{background:#1D9E75; border-color:#1D9E75}
+  button.acao.primario:hover{background:#178a66}
+  .wa-btn{
+    background:#1D9E75; border:none; color:#fff; border-radius:6px;
+    padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer;
+    display:inline-flex; align-items:center; gap:5px;
+  }
+  .wa-btn:hover{background:#178a66}
+  .wa-btn:disabled{background:#333; color:#777; cursor:not-allowed}
+  .wa-btn svg{width:13px; height:13px; fill:currentColor}
+  .wrap{max-width:1400px; margin:0 auto}
+  .status{font-size:12px; color:#8a8a8a; margin-bottom:16px; min-height:16px}
+  .status.erro{color:#e08080}
+
+  .grid{
+    display:grid;
+    grid-template-columns:repeat(auto-fit,minmax(320px,1fr));
+    gap:20px;
+  }
+  .card{ background:#1a1a1a; border-radius:20px; padding:26px; }
+  .card.destaque{ background:#1f1f1f; border:1px solid #333; }
+  .card.sem-meta{ background:#161616; border:1px dashed #333; }
+  .head{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; margin-bottom:20px; flex-wrap:wrap; }
+  .head .nome-row{ display:flex; align-items:center; gap:10px; flex-wrap:wrap; min-width:0; }
+  .head .nome{ font-size:22px; font-weight:700; color:#fff; margin:0; }
+  .head .meta{ font-size:14px; color:#8a8a8a; }
+  .linha{ margin-bottom:14px; cursor:pointer; border-radius:8px; padding:4px 6px; margin-left:-6px; margin-right:-6px; transition:background .1s; }
+  .linha:hover{ background:#232323; }
+  .linha.aberta{ background:#232323; }
+  .linha:last-of-type{ margin-bottom:0; }
+  .lbl-row{ display:flex; justify-content:space-between; align-items:flex-start; gap:10px; font-size:14px; color:#9a9a9a; margin-bottom:6px; }
+  .lbl-row > span:first-child{ flex:1 1 auto; min-width:0; }
+  .lbl-row b{ flex:0 0 auto; text-align:right; white-space:nowrap; color:#fff; font-weight:700; }
+  .lbl-row .setinha{ font-size:10px; color:#666; margin-right:4px; display:inline-block; transition:transform .15s; }
+  .linha.aberta > .lbl-row .setinha{ transform:rotate(90deg); }
+  .sub{ display:block; color:#666; font-weight:400; font-size:10.5px; margin-top:1px; }
+  .barra-bg{ height:8px; background:#2a2a2a; border-radius:5px; overflow:hidden; }
+  .barra-fg{ height:100%; border-radius:5px; }
+  .drill{ display:none; margin:8px 0 4px 18px; padding:8px 0 2px; border-left:2px solid #2a2a2a; padding-left:12px; }
+  .drill.show{ display:block; }
+  .drill-row{ display:flex; justify-content:space-between; font-size:12.5px; color:#aaa; padding:4px 0; }
+  .drill-row b{ color:#fff; font-weight:600; }
+  .drill-empty{ font-size:12px; color:#666; font-style:italic; }
+  .tendencia-destaque{ margin-bottom:18px; padding-bottom:16px; border-bottom:1px solid #262626; }
+  .tendencia-top{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; margin-bottom:9px; flex-wrap:wrap; }
+  .tendencia-label{ font-size:14px; color:#9a9a9a; font-weight:600; }
+  .tendencia-label .sub{ display:inline; font-size:11.5px; color:#666; font-weight:400; margin-left:4px; }
+  .tendencia-valor{ font-size:20px; font-weight:800; color:#fff; white-space:nowrap; }
+  .tendencia-pct{ font-size:14px; font-weight:600; color:#9a9a9a; }
+  .tendencia-barra-bg{ height:12px; }
+  .tendencia-vazio{ font-size:13px; color:#666; font-style:italic; }
+  .linha-balanca{ margin-top:14px; padding-top:14px; border-top:1px solid #262626; }
+  .linha-balanca .lbl-row span{ color:#9a9a9a; }
+  .linha.batalha{ margin-top:12px; padding-top:12px; border-top:1px dashed #262626; }
+  .linha.batalha .lbl-row b{ font-size:13px; }
+  .linha.batalha .sub{ color:#666; font-weight:400; font-size:11.5px; }
+
+  .nota{
+    margin-top:18px; padding:14px 18px; background:#161616;
+    border-radius:12px; font-size:12.5px; color:#8a8a8a;
+  }
+
+  /* Cadastros */
+  .painel-cadastro{ background:#1a1a1a; border-radius:16px; padding:22px; margin-bottom:20px; }
+  .painel-cadastro h2{ font-size:15px; color:#fff; margin:0 0 14px; }
+  table{ width:100%; border-collapse:collapse; }
+  th,td{ padding:8px 8px; font-size:12.5px; text-align:left; border-bottom:1px solid #262626; }
+  th{ color:#8a8a8a; font-weight:600; text-transform:uppercase; font-size:10.5px; letter-spacing:.04em; }
+  td input{ width:100%; }
+  .form-add{ display:flex; gap:8px; flex-wrap:wrap; margin-top:14px; align-items:end; }
+  .form-add > div{ display:flex; flex-direction:column; gap:4px; }
+  .form-add label{ font-size:11px; color:#8a8a8a; }
+  .hidden{ display:none; }
+</style>
+</head>
+<body>
+
+<div class="topo">
+  <h1>Indicadores Comerciais</h1>
+  <div class="tabs">
+    <button class="tab-btn ativo" data-tab="painel">Painel</button>
+    <button class="tab-btn" data-tab="cadastros">Cadastros</button>
+  </div>
+  <div class="mes-box">
+    <label>Mês</label>
+    <select id="mesInput"></select>
+  </div>
+</div>
+
+<div class="wrap">
+  <div class="status" id="status"></div>
+
+  <div id="tab-painel">
+    <div class="grid" id="cards"></div>
+    <div class="nota" id="notaSemMeta"></div>
+  </div>
+
+  <div id="tab-cadastros" class="hidden">
+    <div class="painel-cadastro">
+      <h2>Supervisores cadastrados</h2>
+      <table>
+        <thead><tr>
+          <th>Nome no sistema (faturamento.supervisor)</th>
+          <th>Nome de exibição</th>
+          <th>Telefone</th>
+          <th>Ordem</th>
+          <th>Ativo</th>
+          <th></th>
+        </tr></thead>
+        <tbody id="tbodySupervisores"></tbody>
+      </table>
+      <div class="form-add">
+        <div><label>Nome exato no sistema</label><input type="text" id="novoNomeSistema" placeholder="Ex: JULIANO CARLOS LAUSE"></div>
+        <div><label>Nome de exibição</label><input type="text" id="novoNomeExibicao" placeholder="Ex: Juliano"></div>
+        <div><label>Telefone</label><input type="text" id="novoTelefone" placeholder="DDD + número"></div>
+        <div><label>Ordem</label><input type="number" id="novoOrdem" value="99" style="width:70px"></div>
+        <button class="acao primario" id="btnAddSupervisor">Adicionar supervisor</button>
+      </div>
+      <p style="font-size:11.5px;color:#777;margin-top:10px">
+        O "nome no sistema" precisa ser idêntico ao valor do campo <code>supervisor</code> na tabela <code>faturamento</code> — é assim que o painel casa os dados.
+      </p>
+    </div>
+
+    <div class="painel-cadastro">
+      <h2>Metas do mês selecionado (<span id="mesLabelCadastro"></span>)</h2>
+      <table>
+        <thead><tr>
+          <th>Supervisor</th><th>Meta total</th><th>Recorrente</th><th>Novo</th><th>Retido</th><th>Reativado</th><th>Batalha Naval</th><th>Faturamento</th><th>Venda Petry</th><th>Meta Broker</th><th>Realizado Broker</th><th></th>
+        </tr></thead>
+        <tbody id="tbodyMetas"></tbody>
+      </table>
+      <div class="form-add">
+        <button class="acao" id="btnCopiarMesAnterior">Copiar metas do mês anterior</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const SUPABASE_URL = 'https://ctbbyhjjskvgxodshhhc.supabase.co';
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTM4ODgsImV4cCI6MjA5MjYyOTg4OH0.WyWB0pMUrK1tJAYSdKygNrcyaJzcS0dYNsYgPPsj-jU';
+
+const CORES = { total:'#378ADD', rec:'#3fae7a', novo:'#e0a63c', ret:'#d3673f', reat:'#8a80e0', batalha:'#2ab7c9', fat:'#f2c14e', petry:'#a367dc', broker:'#e07a9e', gerot:'#5fb8e8' };
+
+// Meta padrão do GEROT usada só quando o supervisor não tem linha própria em gerot_metas
+const GEROT_METAS_PADRAO = { rotas:14, pdvs_rota:10, cadastros:20, venda_media:10000 };
+
+function formatarMoeda(v){
+  if(v === null || v === undefined) return 'R$ 0';
+  return 'R$ ' + Number(v).toLocaleString('pt-BR', { maximumFractionDigits:0 });
+}
+
+const VENDEDORAS_TELEVENDAS = [  'ARIANE DOS SANTOS QUEBAO',
+  'CAMILA ARRUDA GOMES',
+  'CRISTIELEN SILVA GONCALVES',
+  'TATIANA LACERDA BACELLAR',
+  'TATIANA LACERDA BACELLAR - LITORAL'
+];
+function ehTelevendas(vendedor){
+  if(!vendedor) return false;
+  return VENDEDORAS_TELEVENDAS.includes(vendedor.trim().toUpperCase());
+}
+
+function setStatus(msg, erro){
+  const el = document.getElementById('status');
+  el.textContent = msg || '';
+  el.className = 'status' + (erro ? ' erro' : '');
+  if(msg && !erro) setTimeout(()=>{ if(el.textContent===msg) el.textContent=''; }, 2500);
+}
+
+async function sbGet(path, query){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}${query||''}`, {
+    headers: { apikey: SUPABASE_KEY, Authorization: `Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbRpc(fn, body){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/rpc/${fn}`, {
+    method:'POST',
+    headers: { apikey: SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json' },
+    body: JSON.stringify(body)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbUpsert(path, rows, onConflict){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}?on_conflict=${onConflict}`, {
+    method:'POST',
+    headers: {
+      apikey: SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`,
+      'Content-Type':'application/json',
+      Prefer:'resolution=merge-duplicates,return=representation'
+    },
+    body: JSON.stringify(rows)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbPatch(path, filterQuery, patchObj){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}?${filterQuery}`, {
+    method:'PATCH',
+    headers: { apikey: SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}`, 'Content-Type':'application/json', Prefer:'return=representation' },
+    body: JSON.stringify(patchObj)
+  });
+  if(!res.ok) throw new Error(await res.text());
+  return res.json();
+}
+async function sbDelete(path, filterQuery){
+  const res = await fetch(`${SUPABASE_URL}/rest/v1/${path}?${filterQuery}`, {
+    method:'DELETE',
+    headers: { apikey: SUPABASE_KEY, Authorization:`Bearer ${SUPABASE_KEY}` }
+  });
+  if(!res.ok) throw new Error(await res.text());
+}
+
+function pct(a,b){ return b ? Math.round((a/b)*1000)/10 : 0; }
+function corMeta(valor, meta){
+  if(valor === null || valor === undefined) return '#666';
+  return pct(valor, meta) >= 100 ? '#3fae7a' : '#d3673f';
+}
+
+function fmtData(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
+
+function calcularPascoa(ano){
+  // Algoritmo de Gauss/Meeus — calcula a data da Páscoa pra qualquer ano
+  const a = ano % 19;
+  const b = Math.floor(ano/100);
+  const c = ano % 100;
+  const d = Math.floor(b/4);
+  const e = b % 4;
+  const f = Math.floor((b+8)/25);
+  const g = Math.floor((b-f+1)/3);
+  const h = (19*a+b-d-g+15) % 30;
+  const i = Math.floor(c/4);
+  const k = c % 4;
+  const l = (32+2*e+2*i-h-k) % 7;
+  const m = Math.floor((a+11*h+22*l)/451);
+  const mes = Math.floor((h+l-7*m+114)/31);
+  const dia = ((h+l-7*m+114) % 31) + 1;
+  return new Date(ano, mes-1, dia);
+}
+
+function feriadosDoAno(ano){
+  const pascoa = calcularPascoa(ano);
+  const add = (dataBase, dias) => { const d = new Date(dataBase); d.setDate(d.getDate()+dias); return d; };
+  const lista = [
+    new Date(ano,0,1),    // Confraternização Universal
+    add(pascoa,-48),      // Carnaval (segunda)
+    add(pascoa,-47),      // Carnaval (terça)
+    add(pascoa,-2),       // Sexta-feira Santa
+    new Date(ano,3,21),   // Tiradentes
+    new Date(ano,4,1),    // Dia do Trabalho
+    add(pascoa,60),       // Corpus Christi
+    new Date(ano,8,7),    // Independência do Brasil
+    new Date(ano,8,20),   // Revolução Farroupilha (feriado estadual — RS)
+    new Date(ano,9,12),   // Nossa Senhora Aparecida
+    new Date(ano,10,2),   // Finados
+    new Date(ano,10,15),  // Proclamação da República
+    new Date(ano,10,20),  // Dia Nacional de Zumbi e da Consciência Negra
+    new Date(ano,11,25)   // Natal
+  ];
+  return lista.map(fmtData);
+}
+
+function calcularDiasUteis(mesVal){
+  const [ano, mesN] = mesVal.split('-').map(Number);
+  const feriados = new Set([...feriadosDoAno(ano-1), ...feriadosDoAno(ano), ...feriadosDoAno(ano+1)]);
+  const inicioMes = new Date(ano, mesN-1, 1);
+  const fimMes = new Date(ano, mesN, 0);
+  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  let diaRef = hoje;
+  if(hoje < inicioMes) diaRef = null;       // mês futuro: nada decorrido ainda
+  if(hoje > fimMes) diaRef = fimMes;        // mês já fechado: conta o mês inteiro
+
+  function contar(ini, fim){
+    if(!ini || !fim || ini > fim) return 0;
+    let c = 0; let d = new Date(ini);
+    while(d <= fim){
+      const dow = d.getDay();
+      if(dow !== 0 && dow !== 6 && !feriados.has(fmtData(d))) c++;
+      d.setDate(d.getDate()+1);
+    }
+    return c;
+  }
+
+  const totais = contar(inicioMes, fimMes);
+  const decorridos = diaRef ? contar(inicioMes, diaRef) : 0;
+  return { totais, decorridos, restantes: totais - decorridos };
+}
+
+function tendenciaValor(valorAtual, diasUteisInfo){
+  if(!diasUteisInfo || diasUteisInfo.decorridos <= 0) return null;
+  return valorAtual / diasUteisInfo.decorridos * diasUteisInfo.totais;
+}
+function mesParaData(mesInputValue){ return mesInputValue + '-01'; }
+function mesAnterior(mesInputValue){
+  const [y,m] = mesInputValue.split('-').map(Number);
+  const d = new Date(y, m-2, 1);
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0');
+}
+
+const MESES_LABEL = [
+  {v:'2026-01', l:'Jan/26'}, {v:'2026-02', l:'Fev/26'}, {v:'2026-03', l:'Mar/26'},
+  {v:'2026-04', l:'Abr/26'}, {v:'2026-05', l:'Mai/26'}, {v:'2026-06', l:'Jun/26'},
+  {v:'2026-07', l:'Jul/26'}, {v:'2026-08', l:'Ago/26'}, {v:'2026-09', l:'Set/26'},
+  {v:'2026-10', l:'Out/26'}, {v:'2026-11', l:'Nov/26'}, {v:'2026-12', l:'Dez/26'}
+];
+function popularSeletorMes(){
+  const sel = document.getElementById('mesInput');
+  sel.innerHTML = MESES_LABEL.map(m => `<option value="${m.v}" ${m.v==='2026-09'?'selected':''}>${m.l}</option>`).join('');
+}
+
+function limparTelefone(v){
+  let digits = (v||'').replace(/\D/g,'');
+  if(!digits) return '';
+  digits = digits.replace(/^0+/, '');
+  if(digits.startsWith('55') && (digits.length === 12 || digits.length === 13)) return digits;
+  if(digits.length === 10 || digits.length === 11) return '55'+digits;
+  return digits;
+}
+
+function montarMensagemWhats(nomeExibicao, agregado, meta, mesLabel, perdidos, diffQtd, pctBalanca, batalhaMedia, batalhaMeta){
+  const pctBalancaTexto = (pctBalanca === null) ? '-' : (pctBalanca + '%');
+  const sinalDiff = diffQtd > 0 ? '+' : '';
+  const batalhaTxt = (batalhaMedia === null) ? '-' : batalhaMedia;
+  const linhas = [
+    `Olá ${nomeExibicao}, tudo bem?`,
+    ``,
+    `Segue o resultado acumulado da Positivação por perfil de carteira (${mesLabel}):`,
+    ``,
+    `Recorrente: ${agregado.rec}/${meta.meta_recorrente} (${pct(agregado.rec, meta.meta_recorrente)}%)`,
+    `Novo: ${agregado.novo}/${meta.meta_novo} (${pct(agregado.novo, meta.meta_novo)}%)`,
+    `Retido: ${agregado.ret}/${meta.meta_retido} (${pct(agregado.ret, meta.meta_retido)}%)`,
+    `Reativado: ${agregado.reat}/${meta.meta_reativado} (${pct(agregado.reat, meta.meta_reativado)}%)`,
+    `Perdidos: ${perdidos}`,
+    `Balança: ${sinalDiff}${diffQtd} (${pctBalancaTexto})`,
+    ``,
+    `Total: ${agregado.total}/${meta.meta_total} (${pct(agregado.total, meta.meta_total)}%)`,
+    ``,
+    `Segue o resultado acumulado do Batalha Naval (${mesLabel}):`,
+    `Total: ${batalhaTxt}/${meta.meta_batalha_naval||0} (${pct(batalhaMedia, meta.meta_batalha_naval)}%)`
+  ];
+  return linhas.join('\n');
+}
+
+// ---------- TABS ----------
+document.querySelectorAll('.tab-btn').forEach(btn=>{
+  btn.addEventListener('click', ()=>{
+    document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('ativo'));
+    btn.classList.add('ativo');
+    document.getElementById('tab-painel').classList.toggle('hidden', btn.dataset.tab!=='painel');
+    document.getElementById('tab-cadastros').classList.toggle('hidden', btn.dataset.tab!=='cadastros');
+    if(btn.dataset.tab==='cadastros') carregarCadastros();
+  });
+});
+
+document.getElementById('mesInput').addEventListener('change', ()=>{
+  carregarPainel();
+  if(!document.getElementById('tab-cadastros').classList.contains('hidden')) carregarCadastros();
+});
+
+// ---------- PAINEL ----------
+let detalheAtual = []; // linhas supervisor+vendedor do mês atual
+let cargaAtual = 0;    // token pra ignorar respostas antigas fora de ordem
+
+async function carregarPainel(){
+  const mesVal = document.getElementById('mesInput').value;
+  const minhaVersao = ++cargaAtual;
+  setStatus('Carregando ' + mesVal + '...');
+  const mes = mesParaData(mesVal);
+  try{
+    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
+      sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc'),
+      sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`),
+      sbRpc('gerot_positivacao_detalhe', { p_mes: mes }),
+      sbRpc('gerot_positivacao_perdidos', { p_mes: mes }),
+      sbRpc('gerot_positivacao_batalha_naval', { p_mes: mes }),
+      sbRpc('gerot_positivacao_faturamento', { p_mes: mes }),
+      sbRpc('gerot_positivacao_venda_petry', { p_mes: mes }),
+      sbRpc('gerot_positivacao_gerot', { p_mes: mes }),
+      sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota')
+    ]);
+    if(minhaVersao !== cargaAtual) return; // outra seleção de mês já chegou depois, ignora esta
+    detalheAtual = detalhe;
+    renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas);
+    setStatus('');
+  }catch(e){
+    if(minhaVersao !== cargaAtual) return;
+    setStatus('Erro ao carregar: ' + e.message, true);
+  }
+}
+
+function agregarPorSupervisor(detalhe, nomeSistema){
+  const linhas = detalhe.filter(d => d.supervisor === nomeSistema);
+  const total = linhas.reduce((acc,l)=>({
+    rec: acc.rec + Number(l.recorrentes),
+    novo: acc.novo + Number(l.novos),
+    ret: acc.ret + Number(l.retidos),
+    reat: acc.reat + Number(l.reativados),
+    total: acc.total + Number(l.total)
+  }), {rec:0,novo:0,ret:0,reat:0,total:0});
+  return { agregado: total, vendedores: linhas };
+}
+
+function linhaBarra(chave, label, valor, meta, cor, supervisorId){
+  const p = Math.min(pct(valor, meta), 100);
+  const corBarra = corMeta(valor, meta);
+  return `<div class="linha" data-chave="${chave}" data-sup="${supervisorId}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>${label}</span>
+      <b>${valor}/${meta||0} · ${pct(valor,meta)}%</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+    <div class="drill" id="drill-${supervisorId}-${chave}"></div>
+  </div>`;
+}
+
+function linhaTendenciaDestaque(valorAtual, meta, diasUteisInfo){
+  const tendencia = tendenciaValor(valorAtual, diasUteisInfo);
+  if(tendencia === null){
+    return `<div class="tendencia-destaque">
+      <div class="tendencia-label">Tendência de fechamento</div>
+      <div class="tendencia-vazio">Mês ainda não iniciado</div>
+    </div>`;
+  }
+  const corBarra = corMeta(tendencia, meta);
+  const p = Math.min(pct(tendencia, meta), 100);
+  return `<div class="tendencia-destaque">
+    <div class="tendencia-top">
+      <span class="tendencia-label">Tendência de fechamento<span class="sub">(${diasUteisInfo.decorridos}/${diasUteisInfo.totais} dias úteis)</span></span>
+      <span class="tendencia-valor">${formatarMoeda(tendencia)} <span class="tendencia-pct">/ ${formatarMoeda(meta)} · ${pct(tendencia,meta)}%</span></span>
+    </div>
+    <div class="barra-bg tendencia-barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+  </div>`;
+}
+
+function linhaFaturamentoTotalContainer(id, totalValor, totalMeta, subHtml){
+  const p = Math.min(pct(totalValor, totalMeta), 100);
+  const corBarra = corMeta(totalValor, totalMeta);
+  return `<div class="linha" data-chave="faturamentoTotal" data-sup="${id}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>faturamento total</span>
+      <b>${formatarMoeda(totalValor)} / ${formatarMoeda(totalMeta)} · ${pct(totalValor,totalMeta)}%</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+    <div class="drill" id="drill-${id}-faturamentoTotal">${subHtml}</div>
+  </div>`;
+}
+
+function linhaBrokerEstatica(valor, meta){
+  const p = Math.min(pct(valor, meta), 100);
+  const corBarra = corMeta(valor, meta);
+  return `<div class="linha" style="cursor:default">
+    <div class="lbl-row">
+      <span>broker</span>
+      <b>${formatarMoeda(valor)} / ${formatarMoeda(meta)} · ${pct(valor,meta)}%</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+  </div>`;
+}
+
+function linhaGerotContainer(id, metasBatidas, subHtml){
+  const p = Math.min(pct(metasBatidas, 4), 100);
+  const corBarra = corMeta(metasBatidas, 4);
+  return `<div class="linha" data-chave="gerot" data-sup="${id}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>gerot</span>
+      <b>${metasBatidas}/4 metas</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+    <div class="drill" id="drill-${id}-gerot">${subHtml}</div>
+  </div>`;
+}
+
+function agregarGerotPorSupervisor(gerotDetalhe, nomeExibicao){
+  const norm = (nomeExibicao||'').trim().toUpperCase();
+  const linhas = gerotDetalhe.filter(d => (d.supervisor||'').trim().toUpperCase() === norm);
+  const rotas = linhas.reduce((acc,l)=>acc+Number(l.rotas),0);
+  const pdvsTotal = linhas.reduce((acc,l)=>acc+Number(l.pdvs_total),0);
+  const cadastros = linhas.reduce((acc,l)=>acc+Number(l.cadastros),0);
+  const vendaTotal = linhas.reduce((acc,l)=>acc+Number(l.venda_total),0);
+  const pdvsMedia = rotas > 0 ? Math.round((pdvsTotal/rotas)*10)/10 : null;
+  const vendaMedia = rotas > 0 ? Math.round(vendaTotal/rotas) : null;
+  return { rotas, pdvsTotal, cadastros, vendaTotal, pdvsMedia, vendaMedia, vendedores: linhas };
+}
+
+function agregarTelevendasGerot(gerotDetalhe){
+  const linhas = gerotDetalhe.filter(d => ehTelevendas(d.vendedor));
+  const rotas = linhas.reduce((acc,l)=>acc+Number(l.rotas),0);
+  const pdvsTotal = linhas.reduce((acc,l)=>acc+Number(l.pdvs_total),0);
+  const cadastros = linhas.reduce((acc,l)=>acc+Number(l.cadastros),0);
+  const vendaTotal = linhas.reduce((acc,l)=>acc+Number(l.venda_total),0);
+  const pdvsMedia = rotas > 0 ? Math.round((pdvsTotal/rotas)*10)/10 : null;
+  const vendaMedia = rotas > 0 ? Math.round(vendaTotal/rotas) : null;
+  return { rotas, pdvsTotal, cadastros, vendaTotal, pdvsMedia, vendaMedia, vendedores: linhas };
+}
+
+function contarMetasGerotBatidas(gerotInfo, metaGerot){
+  let n = 0;
+  if(pct(gerotInfo.rotas, metaGerot.rotas) >= 100) n++;
+  if(gerotInfo.pdvsMedia !== null && pct(gerotInfo.pdvsMedia, metaGerot.pdvs_rota) >= 100) n++;
+  if(pct(gerotInfo.cadastros, metaGerot.cadastros) >= 100) n++;
+  if(gerotInfo.vendaMedia !== null && pct(gerotInfo.vendaMedia, metaGerot.venda_media) >= 100) n++;
+  return n;
+}
+
+function buscarMetaGerot(gerotMetasMap, nomeExibicao){
+  const norm = (nomeExibicao||'').trim().toUpperCase();
+  return gerotMetasMap[norm] || GEROT_METAS_PADRAO;
+}
+
+function linhaFaturamento(chave, label, valor, meta, cor, supervisorId){
+  const p = Math.min(pct(valor, meta), 100);
+  const corBarra = corMeta(valor, meta);
+  return `<div class="linha" data-chave="${chave}" data-sup="${supervisorId}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>${label}</span>
+      <b>${formatarMoeda(valor)} / ${formatarMoeda(meta)} · ${pct(valor,meta)}%</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+    <div class="drill" id="drill-${supervisorId}-${chave}"></div>
+  </div>`;
+}
+
+function linhaPerdidos(valor, supervisorId){
+  return `<div class="linha" data-chave="perdidos" data-sup="${supervisorId}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>perdidos</span>
+      <b>${valor}</b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:100%;background:#d3673f"></div></div>
+    <div class="drill" id="drill-${supervisorId}-perdidos"></div>
+  </div>`;
+}
+
+function linhaBalanca(diffQtd, pctBalanca){
+  const cor = diffQtd >= 0 ? '#3fae7a' : '#d3673f';
+  const sinal = diffQtd > 0 ? '+' : '';
+  const pctTexto = (pctBalanca === null) ? '\u2014' : (pctBalanca + '%');
+  return `<div class="linha-balanca">
+    <div class="lbl-row">
+      <span>balança</span>
+      <b style="color:${cor}">${sinal}${diffQtd} · ${pctTexto}</b>
+    </div>
+  </div>`;
+}
+
+function linhaBatalhaNaval(chave, label, valor, meta, cor, supervisorId, clientesAvaliados){
+  const p = Math.min(pct(valor, meta), 100);
+  const valorTxt = (valor === null) ? '\u2014' : valor;
+  const corBarra = corMeta(valor, meta);
+  return `<div class="linha batalha" data-chave="${chave}" data-sup="${supervisorId}">
+    <div class="lbl-row">
+      <span><span class="setinha">▶</span>${label}</span>
+      <b>${valorTxt}/${meta||0} · ${pct(valor,meta)}% <span class="sub">(${clientesAvaliados} cli.)</span></b>
+    </div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${p}%;background:${corBarra}"></div></div>
+    <div class="drill" id="drill-${supervisorId}-${chave}"></div>
+  </div>`;
+}
+
+function renderVendedoresDrill(vendedores, chave){
+  const campoMap = { total:'total', rec:'recorrentes', novo:'novos', ret:'retidos', reat:'reativados' };
+  const campo = campoMap[chave];
+  if(!vendedores.length) return '<div class="drill-empty">Nenhum vendedor com venda neste mês.</div>';
+  const ordenado = [...vendedores].sort((a,b)=> Number(b[campo]) - Number(a[campo]));
+  return ordenado.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'}</span><b>${Number(v[campo])}</b></div>`).join('');
+}
+
+function agregarTelevendasPositivacao(detalhe){
+  const linhas = detalhe.filter(d => ehTelevendas(d.vendedor));
+  const total = linhas.reduce((acc,l)=>({
+    rec: acc.rec + Number(l.recorrentes),
+    novo: acc.novo + Number(l.novos),
+    ret: acc.ret + Number(l.retidos),
+    reat: acc.reat + Number(l.reativados),
+    total: acc.total + Number(l.total)
+  }), {rec:0,novo:0,ret:0,reat:0,total:0});
+  return { agregado: total, vendedores: linhas };
+}
+function agregarTelevendasPerdidos(perdidosDetalhe){
+  const linhas = perdidosDetalhe.filter(d => ehTelevendas(d.vendedor));
+  const total = linhas.reduce((acc,l) => acc + Number(l.perdidos), 0);
+  return { total, vendedores: linhas };
+}
+function agregarTelevendasBatalha(batalhaDetalhe){
+  const linhas = batalhaDetalhe.filter(d => ehTelevendas(d.vendedor));
+  const somaMix = linhas.reduce((acc,l) => acc + Number(l.soma_mix), 0);
+  const clientes = linhas.reduce((acc,l) => acc + Number(l.clientes_avaliados), 0);
+  const mediaItens = clientes > 0 ? Math.round((somaMix/clientes)*10)/10 : null;
+  return { mediaItens, clientes, somaMix, vendedores: linhas };
+}
+function agregarTelevendasFaturamento(faturamentoDetalhe){
+  const linhas = faturamentoDetalhe.filter(d => ehTelevendas(d.vendedor));
+  const total = linhas.reduce((acc,l) => acc + Number(l.faturamento), 0);
+  return { total, vendedores: linhas };
+}
+function agregarTelevendasPetry(petryDetalhe){
+  const linhas = petryDetalhe.filter(d => ehTelevendas(d.vendedor));
+  const total = linhas.reduce((acc,l) => acc + Number(l.faturamento), 0);
+  return { total, vendedores: linhas };
+}
+
+function agregarFaturamentoPorSupervisor(faturamentoDetalhe, nomeSistema){
+  const linhas = faturamentoDetalhe.filter(d => d.supervisor === nomeSistema);
+  const total = linhas.reduce((acc,l) => acc + Number(l.faturamento), 0);
+  return { total, vendedores: linhas };
+}
+
+function agregarPetryPorSupervisor(petryDetalhe, nomeSistema){
+  const linhas = petryDetalhe.filter(d => d.supervisor === nomeSistema);
+  const total = linhas.reduce((acc,l) => acc + Number(l.faturamento), 0);
+  return { total, vendedores: linhas };
+}
+
+function agregarPerdidosPorSupervisor(perdidosDetalhe, nomeSistema){
+  const linhas = perdidosDetalhe.filter(d => d.supervisor === nomeSistema);
+  const total = linhas.reduce((acc,l) => acc + Number(l.perdidos), 0);
+  return { total, vendedores: linhas };
+}
+
+function agregarBatalhaPorSupervisor(batalhaDetalhe, nomeSistema){
+  const linhas = batalhaDetalhe.filter(d => d.supervisor === nomeSistema);
+  const somaMix = linhas.reduce((acc,l) => acc + Number(l.soma_mix), 0);
+  const clientes = linhas.reduce((acc,l) => acc + Number(l.clientes_avaliados), 0);
+  const mediaItens = clientes > 0 ? Math.round((somaMix/clientes)*10)/10 : null;
+  return { mediaItens, clientes, somaMix, vendedores: linhas };
+}
+
+function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDetalhe, faturamentoDetalhe, petryDetalhe, gerotDetalhe, gerotMetasRows){
+  const metasMap = {};
+  metas.forEach(m => metasMap[m.nome_sistema] = m);
+
+  const gerotMetasMap = {};
+  (gerotMetasRows||[]).forEach(r => {
+    const norm = (r.supervisor||'').trim().toUpperCase();
+    gerotMetasMap[norm] = {
+      rotas: r.rotas ?? GEROT_METAS_PADRAO.rotas,
+      pdvs_rota: r.pdvsrota ?? GEROT_METAS_PADRAO.pdvs_rota,
+      cadastros: r.cadastros ?? GEROT_METAS_PADRAO.cadastros,
+      venda_media: r.vendaporrota ?? GEROT_METAS_PADRAO.venda_media
+    };
+  });
+
+  const cont = document.getElementById('cards');
+  cont.innerHTML = '';
+
+  let somaMeta = {total:0,rec:0,novo:0,ret:0,reat:0};
+  let somaReal = {total:0,rec:0,novo:0,ret:0,reat:0};
+  let somaPerdidos = 0;
+  let somaBatalhaMix = 0;
+  let somaBatalhaClientes = 0;
+  let somaBatalhaMetaPonderada = 0;
+  let somaFaturamento = 0;
+  let somaMetaFaturamento = 0;
+  let somaPetry = 0;
+  let somaMetaPetry = 0;
+  let somaBroker = 0;
+  let somaMetaBroker = 0;
+  let somaGerot = { rotas:0, pdvsTotal:0, cadastros:0, vendaTotal:0 };
+  let somaMetaGerot = { rotas:0, pdvs_rota:0, cadastros:0, venda_media:0 };
+
+  const cadastrados = new Set();
+  const mesLabelObj = MESES_LABEL.find(m => m.v === document.getElementById('mesInput').value);
+  const mesLabel = mesLabelObj ? mesLabelObj.l : document.getElementById('mesInput').value;
+  const diasUteisInfo = calcularDiasUteis(document.getElementById('mesInput').value);
+  window._painelDados = {};
+
+  supervisores.filter(s=>s.ativo && s.nome_sistema !== 'TELE VENDAS').forEach(sup=>{
+    cadastrados.add(sup.nome_sistema);
+    const { agregado, vendedores } = agregarPorSupervisor(detalhe, sup.nome_sistema);
+    const meta = metasMap[sup.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+
+    somaMeta.total += meta.meta_total; somaMeta.rec += meta.meta_recorrente; somaMeta.novo += meta.meta_novo; somaMeta.ret += meta.meta_retido; somaMeta.reat += meta.meta_reativado;
+    somaReal.total += agregado.total; somaReal.rec += agregado.rec; somaReal.novo += agregado.novo; somaReal.ret += agregado.ret; somaReal.reat += agregado.reat;
+
+    const id = sup.nome_sistema.replace(/[^a-zA-Z0-9]/g,'');
+    const telLimpo = limparTelefone(sup.telefone);
+
+    const perdidosInfo = agregarPerdidosPorSupervisor(perdidosDetalhe, sup.nome_sistema);
+    const ganhos = agregado.novo + agregado.reat + agregado.ret;
+    const diffQtd = ganhos - perdidosInfo.total;
+    const pctBalanca = perdidosInfo.total > 0 ? Math.round((ganhos/perdidosInfo.total*100)*10)/10 : null;
+
+    window._painelDados[id] = { nome: sup.nome_exibicao, telefone: telLimpo, agregado, meta, mesLabel, perdidos: perdidosInfo.total, diffQtd, pctBalanca, batalhaMedia: null, batalhaMeta: null };
+
+    somaPerdidos += perdidosInfo.total;
+
+    const batalhaInfo = agregarBatalhaPorSupervisor(batalhaDetalhe, sup.nome_sistema);
+    somaBatalhaMix += batalhaInfo.somaMix;
+    somaBatalhaClientes += batalhaInfo.clientes;
+    somaBatalhaMetaPonderada += (meta.meta_batalha_naval || 0) * batalhaInfo.clientes;
+    window._painelDados[id].batalhaMedia = batalhaInfo.mediaItens;
+    window._painelDados[id].batalhaMeta = meta.meta_batalha_naval;
+
+    const faturamentoInfo = agregarFaturamentoPorSupervisor(faturamentoDetalhe, sup.nome_sistema);
+    somaFaturamento += faturamentoInfo.total;
+    somaMetaFaturamento += (meta.meta_faturamento || 0);
+
+    const petryInfo = agregarPetryPorSupervisor(petryDetalhe, sup.nome_sistema);
+    somaPetry += petryInfo.total;
+    somaMetaPetry += (meta.meta_venda_petry || 0);
+    somaBroker += (meta.realizado_broker || 0);
+    somaMetaBroker += (meta.meta_broker || 0);
+
+    const gerotInfo = agregarGerotPorSupervisor(gerotDetalhe, sup.nome_exibicao);
+    somaGerot.rotas += gerotInfo.rotas;
+    somaGerot.pdvsTotal += gerotInfo.pdvsTotal;
+    somaGerot.cadastros += gerotInfo.cadastros;
+    somaGerot.vendaTotal += gerotInfo.vendaTotal;
+    const metaGerotSup = buscarMetaGerot(gerotMetasMap, sup.nome_exibicao);
+    somaMetaGerot.rotas += metaGerotSup.rotas;
+    somaMetaGerot.pdvs_rota += metaGerotSup.pdvs_rota;
+    somaMetaGerot.cadastros += metaGerotSup.cadastros;
+    somaMetaGerot.venda_media += metaGerotSup.venda_media;
+
+    const card = document.createElement('div');
+    card.className = 'card';
+    card.innerHTML = `
+      <div class="head">
+        <div class="nome-row">
+          <p class="nome">${sup.nome_exibicao}</p>
+          <button class="wa-btn" data-id="${id}" ${telLimpo?'':'disabled title="Sem telefone cadastrado"'}>
+            <svg viewBox="0 0 24 24"><path d="M17.6 6.32A7.85 7.85 0 0 0 12 4a7.94 7.94 0 0 0-6.86 11.9L4 20l4.2-1.1A7.9 7.9 0 0 0 12 20a7.94 7.94 0 0 0 5.6-13.68zM12 18.5a6.4 6.4 0 0 1-3.3-.9l-.24-.14-2.47.65.66-2.4-.16-.25A6.5 6.5 0 1 1 18.5 12 6.46 6.46 0 0 1 12 18.5zm3.5-4.85c-.19-.1-1.13-.56-1.3-.62s-.3-.1-.42.1-.48.62-.6.74-.22.14-.41.05a5.3 5.3 0 0 1-2.6-2.28c-.2-.33.2-.31.55-1a.6.6 0 0 0 0-.55c-.05-.1-.42-1-.58-1.4s-.3-.32-.42-.33h-.36a.7.7 0 0 0-.5.23 2.1 2.1 0 0 0-.66 1.56 3.7 3.7 0 0 0 .77 1.94 8.5 8.5 0 0 0 3.26 2.88c.45.2.8.31 1.08.4a2.6 2.6 0 0 0 1.2.08 2 2 0 0 0 1.3-.92 1.6 1.6 0 0 0 .11-.92c-.05-.09-.17-.14-.36-.24z"/></svg>
+            WhatsApp
+          </button>
+        </div>
+        <span class="meta">meta ${meta.meta_total}</span>
+      </div>
+      ${linhaTendenciaDestaque(faturamentoInfo.total + petryInfo.total + (meta.realizado_broker||0), (meta.meta_faturamento||0) + (meta.meta_venda_petry||0) + (meta.meta_broker||0), diasUteisInfo)}
+      ${linhaFaturamentoTotalContainer(
+        id,
+        faturamentoInfo.total + petryInfo.total + (meta.realizado_broker||0),
+        (meta.meta_faturamento||0) + (meta.meta_venda_petry||0) + (meta.meta_broker||0),
+        linhaFaturamento('faturamento', 'faturamento', faturamentoInfo.total, meta.meta_faturamento, CORES.fat, id) +
+        linhaFaturamento('petry', 'venda petry', petryInfo.total, meta.meta_venda_petry, CORES.petry, id) +
+        linhaBrokerEstatica(meta.realizado_broker||0, meta.meta_broker||0)
+      )}
+      ${linhaBarra('total','total positivados', agregado.total, meta.meta_total, CORES.total, id)}
+      ${linhaBarra('rec','recorrente', agregado.rec, meta.meta_recorrente, CORES.rec, id)}
+      ${linhaBarra('novo','novo', agregado.novo, meta.meta_novo, CORES.novo, id)}
+      ${linhaBarra('ret','retido', agregado.ret, meta.meta_retido, CORES.ret, id)}
+      ${linhaBarra('reat','reativado', agregado.reat, meta.meta_reativado, CORES.reat, id)}
+      ${linhaPerdidos(perdidosInfo.total, id)}
+      ${linhaBalanca(diffQtd, pctBalanca)}
+      ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', batalhaInfo.mediaItens, meta.meta_batalha_naval, CORES.batalha, id, batalhaInfo.clientes)}
+      ${linhaGerotContainer(id, contarMetasGerotBatidas(gerotInfo, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao)),
+        linhaBarra('gerotRotas', 'rotas', gerotInfo.rotas, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).rotas, CORES.gerot, id) +
+        linhaBarra('gerotPdvs', 'pdvs visitados por rota', gerotInfo.pdvsMedia ?? 0, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).pdvs_rota, CORES.gerot, id) +
+        linhaBarra('gerotCadastros', 'cadastros', gerotInfo.cadastros, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).cadastros, CORES.gerot, id) +
+        linhaFaturamento('gerotVenda', 'venda média por rota', gerotInfo.vendaMedia ?? 0, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).venda_media, CORES.gerot, id)
+      )}
+    `;
+    card._vendedores = vendedores;
+    card._perdidosVendedores = perdidosInfo.vendedores;
+    card._batalhaVendedores = batalhaInfo.vendedores;
+    card._faturamentoVendedores = faturamentoInfo.vendedores;
+    card._petryVendedores = petryInfo.vendedores;
+    card._gerotVendedores = gerotInfo.vendedores;
+    cont.appendChild(card);
+  });
+
+  // Tele Vendas — card separado, não soma no Total Geral (essas vendedoras já contam no supervisor real delas)
+  const supTV = supervisores.find(s => s.nome_sistema === 'TELE VENDAS' && s.ativo);
+  if(supTV){
+    const idTV = 'televendas';
+    const tvPositivacao = agregarTelevendasPositivacao(detalhe);
+    const tvPerdidos = agregarTelevendasPerdidos(perdidosDetalhe);
+    const tvBatalha = agregarTelevendasBatalha(batalhaDetalhe);
+    const tvFaturamento = agregarTelevendasFaturamento(faturamentoDetalhe);
+    const tvPetry = agregarTelevendasPetry(petryDetalhe);
+    const tvGerot = agregarTelevendasGerot(gerotDetalhe);
+    const tvMeta = metasMap['TELE VENDAS'] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+    const tvGanhos = tvPositivacao.agregado.novo + tvPositivacao.agregado.reat + tvPositivacao.agregado.ret;
+    const tvDiff = tvGanhos - tvPerdidos.total;
+    const tvPctBalanca = tvPerdidos.total > 0 ? Math.round((tvGanhos/tvPerdidos.total*100)*10)/10 : null;
+    const tvTelLimpo = limparTelefone(supTV.telefone);
+
+    window._painelDados[idTV] = {
+      nome: supTV.nome_exibicao, telefone: tvTelLimpo, agregado: tvPositivacao.agregado, meta: tvMeta, mesLabel,
+      perdidos: tvPerdidos.total, diffQtd: tvDiff, pctBalanca: tvPctBalanca,
+      batalhaMedia: tvBatalha.mediaItens, batalhaMeta: tvMeta.meta_batalha_naval
+    };
+
+    const cardTV = document.createElement('div');
+    cardTV.className = 'card';
+    cardTV.innerHTML = `
+      <div class="head">
+        <div class="nome-row">
+          <p class="nome">${supTV.nome_exibicao}</p>
+          <button class="wa-btn" data-id="${idTV}" ${tvTelLimpo?'':'disabled title="Sem telefone cadastrado"'}>
+            <svg viewBox="0 0 24 24"><path d="M17.6 6.32A7.85 7.85 0 0 0 12 4a7.94 7.94 0 0 0-6.86 11.9L4 20l4.2-1.1A7.9 7.9 0 0 0 12 20a7.94 7.94 0 0 0 5.6-13.68zM12 18.5a6.4 6.4 0 0 1-3.3-.9l-.24-.14-2.47.65.66-2.4-.16-.25A6.5 6.5 0 1 1 18.5 12 6.46 6.46 0 0 1 12 18.5zm3.5-4.85c-.19-.1-1.13-.56-1.3-.62s-.3-.1-.42.1-.48.62-.6.74-.22.14-.41.05a5.3 5.3 0 0 1-2.6-2.28c-.2-.33.2-.31.55-1a.6.6 0 0 0 0-.55c-.05-.1-.42-1-.58-1.4s-.3-.32-.42-.33h-.36a.7.7 0 0 0-.5.23 2.1 2.1 0 0 0-.66 1.56 3.7 3.7 0 0 0 .77 1.94 8.5 8.5 0 0 0 3.26 2.88c.45.2.8.31 1.08.4a2.6 2.6 0 0 0 1.2.08 2 2 0 0 0 1.3-.92 1.6 1.6 0 0 0 .11-.92c-.05-.09-.17-.14-.36-.24z"/></svg>
+            WhatsApp
+          </button>
+        </div>
+        <span class="meta">meta ${tvMeta.meta_total}</span>
+      </div>
+      ${linhaTendenciaDestaque(tvFaturamento.total + tvPetry.total, (tvMeta.meta_faturamento||0) + (tvMeta.meta_venda_petry||0), diasUteisInfo)}
+      ${linhaFaturamentoTotalContainer(
+        idTV,
+        tvFaturamento.total + tvPetry.total,
+        (tvMeta.meta_faturamento||0) + (tvMeta.meta_venda_petry||0),
+        linhaFaturamento('faturamento', 'faturamento', tvFaturamento.total, tvMeta.meta_faturamento, CORES.fat, idTV) +
+        linhaFaturamento('petry', 'venda petry', tvPetry.total, tvMeta.meta_venda_petry, CORES.petry, idTV)
+      )}
+      ${linhaBarra('total','total positivados', tvPositivacao.agregado.total, tvMeta.meta_total, CORES.total, idTV)}
+      ${linhaBarra('rec','recorrente', tvPositivacao.agregado.rec, tvMeta.meta_recorrente, CORES.rec, idTV)}
+      ${linhaBarra('novo','novo', tvPositivacao.agregado.novo, tvMeta.meta_novo, CORES.novo, idTV)}
+      ${linhaBarra('ret','retido', tvPositivacao.agregado.ret, tvMeta.meta_retido, CORES.ret, idTV)}
+      ${linhaBarra('reat','reativado', tvPositivacao.agregado.reat, tvMeta.meta_reativado, CORES.reat, idTV)}
+      ${linhaPerdidos(tvPerdidos.total, idTV)}
+      ${linhaBalanca(tvDiff, tvPctBalanca)}
+      ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', tvBatalha.mediaItens, tvMeta.meta_batalha_naval, CORES.batalha, idTV, tvBatalha.clientes)}
+      ${linhaGerotContainer(idTV, contarMetasGerotBatidas(tvGerot, GEROT_METAS_PADRAO),
+        linhaBarra('gerotRotas', 'rotas', tvGerot.rotas, GEROT_METAS_PADRAO.rotas, CORES.gerot, idTV) +
+        linhaBarra('gerotPdvs', 'pdvs visitados por rota', tvGerot.pdvsMedia ?? 0, GEROT_METAS_PADRAO.pdvs_rota, CORES.gerot, idTV) +
+        linhaBarra('gerotCadastros', 'cadastros', tvGerot.cadastros, GEROT_METAS_PADRAO.cadastros, CORES.gerot, idTV) +
+        linhaFaturamento('gerotVenda', 'venda média por rota', tvGerot.vendaMedia ?? 0, GEROT_METAS_PADRAO.venda_media, CORES.gerot, idTV)
+      )}
+    `;
+    cardTV._vendedores = tvPositivacao.vendedores;
+    cardTV._perdidosVendedores = tvPerdidos.vendedores;
+    cardTV._batalhaVendedores = tvBatalha.vendedores;
+    cardTV._faturamentoVendedores = tvFaturamento.vendedores;
+    cardTV._petryVendedores = tvPetry.vendedores;
+    cardTV._gerotVendedores = tvGerot.vendedores;
+    cont.appendChild(cardTV);
+  }
+
+  // Total geral
+  const idTotal = 'totalgeral';
+  const ganhosTotal = somaReal.novo + somaReal.reat + somaReal.ret;
+  const diffTotal = ganhosTotal - somaPerdidos;
+  const pctBalancaTotal = somaPerdidos > 0 ? Math.round((ganhosTotal/somaPerdidos*100)*10)/10 : null;
+  const mediaBatalhaTotal = somaBatalhaClientes > 0 ? Math.round((somaBatalhaMix/somaBatalhaClientes)*10)/10 : null;
+  const metaBatalhaTotal = somaBatalhaClientes > 0 ? Math.round((somaBatalhaMetaPonderada/somaBatalhaClientes)*10)/10 : 2;
+  const cardTotal = document.createElement('div');
+  cardTotal.className = 'card destaque';
+  cardTotal.innerHTML = `
+    <div class="head"><p class="nome">Total Geral</p><span class="meta">meta ${somaMeta.total}</span></div>
+    ${linhaTendenciaDestaque(somaFaturamento + somaPetry + somaBroker, somaMetaFaturamento + somaMetaPetry + somaMetaBroker, diasUteisInfo)}
+    ${linhaFaturamentoTotalContainer(
+      idTotal,
+      somaFaturamento + somaPetry + somaBroker,
+      somaMetaFaturamento + somaMetaPetry + somaMetaBroker,
+      linhaFaturamento('faturamento', 'faturamento', somaFaturamento, somaMetaFaturamento, CORES.fat, idTotal) +
+      linhaFaturamento('petry', 'venda petry', somaPetry, somaMetaPetry, CORES.petry, idTotal) +
+      linhaBrokerEstatica(somaBroker, somaMetaBroker)
+    )}
+    ${linhaBarra('total','total positivados', somaReal.total, somaMeta.total, CORES.total, idTotal)}
+    ${linhaBarra('rec','recorrente', somaReal.rec, somaMeta.rec, CORES.rec, idTotal)}
+    ${linhaBarra('novo','novo', somaReal.novo, somaMeta.novo, CORES.novo, idTotal)}
+    ${linhaBarra('ret','retido', somaReal.ret, somaMeta.ret, CORES.ret, idTotal)}
+    ${linhaBarra('reat','reativado', somaReal.reat, somaMeta.reat, CORES.reat, idTotal)}
+    ${linhaPerdidos(somaPerdidos, idTotal)}
+    ${linhaBalanca(diffTotal, pctBalancaTotal)}
+    ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', mediaBatalhaTotal, metaBatalhaTotal, CORES.batalha, idTotal, somaBatalhaClientes)}
+    ${linhaGerotContainer(idTotal, contarMetasGerotBatidas(
+        { rotas: somaGerot.rotas, pdvsMedia: somaGerot.rotas>0 ? Math.round((somaGerot.pdvsTotal/somaGerot.rotas)*10)/10 : null, cadastros: somaGerot.cadastros, vendaMedia: somaGerot.rotas>0 ? Math.round(somaGerot.vendaTotal/somaGerot.rotas) : null },
+        { rotas: somaMetaGerot.rotas, pdvs_rota: (somaMetaGerot.pdvs_rota / Math.max(cadastrados.size,1)), cadastros: somaMetaGerot.cadastros, venda_media: (somaMetaGerot.venda_media / Math.max(cadastrados.size,1)) }
+      ),
+      linhaBarra('gerotRotas', 'rotas', somaGerot.rotas, somaMetaGerot.rotas, CORES.gerot, idTotal) +
+      linhaBarra('gerotPdvs', 'pdvs visitados por rota', somaGerot.rotas>0 ? Math.round((somaGerot.pdvsTotal/somaGerot.rotas)*10)/10 : 0, somaMetaGerot.pdvs_rota / Math.max(cadastrados.size,1), CORES.gerot, idTotal) +
+      linhaBarra('gerotCadastros', 'cadastros', somaGerot.cadastros, somaMetaGerot.cadastros, CORES.gerot, idTotal) +
+      linhaFaturamento('gerotVenda', 'venda média por rota', somaGerot.rotas>0 ? Math.round(somaGerot.vendaTotal/somaGerot.rotas) : 0, somaMetaGerot.venda_media / Math.max(cadastrados.size,1), CORES.gerot, idTotal)
+    )}
+  `;
+  cardTotal._vendedores = null; // total geral não explode vendedores
+  cardTotal._perdidosVendedores = null;
+  cardTotal._batalhaVendedores = null;
+  cardTotal._gerotVendedores = null;
+  cardTotal._faturamentoVendedores = null;
+  cardTotal._petryVendedores = null;
+  cont.appendChild(cardTotal);
+
+  // Grupos sem cadastro (ex: SUPERVISOR GERAL) — mostra só realizado, sem meta
+  const semCadastro = {};
+  detalhe.forEach(d=>{
+    if(!cadastrados.has(d.supervisor)){
+      if(!semCadastro[d.supervisor]) semCadastro[d.supervisor] = { rec:0, novo:0, ret:0, reat:0, total:0 };
+      semCadastro[d.supervisor].rec += Number(d.recorrentes);
+      semCadastro[d.supervisor].novo += Number(d.novos);
+      semCadastro[d.supervisor].ret += Number(d.retidos);
+      semCadastro[d.supervisor].reat += Number(d.reativados);
+      semCadastro[d.supervisor].total += Number(d.total);
+    }
+  });
+  const nota = document.getElementById('notaSemMeta');
+  const chaves = Object.keys(semCadastro);
+  if(chaves.length){
+    nota.innerHTML = 'Sem cadastro/meta neste mês: ' + chaves.map(k=>{
+      const v = semCadastro[k];
+      return `<b style="color:#ccc">${k}</b> — ${v.total} positivados (rec ${v.rec}, novo ${v.novo}, retido ${v.ret}, reativado ${v.reat})`;
+    }).join(' &nbsp;|&nbsp; ');
+  } else {
+    nota.innerHTML = '';
+  }
+
+  ativarDrillDown();
+  ativarBotoesWhats();
+}
+
+function ativarBotoesWhats(){
+  document.querySelectorAll('.wa-btn').forEach(btn=>{
+    btn.addEventListener('click', (e)=>{
+      e.stopPropagation();
+      if(btn.disabled) return;
+      const id = btn.dataset.id;
+      const d = window._painelDados[id];
+      if(!d || !d.telefone){ setStatus('Telefone não cadastrado para este supervisor', true); return; }
+      const texto = montarMensagemWhats(d.nome, d.agregado, d.meta, d.mesLabel, d.perdidos, d.diffQtd, d.pctBalanca, d.batalhaMedia, d.batalhaMeta);
+      const url = 'https://wa.me/' + d.telefone + '?text=' + encodeURIComponent(texto);
+      window.open(url, '_blank');
+    });
+  });
+}
+
+function ativarDrillDown(){
+  document.querySelectorAll('.linha[data-chave]').forEach(linha=>{
+    linha.addEventListener('click', (e)=>{
+      e.stopPropagation(); // evita que o clique "borbulhe" pra linha pai (ex: faturamento total)
+      const chave = linha.dataset.chave;
+      const supId = linha.dataset.sup;
+      const drillEl = document.getElementById(`drill-${supId}-${chave}`);
+      const card = linha.closest('.card');
+
+      const jaAberta = linha.classList.contains('aberta');
+      const escopo = linha.parentElement; // fecha só os irmãos no mesmo nível (card raiz ou painel de faturamento)
+      escopo.querySelectorAll(':scope > .linha').forEach(l=>{ l.classList.remove('aberta'); });
+      escopo.querySelectorAll(':scope > .linha > .drill').forEach(d=>{ d.classList.remove('show'); });
+
+      if(jaAberta) return;
+
+      if(chave === 'faturamentoTotal' || chave === 'gerot'){
+        // conteúdo já veio pronto no HTML, só alterna visibilidade
+      } else if(['gerotRotas','gerotPdvs','gerotCadastros','gerotVenda'].includes(chave)){
+        const vendedores = card._gerotVendedores;
+        const campoMap = {
+          gerotRotas:     v => Number(v.rotas),
+          gerotPdvs:      v => Number(v.rotas) > 0 ? Math.round((Number(v.pdvs_total)/Number(v.rotas))*10)/10 : 0,
+          gerotCadastros: v => Number(v.cadastros),
+          gerotVenda:     v => Number(v.rotas) > 0 ? Math.round(Number(v.venda_total)/Number(v.rotas)) : 0
+        };
+        const formatarMap = {
+          gerotRotas: v => v, gerotPdvs: v => v, gerotCadastros: v => v, gerotVenda: v => formatarMoeda(v)
+        };
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else if(!vendedores.length){
+          drillEl.innerHTML = '<div class="drill-empty">Nenhum dado do GEROT neste mês.</div>';
+        } else {
+          const campo = campoMap[chave];
+          const fmt = formatarMap[chave];
+          const ordenado = [...vendedores].map(v=>({vendedor:v.vendedor, valor:campo(v)})).sort((a,b)=> b.valor - a.valor);
+          drillEl.innerHTML = ordenado.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'}</span><b>${fmt(v.valor)}</b></div>`).join('');
+        }
+      } else if(chave === 'petry'){
+        const vendedores = card._petryVendedores;
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else if(!vendedores.length){
+          drillEl.innerHTML = '<div class="drill-empty">Nenhuma venda Petry neste mês.</div>';
+        } else {
+          const ordenado = [...vendedores].sort((a,b)=> Number(b.faturamento) - Number(a.faturamento));
+          drillEl.innerHTML = ordenado.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'}</span><b>${formatarMoeda(v.faturamento)}</b></div>`).join('');
+        }
+      } else if(chave === 'faturamento'){
+        const vendedores = card._faturamentoVendedores;
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else if(!vendedores.length){
+          drillEl.innerHTML = '<div class="drill-empty">Nenhum faturamento neste mês.</div>';
+        } else {
+          const ordenado = [...vendedores].sort((a,b)=> Number(b.faturamento) - Number(a.faturamento));
+          drillEl.innerHTML = ordenado.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'}</span><b>${formatarMoeda(v.faturamento)}</b></div>`).join('');
+        }
+      } else if(chave === 'perdidos'){
+        const vendedores = card._perdidosVendedores;
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else if(!vendedores.length){
+          drillEl.innerHTML = '<div class="drill-empty">Nenhum cliente perdido neste mês.</div>';
+        } else {
+          const ordenado = [...vendedores].sort((a,b)=> Number(b.perdidos) - Number(a.perdidos));
+          drillEl.innerHTML = ordenado.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'}</span><b>${Number(v.perdidos)}</b></div>`).join('');
+        }
+      } else if(chave === 'batalha'){
+        const vendedores = card._batalhaVendedores;
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else if(!vendedores.length){
+          drillEl.innerHTML = '<div class="drill-empty">Nenhum cliente avaliado neste mês.</div>';
+        } else {
+          const comMedia = vendedores.map(v => ({
+            vendedor: v.vendedor,
+            media: Number(v.clientes_avaliados) > 0 ? Math.round((Number(v.soma_mix)/Number(v.clientes_avaliados))*10)/10 : 0,
+            clientes: Number(v.clientes_avaliados)
+          }));
+          comMedia.sort((a,b) => b.media - a.media);
+          drillEl.innerHTML = comMedia.map(v => `<div class="drill-row"><span>${v.vendedor || '(sem nome)'} <span style="color:#666">(${v.clientes} cli.)</span></span><b>${v.media}</b></div>`).join('');
+        }
+      } else {
+        const vendedores = card._vendedores;
+        if(!vendedores){
+          drillEl.innerHTML = '<div class="drill-empty">Total Geral não detalha vendedores — abra o supervisor específico.</div>';
+        } else {
+          drillEl.innerHTML = renderVendedoresDrill(vendedores, chave);
+        }
+      }
+      linha.classList.add('aberta');
+      drillEl.classList.add('show');
+    });
+  });
+}
+
+// ---------- CADASTROS ----------
+async function carregarCadastros(){
+  document.getElementById('mesLabelCadastro').textContent = document.getElementById('mesInput').value;
+  setStatus('Carregando cadastros...');
+  try{
+    const supervisores = await sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc');
+    renderTabelaSupervisores(supervisores);
+    await carregarTabelaMetas(supervisores);
+    setStatus('');
+  }catch(e){
+    setStatus('Erro ao carregar cadastros: ' + e.message, true);
+  }
+}
+
+function renderTabelaSupervisores(supervisores){
+  const tbody = document.getElementById('tbodySupervisores');
+  tbody.innerHTML = supervisores.map(s=>`
+    <tr data-nome="${s.nome_sistema}">
+      <td>${s.nome_sistema}</td>
+      <td><input type="text" class="in-exibicao" value="${s.nome_exibicao||''}"></td>
+      <td><input type="text" class="in-telefone" value="${s.telefone||''}" placeholder="DDD+numero"></td>
+      <td><input type="number" class="in-ordem" value="${s.ordem||0}" style="width:60px"></td>
+      <td><input type="checkbox" class="in-ativo" ${s.ativo?'checked':''}></td>
+      <td><button class="acao btn-salvar-sup">Salvar</button> <button class="acao btn-del-sup" style="background:#3a1f1f">Excluir</button></td>
+    </tr>
+  `).join('');
+
+  tbody.querySelectorAll('.btn-salvar-sup').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr');
+      const nome = tr.dataset.nome;
+      const patch = {
+        nome_exibicao: tr.querySelector('.in-exibicao').value.trim(),
+        telefone: tr.querySelector('.in-telefone').value.trim(),
+        ordem: parseInt(tr.querySelector('.in-ordem').value)||0,
+        ativo: tr.querySelector('.in-ativo').checked
+      };
+      try{
+        await sbPatch('gerot_positivacao_supervisores', `nome_sistema=eq.${encodeURIComponent(nome)}`, patch);
+        setStatus('Supervisor salvo');
+      }catch(err){ setStatus('Erro ao salvar: '+err.message, true); }
+    });
+  });
+
+  tbody.querySelectorAll('.btn-del-sup').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr');
+      const nome = tr.dataset.nome;
+      if(!confirm('Excluir supervisor "'+nome+'"? Isso também remove as metas cadastradas dele.')) return;
+      try{
+        await sbDelete('gerot_positivacao_supervisores', `nome_sistema=eq.${encodeURIComponent(nome)}`);
+        setStatus('Supervisor excluído');
+        carregarCadastros();
+      }catch(err){ setStatus('Erro ao excluir: '+err.message, true); }
+    });
+  });
+}
+
+document.getElementById('btnAddSupervisor').addEventListener('click', async ()=>{
+  const nome_sistema = document.getElementById('novoNomeSistema').value.trim().toUpperCase();
+  const nome_exibicao = document.getElementById('novoNomeExibicao').value.trim();
+  const telefone = document.getElementById('novoTelefone').value.trim();
+  const ordem = parseInt(document.getElementById('novoOrdem').value)||99;
+  if(!nome_sistema || !nome_exibicao){ setStatus('Preencha nome no sistema e nome de exibição', true); return; }
+  try{
+    await sbUpsert('gerot_positivacao_supervisores', [{ nome_sistema, nome_exibicao, telefone, ordem, ativo:true }], 'nome_sistema');
+    setStatus('Supervisor adicionado');
+    document.getElementById('novoNomeSistema').value='';
+    document.getElementById('novoNomeExibicao').value='';
+    document.getElementById('novoTelefone').value='';
+    carregarCadastros();
+  }catch(e){ setStatus('Erro ao adicionar: '+e.message, true); }
+});
+
+async function carregarTabelaMetas(supervisores){
+  const mesVal = document.getElementById('mesInput').value;
+  const mes = mesParaData(mesVal);
+  const metas = await sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`);
+  const metasMap = {};
+  metas.forEach(m=>metasMap[m.nome_sistema]=m);
+
+  const tbody = document.getElementById('tbodyMetas');
+  tbody.innerHTML = supervisores.map(s=>{
+    const m = metasMap[s.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+    return `<tr data-nome="${s.nome_sistema}">
+      <td>${s.nome_exibicao}</td>
+      <td><input type="number" class="in-mt" data-c="meta_total" value="${m.meta_total}"></td>
+      <td><input type="number" class="in-mt" data-c="meta_recorrente" value="${m.meta_recorrente}"></td>
+      <td><input type="number" class="in-mt" data-c="meta_novo" value="${m.meta_novo}"></td>
+      <td><input type="number" class="in-mt" data-c="meta_retido" value="${m.meta_retido}"></td>
+      <td><input type="number" class="in-mt" data-c="meta_reativado" value="${m.meta_reativado}"></td>
+      <td><input type="number" step="0.1" class="in-mt" data-c="meta_batalha_naval" value="${m.meta_batalha_naval ?? 2}"></td>
+      <td><input type="number" step="0.01" class="in-mt" data-c="meta_faturamento" value="${m.meta_faturamento ?? 0}"></td>
+      <td><input type="number" step="0.01" class="in-mt" data-c="meta_venda_petry" value="${m.meta_venda_petry ?? 0}"></td>
+      <td><input type="number" step="0.01" class="in-mt" data-c="meta_broker" value="${m.meta_broker ?? 0}"></td>
+      <td><input type="number" step="0.01" class="in-mt" data-c="realizado_broker" value="${m.realizado_broker ?? 0}"></td>
+      <td><button class="acao btn-salvar-meta">Salvar</button></td>
+    </tr>`;
+  }).join('');
+
+  tbody.querySelectorAll('.btn-salvar-meta').forEach(btn=>{
+    btn.addEventListener('click', async (e)=>{
+      const tr = e.target.closest('tr');
+      const nome_sistema = tr.dataset.nome;
+      const row = { nome_sistema, mes };
+      tr.querySelectorAll('.in-mt').forEach(inp=>{
+        const decimal = ['meta_batalha_naval','meta_faturamento','meta_venda_petry','meta_broker','realizado_broker'].includes(inp.dataset.c);
+        row[inp.dataset.c] = decimal ? (parseFloat(inp.value)||0) : (parseInt(inp.value)||0);
+      });
+      try{
+        await sbUpsert('gerot_positivacao_metas', [row], 'nome_sistema,mes');
+        setStatus('Meta salva');
+      }catch(err){ setStatus('Erro ao salvar meta: '+err.message, true); }
+    });
+  });
+}
+
+document.getElementById('btnCopiarMesAnterior').addEventListener('click', async ()=>{
+  const mesVal = document.getElementById('mesInput').value;
+  const mesAntVal = mesAnterior(mesVal);
+  const mesAtualData = mesParaData(mesVal);
+  const mesAntData = mesParaData(mesAntVal);
+  try{
+    const metasAnt = await sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mesAntData}`);
+    if(!metasAnt.length){ setStatus('Mês anterior sem metas cadastradas', true); return; }
+    const rows = metasAnt.map(m=>({
+      nome_sistema: m.nome_sistema, mes: mesAtualData,
+      meta_total: m.meta_total, meta_recorrente: m.meta_recorrente,
+      meta_novo: m.meta_novo, meta_retido: m.meta_retido, meta_reativado: m.meta_reativado,
+      meta_batalha_naval: m.meta_batalha_naval, meta_faturamento: m.meta_faturamento, meta_venda_petry: m.meta_venda_petry,
+      meta_broker: m.meta_broker
+      // realizado_broker não é copiado: é resultado real do mês, não uma meta
+      // metas do GEROT não entram aqui: são fixas, definidas em GEROT_METAS no código
+    }));
+    await sbUpsert('gerot_positivacao_metas', rows, 'nome_sistema,mes');
+    setStatus('Metas copiadas de ' + mesAntVal);
+    const supervisores = await sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc');
+    carregarTabelaMetas(supervisores);
+  }catch(e){ setStatus('Erro ao copiar metas: '+e.message, true); }
+});
+
+// ---------- INIT ----------
+popularSeletorMes();
+carregarPainel();
+</script>
+</body>
+</html>
