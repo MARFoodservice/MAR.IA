@@ -160,7 +160,7 @@
       <h2>Metas do mês selecionado (<span id="mesLabelCadastro"></span>)</h2>
       <table>
         <thead><tr>
-          <th>Supervisor</th><th>Meta total</th><th>Recorrente</th><th>Novo</th><th>Retido</th><th>Reativado</th><th>Batalha Naval</th><th>Faturamento</th><th>Venda Petry</th><th>Meta Broker</th><th>Realizado Broker</th><th></th>
+          <th>Supervisor</th><th>Meta total</th><th>Recorrente</th><th>Novo</th><th>Retido</th><th>Reativado</th><th>Cobertura</th><th>Batalha Naval</th><th>Faturamento</th><th>Venda Petry</th><th>Meta Broker</th><th>Realizado Broker</th><th></th>
         </tr></thead>
         <tbody id="tbodyMetas"></tbody>
       </table>
@@ -175,7 +175,7 @@
 const SUPABASE_URL = 'https://ctbbyhjjskvgxodshhhc.supabase.co';
 const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTM4ODgsImV4cCI6MjA5MjYyOTg4OH0.WyWB0pMUrK1tJAYSdKygNrcyaJzcS0dYNsYgPPsj-jU';
 
-const CORES = { total:'#378ADD', rec:'#3fae7a', novo:'#e0a63c', ret:'#d3673f', reat:'#8a80e0', batalha:'#2ab7c9', fat:'#f2c14e', petry:'#a367dc', broker:'#e07a9e', gerot:'#5fb8e8' };
+const CORES = { total:'#378ADD', rec:'#3fae7a', novo:'#e0a63c', ret:'#d3673f', reat:'#8a80e0', cobertura:'#4fd1c5', batalha:'#2ab7c9', fat:'#f2c14e', petry:'#a367dc', broker:'#e07a9e', gerot:'#5fb8e8' };
 
 // Meta padrão do GEROT usada só quando o supervisor não tem linha própria em gerot_metas
 const GEROT_METAS_PADRAO = { rotas:14, pdvs_rota:10, cadastros:20, venda_media:10000 };
@@ -445,8 +445,9 @@ function agregarPorSupervisor(detalhe, nomeSistema){
     novo: acc.novo + Number(l.novos),
     ret: acc.ret + Number(l.retidos),
     reat: acc.reat + Number(l.reativados),
+    cobertura: acc.cobertura + Number(l.cobertura),
     total: acc.total + Number(l.total)
-  }), {rec:0,novo:0,ret:0,reat:0,total:0});
+  }), {rec:0,novo:0,ret:0,reat:0,cobertura:0,total:0});
   return { agregado: total, vendedores: linhas };
 }
 
@@ -625,8 +626,9 @@ function agregarTelevendasPositivacao(detalhe){
     novo: acc.novo + Number(l.novos),
     ret: acc.ret + Number(l.retidos),
     reat: acc.reat + Number(l.reativados),
+    cobertura: acc.cobertura + Number(l.cobertura),
     total: acc.total + Number(l.total)
-  }), {rec:0,novo:0,ret:0,reat:0,total:0});
+  }), {rec:0,novo:0,ret:0,reat:0,cobertura:0,total:0});
   return { agregado: total, vendedores: linhas };
 }
 function agregarTelevendasPerdidos(perdidosDetalhe){
@@ -696,8 +698,8 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   const cont = document.getElementById('cards');
   cont.innerHTML = '';
 
-  let somaMeta = {total:0,rec:0,novo:0,ret:0,reat:0};
-  let somaReal = {total:0,rec:0,novo:0,ret:0,reat:0};
+  let somaMeta = {total:0,rec:0,novo:0,ret:0,reat:0,cobertura:0};
+  let somaReal = {total:0,rec:0,novo:0,ret:0,reat:0,cobertura:0};
   let somaPerdidos = 0;
   let somaBatalhaMix = 0;
   let somaBatalhaClientes = 0;
@@ -720,10 +722,10 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   supervisores.filter(s=>s.ativo && s.nome_sistema !== 'TELE VENDAS').forEach(sup=>{
     cadastrados.add(sup.nome_sistema);
     const { agregado, vendedores } = agregarPorSupervisor(detalhe, sup.nome_sistema);
-    const meta = metasMap[sup.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+    const meta = metasMap[sup.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_cobertura:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
 
-    somaMeta.total += meta.meta_total; somaMeta.rec += meta.meta_recorrente; somaMeta.novo += meta.meta_novo; somaMeta.ret += meta.meta_retido; somaMeta.reat += meta.meta_reativado;
-    somaReal.total += agregado.total; somaReal.rec += agregado.rec; somaReal.novo += agregado.novo; somaReal.ret += agregado.ret; somaReal.reat += agregado.reat;
+    somaMeta.total += meta.meta_total; somaMeta.rec += meta.meta_recorrente; somaMeta.novo += meta.meta_novo; somaMeta.ret += meta.meta_retido; somaMeta.reat += meta.meta_reativado; somaMeta.cobertura += (meta.meta_cobertura||0);
+    somaReal.total += agregado.total; somaReal.rec += agregado.rec; somaReal.novo += agregado.novo; somaReal.ret += agregado.ret; somaReal.reat += agregado.reat; somaReal.cobertura += agregado.cobertura;
 
     const id = sup.nome_sistema.replace(/[^a-zA-Z0-9]/g,'');
     const telLimpo = limparTelefone(sup.telefone);
@@ -792,6 +794,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       ${linhaBarra('novo','novo', agregado.novo, meta.meta_novo, CORES.novo, id)}
       ${linhaBarra('ret','retido', agregado.ret, meta.meta_retido, CORES.ret, id)}
       ${linhaBarra('reat','reativado', agregado.reat, meta.meta_reativado, CORES.reat, id)}
+      ${linhaBarra('cobertura','cobertura', agregado.cobertura, meta.meta_cobertura, CORES.cobertura, id)}
       ${linhaPerdidos(perdidosInfo.total, id)}
       ${linhaBalanca(diffQtd, pctBalanca)}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', batalhaInfo.mediaItens, meta.meta_batalha_naval, CORES.batalha, id, batalhaInfo.clientes)}
@@ -821,7 +824,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     const tvFaturamento = agregarTelevendasFaturamento(faturamentoDetalhe);
     const tvPetry = agregarTelevendasPetry(petryDetalhe);
     const tvGerot = agregarTelevendasGerot(gerotDetalhe);
-    const tvMeta = metasMap['TELE VENDAS'] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+    const tvMeta = metasMap['TELE VENDAS'] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_cobertura:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
     const tvGanhos = tvPositivacao.agregado.novo + tvPositivacao.agregado.reat + tvPositivacao.agregado.ret;
     const tvDiff = tvGanhos - tvPerdidos.total;
     const tvPctBalanca = tvPerdidos.total > 0 ? Math.round((tvGanhos/tvPerdidos.total*100)*10)/10 : null;
@@ -859,6 +862,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       ${linhaBarra('novo','novo', tvPositivacao.agregado.novo, tvMeta.meta_novo, CORES.novo, idTV)}
       ${linhaBarra('ret','retido', tvPositivacao.agregado.ret, tvMeta.meta_retido, CORES.ret, idTV)}
       ${linhaBarra('reat','reativado', tvPositivacao.agregado.reat, tvMeta.meta_reativado, CORES.reat, idTV)}
+      ${linhaBarra('cobertura','cobertura', tvPositivacao.agregado.cobertura, tvMeta.meta_cobertura, CORES.cobertura, idTV)}
       ${linhaPerdidos(tvPerdidos.total, idTV)}
       ${linhaBalanca(tvDiff, tvPctBalanca)}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', tvBatalha.mediaItens, tvMeta.meta_batalha_naval, CORES.batalha, idTV, tvBatalha.clientes)}
@@ -903,6 +907,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     ${linhaBarra('novo','novo', somaReal.novo, somaMeta.novo, CORES.novo, idTotal)}
     ${linhaBarra('ret','retido', somaReal.ret, somaMeta.ret, CORES.ret, idTotal)}
     ${linhaBarra('reat','reativado', somaReal.reat, somaMeta.reat, CORES.reat, idTotal)}
+    ${linhaBarra('cobertura','cobertura', somaReal.cobertura, somaMeta.cobertura, CORES.cobertura, idTotal)}
     ${linhaPerdidos(somaPerdidos, idTotal)}
     ${linhaBalanca(diffTotal, pctBalancaTotal)}
     ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', mediaBatalhaTotal, metaBatalhaTotal, CORES.batalha, idTotal, somaBatalhaClientes)}
@@ -1150,7 +1155,7 @@ async function carregarTabelaMetas(supervisores){
 
   const tbody = document.getElementById('tbodyMetas');
   tbody.innerHTML = supervisores.map(s=>{
-    const m = metasMap[s.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
+    const m = metasMap[s.nome_sistema] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_cobertura:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_broker:0, realizado_broker:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
     return `<tr data-nome="${s.nome_sistema}">
       <td>${s.nome_exibicao}</td>
       <td><input type="number" class="in-mt" data-c="meta_total" value="${m.meta_total}"></td>
@@ -1158,6 +1163,7 @@ async function carregarTabelaMetas(supervisores){
       <td><input type="number" class="in-mt" data-c="meta_novo" value="${m.meta_novo}"></td>
       <td><input type="number" class="in-mt" data-c="meta_retido" value="${m.meta_retido}"></td>
       <td><input type="number" class="in-mt" data-c="meta_reativado" value="${m.meta_reativado}"></td>
+      <td><input type="number" class="in-mt" data-c="meta_cobertura" value="${m.meta_cobertura ?? 0}"></td>
       <td><input type="number" step="0.1" class="in-mt" data-c="meta_batalha_naval" value="${m.meta_batalha_naval ?? 2}"></td>
       <td><input type="number" step="0.01" class="in-mt" data-c="meta_faturamento" value="${m.meta_faturamento ?? 0}"></td>
       <td><input type="number" step="0.01" class="in-mt" data-c="meta_venda_petry" value="${m.meta_venda_petry ?? 0}"></td>
@@ -1195,7 +1201,7 @@ document.getElementById('btnCopiarMesAnterior').addEventListener('click', async 
     const rows = metasAnt.map(m=>({
       nome_sistema: m.nome_sistema, mes: mesAtualData,
       meta_total: m.meta_total, meta_recorrente: m.meta_recorrente,
-      meta_novo: m.meta_novo, meta_retido: m.meta_retido, meta_reativado: m.meta_reativado,
+      meta_novo: m.meta_novo, meta_retido: m.meta_retido, meta_reativado: m.meta_reativado, meta_cobertura: m.meta_cobertura,
       meta_batalha_naval: m.meta_batalha_naval, meta_faturamento: m.meta_faturamento, meta_venda_petry: m.meta_venda_petry,
       meta_broker: m.meta_broker
       // realizado_broker não é copiado: é resultado real do mês, não uma meta
