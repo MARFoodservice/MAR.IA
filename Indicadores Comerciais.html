@@ -416,8 +416,9 @@ async function carregarPainel(){
   const minhaVersao = ++cargaAtual;
   setStatus('Carregando ' + mesVal + '...');
   const mes = mesParaData(mesVal);
+  const mesAnteriorData = mesParaData(mesAnterior(mesVal));
   try{
-    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
+    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, detalheAnterior] = await Promise.all([
       sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc'),
       sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`),
       sbRpc('gerot_positivacao_detalhe', { p_mes: mes }),
@@ -426,11 +427,12 @@ async function carregarPainel(){
       sbRpc('gerot_positivacao_faturamento', { p_mes: mes }),
       sbRpc('gerot_positivacao_venda_petry', { p_mes: mes }),
       sbRpc('gerot_positivacao_gerot', { p_mes: mes }),
-      sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota')
+      sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota'),
+      sbRpc('gerot_positivacao_detalhe', { p_mes: mesAnteriorData })
     ]);
     if(minhaVersao !== cargaAtual) return; // outra seleção de mês já chegou depois, ignora esta
     detalheAtual = detalhe;
-    renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas);
+    renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, detalheAnterior);
     setStatus('');
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
@@ -680,7 +682,7 @@ function agregarBatalhaPorSupervisor(batalhaDetalhe, nomeSistema){
   return { mediaItens, clientes, somaMix, vendedores: linhas };
 }
 
-function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDetalhe, faturamentoDetalhe, petryDetalhe, gerotDetalhe, gerotMetasRows){
+function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDetalhe, faturamentoDetalhe, petryDetalhe, gerotDetalhe, gerotMetasRows, detalheAnterior){
   const metasMap = {};
   metas.forEach(m => metasMap[m.nome_sistema] = m);
 
@@ -710,6 +712,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   let somaMetaPetry = 0;
   let somaBroker = 0;
   let somaMetaBroker = 0;
+  let somaTotalAnterior = 0;
   let somaGerot = { rotas:0, pdvsTotal:0, cadastros:0, vendaTotal:0 };
   let somaMetaGerot = { rotas:0, pdvs_rota:0, cadastros:0, venda_media:0 };
 
@@ -731,9 +734,10 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     const telLimpo = limparTelefone(sup.telefone);
 
     const perdidosInfo = agregarPerdidosPorSupervisor(perdidosDetalhe, sup.nome_sistema);
-    const ganhos = agregado.novo + agregado.reat + agregado.ret;
-    const diffQtd = ganhos - perdidosInfo.total;
-    const pctBalanca = perdidosInfo.total > 0 ? Math.round((ganhos/perdidosInfo.total*100)*10)/10 : null;
+    const totalAnteriorSup = agregarPorSupervisor(detalheAnterior, sup.nome_sistema).agregado.total;
+    const diffQtd = agregado.total - totalAnteriorSup;
+    const pctBalanca = totalAnteriorSup > 0 ? Math.round((diffQtd/totalAnteriorSup*100)*10)/10 : null;
+    somaTotalAnterior += totalAnteriorSup;
 
     window._painelDados[id] = { nome: sup.nome_exibicao, telefone: telLimpo, agregado, meta, mesLabel, perdidos: perdidosInfo.total, diffQtd, pctBalanca, batalhaMedia: null, batalhaMeta: null };
 
@@ -825,9 +829,9 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     const tvPetry = agregarTelevendasPetry(petryDetalhe);
     const tvGerot = agregarTelevendasGerot(gerotDetalhe);
     const tvMeta = metasMap['TELE VENDAS'] || { meta_total:0, meta_recorrente:0, meta_novo:0, meta_retido:0, meta_reativado:0, meta_cobertura:0, meta_batalha_naval:2, meta_faturamento:0, meta_venda_petry:0, meta_gerot_rotas:14, meta_gerot_pdvs_rota:10, meta_gerot_cadastros:20, meta_gerot_venda_media:10000 };
-    const tvGanhos = tvPositivacao.agregado.novo + tvPositivacao.agregado.reat + tvPositivacao.agregado.ret;
-    const tvDiff = tvGanhos - tvPerdidos.total;
-    const tvPctBalanca = tvPerdidos.total > 0 ? Math.round((tvGanhos/tvPerdidos.total*100)*10)/10 : null;
+    const tvTotalAnterior = agregarTelevendasPositivacao(detalheAnterior).agregado.total;
+    const tvDiff = tvPositivacao.agregado.total - tvTotalAnterior;
+    const tvPctBalanca = tvTotalAnterior > 0 ? Math.round((tvDiff/tvTotalAnterior*100)*10)/10 : null;
     const tvTelLimpo = limparTelefone(supTV.telefone);
 
     window._painelDados[idTV] = {
@@ -884,9 +888,8 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
 
   // Total geral
   const idTotal = 'totalgeral';
-  const ganhosTotal = somaReal.novo + somaReal.reat + somaReal.ret;
-  const diffTotal = ganhosTotal - somaPerdidos;
-  const pctBalancaTotal = somaPerdidos > 0 ? Math.round((ganhosTotal/somaPerdidos*100)*10)/10 : null;
+  const diffTotal = somaReal.total - somaTotalAnterior;
+  const pctBalancaTotal = somaTotalAnterior > 0 ? Math.round((diffTotal/somaTotalAnterior*100)*10)/10 : null;
   const mediaBatalhaTotal = somaBatalhaClientes > 0 ? Math.round((somaBatalhaMix/somaBatalhaClientes)*10)/10 : null;
   const metaBatalhaTotal = somaBatalhaClientes > 0 ? Math.round((somaBatalhaMetaPonderada/somaBatalhaClientes)*10)/10 : 2;
   const cardTotal = document.createElement('div');
