@@ -120,6 +120,7 @@
     <label>Mês</label>
     <select id="mesInput"></select>
   </div>
+  <button class="acao" id="btnCalcularBalanca">Calcular Balança</button>
 </div>
 
 <div class="wrap">
@@ -416,9 +417,8 @@ async function carregarPainel(){
   const minhaVersao = ++cargaAtual;
   setStatus('Carregando ' + mesVal + '...');
   const mes = mesParaData(mesVal);
-  const mesAnteriorData = mesParaData(mesAnterior(mesVal));
   try{
-    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, detalheAnterior] = await Promise.all([
+    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
       sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc'),
       sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`),
       sbRpc('gerot_positivacao_detalhe', { p_mes: mes }),
@@ -427,16 +427,34 @@ async function carregarPainel(){
       sbRpc('gerot_positivacao_faturamento', { p_mes: mes }),
       sbRpc('gerot_positivacao_venda_petry', { p_mes: mes }),
       sbRpc('gerot_positivacao_gerot', { p_mes: mes }),
-      sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota'),
-      sbRpc('gerot_positivacao_detalhe', { p_mes: mesAnteriorData })
+      sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota')
     ]);
     if(minhaVersao !== cargaAtual) return; // outra seleção de mês já chegou depois, ignora esta
     detalheAtual = detalhe;
-    renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, detalheAnterior);
+    window._painelBase = { supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas };
+    window._detalheAnterior = []; // some sempre que troca de mês, precisa clicar em "Calcular Balança" de novo
+    renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, []);
     setStatus('');
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
     setStatus('Erro ao carregar: ' + e.message, true);
+  }
+}
+
+async function calcularBalanca(){
+  const mesVal = document.getElementById('mesInput').value;
+  const minhaVersao = cargaAtual;
+  const mesAnteriorData = mesParaData(mesAnterior(mesVal));
+  setStatus('Calculando balança (mês anterior)... pode demorar');
+  try{
+    const detalheAnterior = await sbRpc('gerot_positivacao_detalhe', { p_mes: mesAnteriorData });
+    if(minhaVersao !== cargaAtual) return; // usuário trocou de mês enquanto calculava
+    window._detalheAnterior = detalheAnterior;
+    const b = window._painelBase;
+    renderPainel(b.supervisores, b.metas, b.detalhe, b.perdidos, b.batalha, b.faturamento, b.petry, b.gerot, b.gerotMetas, detalheAnterior);
+    setStatus('');
+  }catch(e){
+    setStatus('Erro ao calcular balança: ' + e.message, true);
   }
 }
 
@@ -587,7 +605,15 @@ function linhaPerdidos(valor, supervisorId){
   </div>`;
 }
 
-function linhaBalanca(diffQtd, pctBalanca){
+function linhaBalanca(diffQtd, pctBalanca, carregando){
+  if(carregando){
+    return `<div class="linha-balanca">
+      <div class="lbl-row">
+        <span>balança</span>
+        <b style="color:#666">calculando...</b>
+      </div>
+    </div>`;
+  }
   const cor = diffQtd >= 0 ? '#3fae7a' : '#d3673f';
   const sinal = diffQtd > 0 ? '+' : '';
   const pctTexto = (pctBalanca === null) ? '\u2014' : (pctBalanca + '%');
@@ -800,7 +826,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       ${linhaBarra('reat','reativado', agregado.reat, meta.meta_reativado, CORES.reat, id)}
       ${linhaBarra('cobertura','cobertura', agregado.cobertura, meta.meta_cobertura, CORES.cobertura, id)}
       ${linhaPerdidos(perdidosInfo.total, id)}
-      ${linhaBalanca(diffQtd, pctBalanca)}
+      ${linhaBalanca(diffQtd, pctBalanca, detalheAnterior.length === 0)}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', batalhaInfo.mediaItens, meta.meta_batalha_naval, CORES.batalha, id, batalhaInfo.clientes)}
       ${linhaGerotContainer(id, contarMetasGerotBatidas(gerotInfo, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao)),
         linhaBarra('gerotRotas', 'rotas', gerotInfo.rotas, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).rotas, CORES.gerot, id) +
@@ -868,7 +894,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       ${linhaBarra('reat','reativado', tvPositivacao.agregado.reat, tvMeta.meta_reativado, CORES.reat, idTV)}
       ${linhaBarra('cobertura','cobertura', tvPositivacao.agregado.cobertura, tvMeta.meta_cobertura, CORES.cobertura, idTV)}
       ${linhaPerdidos(tvPerdidos.total, idTV)}
-      ${linhaBalanca(tvDiff, tvPctBalanca)}
+      ${linhaBalanca(tvDiff, tvPctBalanca, detalheAnterior.length === 0)}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', tvBatalha.mediaItens, tvMeta.meta_batalha_naval, CORES.batalha, idTV, tvBatalha.clientes)}
       ${linhaGerotContainer(idTV, contarMetasGerotBatidas(tvGerot, GEROT_METAS_PADRAO),
         linhaBarra('gerotRotas', 'rotas', tvGerot.rotas, GEROT_METAS_PADRAO.rotas, CORES.gerot, idTV) +
@@ -912,7 +938,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     ${linhaBarra('reat','reativado', somaReal.reat, somaMeta.reat, CORES.reat, idTotal)}
     ${linhaBarra('cobertura','cobertura', somaReal.cobertura, somaMeta.cobertura, CORES.cobertura, idTotal)}
     ${linhaPerdidos(somaPerdidos, idTotal)}
-    ${linhaBalanca(diffTotal, pctBalancaTotal)}
+    ${linhaBalanca(diffTotal, pctBalancaTotal, detalheAnterior.length === 0)}
     ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', mediaBatalhaTotal, metaBatalhaTotal, CORES.batalha, idTotal, somaBatalhaClientes)}
     ${linhaGerotContainer(idTotal, contarMetasGerotBatidas(
         { rotas: somaGerot.rotas, pdvsMedia: somaGerot.rotas>0 ? Math.round((somaGerot.pdvsTotal/somaGerot.rotas)*10)/10 : null, cadastros: somaGerot.cadastros, vendaMedia: somaGerot.rotas>0 ? Math.round(somaGerot.vendaTotal/somaGerot.rotas) : null },
@@ -1218,6 +1244,8 @@ document.getElementById('btnCopiarMesAnterior').addEventListener('click', async 
 });
 
 // ---------- INIT ----------
+document.getElementById('btnCalcularBalanca').addEventListener('click', calcularBalanca);
+
 popularSeletorMes();
 carregarPainel();
 </script>
