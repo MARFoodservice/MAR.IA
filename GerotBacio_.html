@@ -2966,7 +2966,7 @@ function abrirMapaRotaHistorico(chave) {
   }
   mapaEl.innerHTML = '';
   _hrMapaLeaflet = L.map(mapaEl).setView([pontos[0].geo_lat, pontos[0].geo_lng], 12);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(_hrMapaLeaflet);
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_441y_1_c7d40958e6ab6145ed230282', { attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19, subdomains: 'abcd' }).addTo(_hrMapaLeaflet);
 
   const latlngs = pontos.map(p=>[p.geo_lat, p.geo_lng]);
   L.polyline(latlngs, {color:'#4a2f22', weight:3, dashArray:'8,8'}).addTo(_hrMapaLeaflet);
@@ -3335,7 +3335,7 @@ async function renderMapaFreezers() {
   const mapaEl = document.getElementById('mapa-freezers');
   if(_mapaLeaflet) { _mapaLeaflet.remove(); _mapaLeaflet = null; }
   _mapaLeaflet = L.map(mapaEl).setView([-29.6, -52.0], 7);
-  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png', {
+  L.tileLayer('https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png?key=cb1_441y_1_c7d40958e6ab6145ed230282', {
     attribution: '© OpenStreetMap contributors © CARTO', maxZoom: 19, subdomains: 'abcd'
   }).addTo(_mapaLeaflet);
 
