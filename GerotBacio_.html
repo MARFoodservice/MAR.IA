@@ -5482,6 +5482,17 @@ async function adicionarFreezer() {
   };
   const ok = await supabaseUpsert('Bacio_Freezers', novo);
   if(ok) {
+    // Registra a instalação na conta corrente — antes só a EDIÇÃO de um freezer
+    // já existente gerava esse registro; um freezer novo (inclusive uma segunda
+    // unidade num cliente que já tinha outro) nunca aparecia no histórico.
+    await supabaseUpsert('Bacio_Freezer_Movimentos', {
+      id: 'mov_' + novo.id + '_' + Date.now(),
+      freezer_id: novo.id, cliente_documento: doc,
+      tipo_movimento: 'instalacao',
+      modelo_cod_novo: modeloCod, modelo_desc_novo: modeloDesc, serie_nova: serie,
+      observacao: obs || null, usuario: _loggedSupervisor || 'desconhecido',
+      data_movimento: hojeLocalISO()
+    });
     ['novo-frz-doc','novo-frz-serie','novo-frz-data','novo-frz-nf','novo-frz-estado','novo-frz-obs'].forEach(id=>{const e=document.getElementById(id); if(e) e.value='';});
     document.getElementById('novo-frz-modelo').value = '';
     document.getElementById('novo-frz-contrato').value = '';
