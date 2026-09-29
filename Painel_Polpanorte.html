@@ -1,0 +1,1004 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Painel Açaí - Frutas Congeladas</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --bg: #f6f3f9;
+    --card: #ffffff;
+    --border: #e3d9ee;
+    --text: #2b2530;
+    --muted: #75697f;
+    --accent: #65437e;
+    --accent-dark: #4a2f5c;
+    --accent-light: #f1ecf7;
+    --ok: #1f7a4d;
+    --warn: #b3541e;
+  }
+  * { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0;
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    height: 100vh;
+    overflow: hidden;
+  }
+  #fixedTop { flex-shrink: 0; padding: 20px 20px 0 20px; }
+  #content { flex: 1 1 auto; overflow-y: auto; padding: 0 20px 20px 20px; }
+  .header-bar {
+    display: flex; align-items: center; gap: 16px;
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark));
+    color: white; padding: 14px 20px; border-radius: 12px; margin-bottom: 18px;
+  }
+  .logo-box {
+    background: white; border-radius: 8px; padding: 6px 10px;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .logo-box img { display: block; height: 32px; width: auto; }
+  .header-bar h1 { font-size: 19px; margin: 0; color: white; }
+  .header-bar .sub { color: #e6dcf0; font-size: 12.5px; margin-top: 2px; }
+  .toolbar {
+    display: flex; gap: 10px; align-items: center; flex-wrap: wrap;
+    margin-bottom: 16px;
+  }
+  input[type=text], select {
+    padding: 8px 10px; border: 1px solid var(--border); border-radius: 6px;
+    font-size: 13px; min-width: 200px; background: white; color: var(--text);
+  }
+  button {
+    padding: 8px 14px; border: 1px solid var(--accent); background: var(--accent);
+    color: white; border-radius: 6px; font-size: 13px; cursor: pointer;
+  }
+  button:hover { opacity: 0.9; }
+  button.secondary { background: white; color: var(--accent); }
+  .card {
+    background: var(--card); border: 1px solid var(--border); border-radius: 10px;
+    padding: 16px; margin-bottom: 20px; overflow-x: auto;
+  }
+  .card h2 { font-size: 15px; margin: 0 0 12px; color: var(--accent-dark); }
+  table { border-collapse: collapse; width: 100%; font-size: 12.5px; white-space: nowrap; }
+  th, td { padding: 6px 8px; border-bottom: 1px solid var(--border); text-align: right; }
+  th.left, td.left { text-align: left; }
+  th { position: sticky; top: 0; background: var(--accent-light); font-weight: 600; color: var(--accent-dark); }
+  tr:hover td { background: #faf7fc; }
+  tr.total-row td { background: var(--accent-light); font-weight: 700; color: var(--accent-dark); }
+  tr.total-row:hover td { background: var(--accent-light); }
+  tr.active-row td { background: var(--accent-light); border-left: 3px solid var(--accent); }
+  .status-ok { color: var(--ok); font-weight: 600; }
+  .status-warn { color: var(--warn); font-weight: 600; }
+  .loading, .error { padding: 30px; text-align: center; color: var(--muted); }
+  .error { color: var(--warn); }
+  .summary-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px,1fr)); gap: 10px; }
+  .summary-item {
+    border: 2px solid var(--border); border-radius: 8px; padding: 10px 12px;
+    cursor: pointer; transition: border-color .15s, background .15s;
+  }
+  .summary-item:hover { background: var(--accent-light); }
+  .summary-item.active { border-color: var(--accent); background: var(--accent-light); }
+  .summary-item .n { font-size: 20px; font-weight: 700; }
+  .summary-item .l { font-size: 11.5px; color: var(--muted); }
+
+  .vendor-row { cursor: pointer; }
+  .vendor-row:hover td { background: var(--accent-light); }
+  .vendor-row td { font-weight: 600; }
+  .toggle-icon { display: inline-block; width: 14px; color: var(--accent); }
+  .nested-wrap { padding: 4px 8px 12px 24px !important; background: #faf8fb; }
+  .client-row { cursor: pointer; }
+  .client-row:hover td { background: #f2edf6; }
+  .produtos-wrap { padding: 4px 8px 10px 40px !important; background: #f5f1f8; font-style: italic; color: var(--muted); }
+  .nested-table { font-size: 12px; }
+  .nested-table th, .nested-table td { padding: 4px 6px; }
+
+  table.aligned { table-layout: fixed; }
+  table.aligned th, table.aligned td { overflow: hidden; text-overflow: ellipsis; }
+  .col-toggle { width: 22px; }
+  .col-vendedor { width: 18%; }
+  .col-supervisor { width: 18%; }
+  .col-num { width: 10%; }
+  .col-total { width: 7%; }
+  .col-pedido { width: 9%; }
+
+  .col-label1 { width: 150px; }
+  .col-indicador { width: 130px; }
+  .col-final { width: 110px; }
+  .segmento-cell { cursor: pointer; }
+  .segmento-cell:hover { background: var(--accent-light); }
+</style>
+</head>
+<body>
+
+<div id="fixedTop">
+<div class="header-bar">
+  <div class="logo-box"><img src="data:image/jpeg;base64,/9j/4QDoRXhpZgAATU0AKgAAAAgABgESAAMAAAABAAEAAAEaAAUAAAABAAAAVgEbAAUAAAABAAAAXgEoAAMAAAABAAIAAAITAAMAAAABAAEAAIdpAAQAAAABAAAAZgAAAAAAAABIAAAAAQAAAEgAAAABAAiQAAAHAAAABDAyMjGRAQAHAAAABAECAwCShgAHAAAAEgAAAMygAAAHAAAABDAxMDCgAQADAAAAAQABAACgAgAEAAAAAQAAALigAwAEAAAAAQAAADmkBgADAAAAAQAAAAAAAAAAQVNDSUkAAABTY3JlZW5zaG90AAD/4g0kSUNDX1BST0ZJTEUAAQEAAA0UYXBwbAIQAABtbnRyUkdCIFhZWiAH6gAFABcAEQA4ACZhY3NwQVBQTAAAAABBUFBMAAAAAAAAAAAAAAAAAAAAAAAA9tYAAQAAAADTLWFwcGwAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAABFkZXNjAAABUAAAAGJkc2NtAAABtAAAAfBjcHJ0AAADpAAAACN3dHB0AAADyAAAABRyWFlaAAAD3AAAABRnWFlaAAAD8AAAABRiWFlaAAAEBAAAABRyVFJDAAAEGAAACAxhYXJnAAAMJAAAACB2Y2d0AAAMRAAAADBuZGluAAAMdAAAAD5tbW9kAAAMtAAAACh2Y2dwAAAM3AAAADhiVFJDAAAEGAAACAxnVFJDAAAEGAAACAxhYWJnAAAMJAAAACBhYWdnAAAMJAAAACBkZXNjAAAAAAAAAAhEaXNwbGF5AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAbWx1YwAAAAAAAAAnAAAADGhySFIAAAAMAAAB5GtvS1IAAAAMAAAB5G5iTk8AAAAMAAAB5GlkAAAAAAAMAAAB5Gh1SFUAAAAMAAAB5GNzQ1oAAAAMAAAB5HNsU0kAAAAMAAAB5GRhREsAAAAMAAAB5G5sTkwAAAAMAAAB5GZpRkkAAAAMAAAB5Gl0SVQAAAAMAAAB5GVzRVMAAAAMAAAB5HJvUk8AAAAMAAAB5GZyQ0EAAAAMAAAB5GFyAAAAAAAMAAAB5HVrVUEAAAAMAAAB5GhlSUwAAAAMAAAB5HpoVFcAAAAMAAAB5HZpVk4AAAAMAAAB5HNrU0sAAAAMAAAB5HpoQ04AAAAMAAAB5HJ1UlUAAAAMAAAB5GVuR0IAAAAMAAAB5GZyRlIAAAAMAAAB5G1zAAAAAAAMAAAB5GhpSU4AAAAMAAAB5HRoVEgAAAAMAAAB5GNhRVMAAAAMAAAB5GVuQVUAAAAMAAAB5GVzWEwAAAAMAAAB5GRlREUAAAAMAAAB5GVuVVMAAAAMAAAB5HB0QlIAAAAMAAAB5HBsUEwAAAAMAAAB5GVsR1IAAAAMAAAB5HN2U0UAAAAMAAAB5HRyVFIAAAAMAAAB5HB0UFQAAAAMAAAB5GphSlAAAAAMAAAB5ABUAFkAUABFAC0AQ3RleHQAAAAAQ29weXJpZ2h0IEFwcGxlIEluYy4sIDIwMjYAAFhZWiAAAAAAAADz2AABAAAAARYIWFlaIAAAAAAAAGrrAAA3SQAAAmtYWVogAAAAAAAAZX4AALrlAAAQ9lhZWiAAAAAAAAAmbQAADdIAAL/LY3VydgAAAAAAAAQAAAAABQAKAA8AFAAZAB4AIwAoAC0AMgA2ADsAQABFAEoATwBUAFkAXgBjAGgAbQByAHcAfACBAIYAiwCQAJUAmgCfAKMAqACtALIAtwC8AMEAxgDLANAA1QDbAOAA5QDrAPAA9gD7AQEBBwENARMBGQEfASUBKwEyATgBPgFFAUwBUgFZAWABZwFuAXUBfAGDAYsBkgGaAaEBqQGxAbkBwQHJAdEB2QHhAekB8gH6AgMCDAIUAh0CJgIvAjgCQQJLAlQCXQJnAnECegKEAo4CmAKiAqwCtgLBAssC1QLgAusC9QMAAwsDFgMhAy0DOANDA08DWgNmA3IDfgOKA5YDogOuA7oDxwPTA+AD7AP5BAYEEwQgBC0EOwRIBFUEYwRxBH4EjASaBKgEtgTEBNME4QTwBP4FDQUcBSsFOgVJBVgFZwV3BYYFlgWmBbUFxQXVBeUF9gYGBhYGJwY3BkgGWQZqBnsGjAadBq8GwAbRBuMG9QcHBxkHKwc9B08HYQd0B4YHmQesB78H0gflB/gICwgfCDIIRghaCG4IggiWCKoIvgjSCOcI+wkQCSUJOglPCWQJeQmPCaQJugnPCeUJ+woRCicKPQpUCmoKgQqYCq4KxQrcCvMLCwsiCzkLUQtpC4ALmAuwC8gL4Qv5DBIMKgxDDFwMdQyODKcMwAzZDPMNDQ0mDUANWg10DY4NqQ3DDd4N+A4TDi4OSQ5kDn8Omw62DtIO7g8JDyUPQQ9eD3oPlg+zD88P7BAJECYQQxBhEH4QmxC5ENcQ9RETETERTxFtEYwRqhHJEegSBxImEkUSZBKEEqMSwxLjEwMTIxNDE2MTgxOkE8UT5RQGFCcUSRRqFIsUrRTOFPAVEhU0FVYVeBWbFb0V4BYDFiYWSRZsFo8WshbWFvoXHRdBF2UXiReuF9IX9xgbGEAYZRiKGK8Y1Rj6GSAZRRlrGZEZtxndGgQaKhpRGncanhrFGuwbFBs7G2MbihuyG9ocAhwqHFIcexyjHMwc9R0eHUcdcB2ZHcMd7B4WHkAeah6UHr4e6R8THz4faR+UH78f6iAVIEEgbCCYIMQg8CEcIUghdSGhIc4h+yInIlUigiKvIt0jCiM4I2YjlCPCI/AkHyRNJHwkqyTaJQklOCVoJZclxyX3JicmVyaHJrcm6CcYJ0kneierJ9woDSg/KHEooijUKQYpOClrKZ0p0CoCKjUqaCqbKs8rAis2K2krnSvRLAUsOSxuLKIs1y0MLUEtdi2rLeEuFi5MLoIuty7uLyQvWi+RL8cv/jA1MGwwpDDbMRIxSjGCMbox8jIqMmMymzLUMw0zRjN/M7gz8TQrNGU0njTYNRM1TTWHNcI1/TY3NnI2rjbpNyQ3YDecN9c4FDhQOIw4yDkFOUI5fzm8Ofk6Njp0OrI67zstO2s7qjvoPCc8ZTykPOM9Ij1hPaE94D4gPmA+oD7gPyE/YT+iP+JAI0BkQKZA50EpQWpBrEHuQjBCckK1QvdDOkN9Q8BEA0RHRIpEzkUSRVVFmkXeRiJGZ0arRvBHNUd7R8BIBUhLSJFI10kdSWNJqUnwSjdKfUrESwxLU0uaS+JMKkxyTLpNAk1KTZNN3E4lTm5Ot08AT0lPk0/dUCdQcVC7UQZRUFGbUeZSMVJ8UsdTE1NfU6pT9lRCVI9U21UoVXVVwlYPVlxWqVb3V0RXklfgWC9YfVjLWRpZaVm4WgdaVlqmWvVbRVuVW+VcNVyGXNZdJ114XcleGl5sXr1fD19hX7NgBWBXYKpg/GFPYaJh9WJJYpxi8GNDY5dj62RAZJRk6WU9ZZJl52Y9ZpJm6Gc9Z5Nn6Wg/aJZo7GlDaZpp8WpIap9q92tPa6dr/2xXbK9tCG1gbbluEm5rbsRvHm94b9FwK3CGcOBxOnGVcfByS3KmcwFzXXO4dBR0cHTMdSh1hXXhdj52m3b4d1Z3s3gReG54zHkqeYl553pGeqV7BHtje8J8IXyBfOF9QX2hfgF+Yn7CfyN/hH/lgEeAqIEKgWuBzYIwgpKC9INXg7qEHYSAhOOFR4Wrhg6GcobXhzuHn4gEiGmIzokziZmJ/opkisqLMIuWi/yMY4zKjTGNmI3/jmaOzo82j56QBpBukNaRP5GokhGSepLjk02TtpQglIqU9JVflcmWNJaflwqXdZfgmEyYuJkkmZCZ/JpomtWbQpuvnByciZz3nWSd0p5Anq6fHZ+Ln/qgaaDYoUehtqImopajBqN2o+akVqTHpTilqaYapoum/adup+CoUqjEqTepqaocqo+rAqt1q+msXKzQrUStuK4trqGvFq+LsACwdbDqsWCx1rJLssKzOLOutCW0nLUTtYq2AbZ5tvC3aLfguFm40blKucK6O7q1uy67p7whvJu9Fb2Pvgq+hL7/v3q/9cBwwOzBZ8Hjwl/C28NYw9TEUcTOxUvFyMZGxsPHQce/yD3IvMk6ybnKOMq3yzbLtsw1zLXNNc21zjbOts83z7jQOdC60TzRvtI/0sHTRNPG1EnUy9VO1dHWVdbY11zX4Nhk2OjZbNnx2nba+9uA3AXcit0Q3ZbeHN6i3ynfr+A24L3hROHM4lPi2+Nj4+vkc+T85YTmDeaW5x/nqegy6LzpRunQ6lvq5etw6/vshu0R7ZzuKO6070DvzPBY8OXxcvH/8ozzGfOn9DT0wvVQ9d72bfb794r4Gfio+Tj5x/pX+uf7d/wH/Jj9Kf26/kv+3P9t//9wYXJhAAAAAAADAAAAAmZmAADypwAADVkAABPQAAAKW3ZjZ3QAAAAAAAAAAQABAAAAAAAAAAEAAAABAAAAAAAAAAEAAAABAAAAAAAAAAEAAG5kaW4AAAAAAAAANgAApIAAAFYAAABQQAAAnsAAACbAAAANgAAAUEAAAFRAAAIzMwACMzMAAjMzAAAAAAAAAABtbW9kAAAAAAAAZHQAAK3YMDBRU+L6rvwAAAAAAAAAAAAAAAAAAAAAdmNncAAAAAAAAwAAAAJmZgADAAAAAmZmAAMAAAACZmYAAAACMzMAAAAAAAIzMwAAAAAAAjMzAAD/2wCEAAEBAQEBAQIBAQIDAgICAwQDAwMDBAYEBAQEBAYHBgYGBgYGBwcHBwcHBwcICAgICAgJCQkJCQsLCwsLCwsLCwsBAgICAwMDBQMDBQsIBggLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLCwsLC//dAAQADP/AABEIADkAuAMBIgACEQEDEQH/xAGiAAABBQEBAQEBAQAAAAAAAAAAAQIDBAUGBwgJCgsQAAIBAwMCBAMFBQQEAAABfQECAwAEEQUSITFBBhNRYQcicRQygZGhCCNCscEVUtHwJDNicoIJChYXGBkaJSYnKCkqNDU2Nzg5OkNERUZHSElKU1RVVldYWVpjZGVmZ2hpanN0dXZ3eHl6g4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2drh4uPk5ebn6Onq8fLz9PX29/j5+gEAAwEBAQEBAQEBAQAAAAAAAAECAwQFBgcICQoLEQACAQIEBAMEBwUEBAABAncAAQIDEQQFITEGEkFRB2FxEyIygQgUQpGhscEJIzNS8BVictEKFiQ04SXxFxgZGiYnKCkqNTY3ODk6Q0RFRkdISUpTVFVWV1hZWmNkZWZnaGlqc3R1dnd4eXqCg4SFhoeIiYqSk5SVlpeYmZqio6Slpqeoqaqys7S1tre4ubrCw8TFxsfIycrS09TV1tfY2dri4+Tl5ufo6ery8/T19vf4+fr/2gAMAwEAAhEDEQA/AP7+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9D+/iiiigAqvBd2lyzpbSpIYjtcKQdp9DjpX8WP/BUX4bfHLxb/AMFf0/Z9+Fnj/WtMHxPsdOsD52oXHkWdlfHNxbBRIM22+EzeQMISdoHSu3/bK/4JJ+Kv+CXvwetP21P2TfinrEWu+EJbX+1ftASAzefIsW+DyuPL3soe3mEishOXONrfRQyOjy0lLEWlUS5Vyv8AF9Ox6UcBC0L1LOWysf2KX9oL+xmsSzRiaNo9y8Mu4YyPcdq/mX+BTf8ABSv4QfFq+/Yw8PfGfwjq+hz63FPa+J9R1uz1LV7LTkY+ZZxWE7vcmd124V42jjIIVhnI+af+CrH/AAU2+LXxK/YI+DNr4Mnk8PT/ABV0ua+8RvZloS4tCsL28bZyIXl3kjPzKFB4yD/LEGZWDqcEd69nJOH6joTdVpX0s43tyu1+n3Hbgcul7Nudtelr7H+oH+2R+01pn7HH7OGv/tDa3pUuu2/h5bcvZwyLDJL50qQ8MVIGN+enapv2Nv2l9M/bB/Zu8NftF6NpUuiW3iNLh0sppRM8X2eeSDl1Cg5Meeg61/JL8If2tfij+0D/AMESvjb8J/ijezaxN8P5dFisL64cyTGyurpNkLMeWEJiIUkkhSF6KK/fv/gj54fTxX/wST8B+F2vLrTxqOm6xbG6sJjb3UHm3t0u+GVeY5FzlGHKkAivFxuUxwuFlz/GqnLfy5b7HDXwapUnzfEpW+Vj9d5pobeJp7hhGiDLMxwABSxSxTRrNCwdGGVK8gj2r+BH/gmp+xL8UP8Agpx8QvE/w1+K/wASdZtvAnge5Op6jD9pkuZ7i/1J3XdCkxaJJJfIdpZ2Vz8qja27K/cGn+C/i7/wRD/4KHfD74UfD/xje+Kfhh8TrmCGXTLshMJdTi1JeMEx+fASjrNGqb1+TAGRWlfh+nCpLDwrp1Ur8vLbpffvYueXRjJ041PfS2sf2IMyopdyAAMknoBVManppgS5FxF5cn3W3DafoelfyR/H/T/jX/wV9/4KfeLv2M77xddeEPhn8NnnWe0tjvEv2B1hkk8rKrJNLKx2M4KxJ0B6N+d3/BWX/gmBF/wTt1LwpfeAfFd54g8G+KbiZbe31Datza3VsE3bvL2xyBlbh1RCPukdCTDZDSnOnRqV+WpJX5eW+lr73SvYKWXwk405VLSa2sf39AgjI6UxJYnZo0YEpwQD0r+ZH/gr5+0f+0DK3wS/YJ/Z31eXw9efEuzslv723lNvLIk5jtoYPNXDJEWLNLtILABfu5B+ZP2pv+CKvjD9gL4CT/tefs1fFfWW8Y+B4Rfak4QWXnx7gsj27RvujCKSTHIZfMXIyOh56GTU5QputWUHP4Va/lr21MqeCi1HnnZy2Vv6sf2EyozxMiNsJGAw7V/Mh8Q7H/gpT8a/jZ4X/Y1+MXxk8KaLo/h7WXm1XxBout2mmap4hsmkjMNu+nQOLmO5RVcGNY0gJcZLlAzeTft3f8FQvjR4w/4JCfCzx54bvX0PxX8U57jTNavbLML+TpTSRXRiZNnlG5dIyQvAjd0HFfySl3Z/MY5Y85r3ciyCpyzqTaTu0vdvZrS62/r0R6GAy6VpSk0um19tD/WihjEUSxA52gDJ9qV3SMZYgdhX8XX/AAT9/am+N37Sv/BOP46fsv8Ai7xXqlvefD/w4dZ0HV4LqWO7js4ldns3lQhnhxHsCsT8khX7qqB2X/BED9ib4jftM614d/bX+MPjvU7jSvhvfjT/AA7pEkjXOfsqD5d0jEQwJvwI0XJPOV7+PWyFUI1ZV6qXI7bb3V1b1/A4p5f7NTc525fL7j92P2Kf+Cm/gz9sv4wfEH4R6f4am8Ny+AJ2gkubq7jlW6KzPD8ihV2/cz1PWv08DKyhlOQehr+GT9gj/gnN8Gv+Cg37W3xx0X4v6xrOkL4Y1m5uLb+yJYImczXkytv86GbIG0YwBXSf8Flv2rteuv2orP8AYU13xHrXh74T/D6y03T79NJjS5u75/s8cvnSRNLaxzEKUVEeRUUguOTiuqvkNGrjFh8NK2l2rbKy211v20NamXwlW9nSdtLvy0X3n9uFreWl9F59lKkyZxuQhhkduKs1/m76X+098LP2PPjPoXxf/wCCbvivxvbC32jVNP8AFttaQxXKKQTG5srl0nhl5BR4kMeAyuWwV/0SPhP8QtL+Lnws8NfFfRIngsvE+lWWrW8cn30ivYUmRW9wrAGvMzbJpYJQle8ZeVmrdLHLi8E6HK76PysegUUUV4xxH//R/v4ooooA/ix/4LGeAvit8Tv+CxvhPwT8C70ab4xu9J0ltHuTMbfyruEzSxkSAHYcp8pxjOM4Fe/+M/2Kv+C6H7esWlfBD9snXdP8L+A7WaKa+uEk08m5MRxvMWnlnmkwSURzHFkA8ECv3K+JX/BNz4G/FP8AbO8O/tzeIdV12Hxb4Zjt47W0t57ddOYWwcLvja3aU/6w5xKvbpX6C19NUz72dKhChCLcIpXcdU/I9SWYcsKcaaV0uq29D8FP+Cln/BICL4+fsleBPhf+zO0VtrvwptfsmkW146xrf2jIiyRvJgKszMiurHClid2M5H8qtj/wSX/4KOX/AIyHgWP4R67Hd+Z5XnSRpHZA+v2pmFvt9/MxX+krRWeX8TYrC0/ZWUl5+ZOHzSrSjy6M/E39gP8A4JHeG/gD+xJ4u/Z4+O00Wo618ToWHiB7I5S2XyykMULMMFoNxYSbQN544ANeD/8ABP8A/Ys/4Kc/sGftDad8FZvEdn4n/Z9abULieSN7fdD5kEnkkRTAXULtMIy8cDPFkk5OSa/oqproHQoehGK4XnGIl7VVLSU901s7WTXZpbGDxlR83NZ839adj/Pb/wCCZ/gT/gonqXxU8efFD/gndd241jw9Jb2ur2FxNbot3bX0kzIDHd4gdVa3OTvWRdw2dWx+5X7L3/BMb9t/9oH9rXR/20P+Co2s20t34Vkjk0nQbeSCU+ZbNvgBFr/o8METnzAqMzyOPn7lv1Q/Ya/4JqfAr9gDV/F2tfBvVdd1KXxobU3o1me3mWP7IZmTyvIt4MZ85s7t3QYx3/QyvUzPiF1Ks/q0YpNW5uX3rW1VzqxWY8037JK217a7H85v7cH/AATE/a48HftZ3H7e/wDwTR1y307xXqoJ1bR55IojLLIAsrRm4Bt5I5sBpI5iu1xuQ5wF/NH9qv8A4J4f8Fyv209W0v4g/tD6RZ6vc6YzW9npcOpabbJZxNhmdUjlWHDkAFt7SHAB+UCv7YKK5MNxDiKKj7kW4qybWtu19DKlmNSFtE2tL21sfz6/tjfsKftPfFr9vL9nT43eA/DyXnhrwBDpCa5dG8tojbG1uRJLiN5FeTagz+7Vs9BX6l/t9/Cnx18cf2NfiJ8JPhnZjUNe1/Rp7SxtzIkIklccLvkKov1YgV9f0VwzzCpL2N0v3e3331/pHPLEyfJ/d2P5x9G/4JE/Ev40f8Eh/CX7JPxXEPhH4keEL+/1bTWkljubdLiS4uCsU0luZB5M0MvzGMko21sNtKH+a7U/+CRX/BR/S/Hg+Hknwn1mW8MgjW4hEclgc9D9rV/s4X3Mgx3xX+kTRXq4PifFUHOyTUm3bs328vI66Oa1afNotdT+fn9iH/gk143/AGSf2E/ip4S1g2+rfFH4l+H7yzlt7aVRb2+beRLa0WVyqE75CXk+VcnAJVQx+nP+CMn7Lnxu/ZF/ZFk+FXx90hdF1w6zd3Yt0uYboeTKE2nfA7pzg8ZzX61UV5uIzWvXjUjUt7zTfyVkl5WOapi6k1JS6u5/NR+03/wTB/bb+AX7WGsftkf8EvdftrW58UyO+q6HPJDEwedg0wUXSm2lhdhv2uVeNvudsa3/AAUT/wCCTX7QPxx8eeGv20v2bLrTrb4qWun2Q17SNQWFre9vLeJVMkfmrJalv+WbxSjyXQDkYw39INFbQzzExcJaXirXtuu0u6Ljj6qcXpdabbrsz81f2JP2ZtTvf2eNJm/bV+F/hCz+IPm3C30dtpOmGPyxIRCf9FV4slME7T+A6V+kNlZWem2cWnadEkFvAixxRRqFREUYVVUcAADAA4AqzRXm168qs3KX3LZehy1Kjm7sKKKKxIP/0v7+KKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooAKKKKACiiigAooooA/9k=" alt="Polpa Norte"></div>
+  <div>
+    <h1>Painel Açaí — Frutas Congeladas</h1>
+    <div class="sub" id="lastUpdate">Carregando...</div>
+  </div>
+</div>
+
+<div class="toolbar">
+  <input type="text" id="filterInput" placeholder="Filtrar por cliente, vendedor ou supervisor...">
+  <select id="vendedorFilter"><option value="">Todos os vendedores</option></select>
+  <select id="supervisorFilter"><option value="">Todos os supervisores</option></select>
+  <select id="cidadeFilter"><option value="">Todas as cidades</option></select>
+  <select id="ramoFilter"><option value="">Todos os ramos</option></select>
+  <button onclick="carregar()">Atualizar agora</button>
+  <button class="secondary" onclick="exportExcelDetalhado()">Exportar Detalhado</button>
+  <button class="secondary" onclick="exportExcelResumido()">Exportar Resumido</button>
+</div>
+
+<div class="card"><h2>Resumo geral</h2><div class="summary-grid" id="summaryGrid"></div></div>
+<div class="card"><h2>Faturamento e Positivação da Empresa</h2><div id="painelEmpresaWrap"></div></div>
+</div>
+
+<div id="content">
+  <div class="loading">Buscando dados no Supabase...</div>
+</div>
+
+<script>
+const SUPABASE_URL = "https://ctbbyhjjskvgxodshhhc.supabase.co";
+const SUPABASE_ANON_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImN0YmJ5aGpqc2t2Z3hvZHNoaGhjIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NzcwNTM4ODgsImV4cCI6MjA5MjYyOTg4OH0.WyWB0pMUrK1tJAYSdKygNrcyaJzcS0dYNsYgPPsj-jU";
+
+const MESES = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
+
+const TELEVENDAS_VENDEDORES = [
+  'TATIANA LACERDA BACELLAR',
+  'ARIANE DOS SANTOS QUEBAO',
+  'CAMILA ARRUDA GOMES',
+  'ANNA LIVIA LISBOA',
+  'CRISTIELEN SILVA GONÇALVES',
+  'LAUREN VITORIA NUNES SEVERO',
+  'EDUARDA SILVA DE FIGUEIREDO'
+];
+const TELEVENDAS_KEYS = new Set(TELEVENDAS_VENDEDORES.map(normKey));
+
+// Segmento DISTRIBUIDOR/VAREJO = esses ramos; qualquer outro ramo (ou sem ramo) = FOOD
+const SEGMENTO_VAREJO_RAMOS = ['ATACADO E REDE DE MERCADO', 'DISTRIBUIDORA', 'MERCADO'];
+const SEGMENTO_VAREJO_KEYS = new Set(SEGMENTO_VAREJO_RAMOS.map(normKey));
+function getSegmento(ramo) {
+  return SEGMENTO_VAREJO_KEYS.has(normKey(ramo)) ? 'DISTRIBUIDOR/VAREJO' : 'FOOD';
+}
+
+let ALL_CLIENTES = [];
+let MES_ATUAL = new Date().getMonth() + 1;
+const PRODUTOS_CACHE = {};
+const INFO_CACHE = {};
+
+// estado dos filtros
+let searchText = "";
+let selVendedor = "";
+let selSupervisor = "";
+let selCidade = "";
+let selRamo = "";
+let selSegmento = null; // null | 'DISTRIBUIDOR/VAREJO' | 'FOOD'
+let statusFilter = null; // null | 'comprou' | 'naoComprou'
+
+// estado dos expandidos
+const vendorExpanded = new Set();
+const clientExpanded = new Set();
+
+function normKey(s) {
+  return (s || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+}
+function pickCanonical(names) {
+  return [...names].sort((a,b) => {
+    const accentsA = (a.match(/[^\x00-\x7F]/g) || []).length;
+    const accentsB = (b.match(/[^\x00-\x7F]/g) || []).length;
+    if (accentsB !== accentsA) return accentsB - accentsA;
+    return a.localeCompare(b);
+  })[0];
+}
+
+function fmt(n) {
+  return (n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 0, maximumFractionDigits: 0});
+}
+function pct(n) {
+  return (n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
+}
+
+async function carregar() {
+  document.getElementById('content').innerHTML = '<div class="loading">Buscando dados no Supabase...</div>';
+  try {
+    const headers = {
+      'apikey': SUPABASE_ANON_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+      'Content-Type': 'application/json'
+    };
+    const [respMensal, respPedidos, respFreq] = await Promise.all([
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_mensal`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_pedidos_pendentes`, { method: 'POST', headers, body: '{}' }),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_frequencia`, { method: 'POST', headers, body: '{}' })
+    ]);
+    if (!respMensal.ok) {
+      const txt = await respMensal.text();
+      throw new Error(`HTTP ${respMensal.status}: ${txt}`);
+    }
+    const rawRows = await respMensal.json();
+
+    let pedidosRows = [];
+    if (respPedidos.ok) {
+      pedidosRows = await respPedidos.json();
+    } else {
+      console.warn('Falha ao buscar pedidos pendentes:', await respPedidos.text());
+    }
+
+    let freqRows = [];
+    if (respFreq.ok) {
+      freqRows = await respFreq.json();
+    } else {
+      console.warn('Falha ao buscar frequência:', await respFreq.text());
+    }
+
+    processarDados(rawRows, pedidosRows, freqRows);
+    document.getElementById('lastUpdate').textContent =
+      'Atualizado em ' + new Date().toLocaleString('pt-BR');
+    montarLayout();
+    renderTudo();
+  } catch (err) {
+    document.getElementById('content').innerHTML =
+      '<div class="error">Erro ao buscar dados: ' + err.message + '</div>';
+    document.getElementById('lastUpdate').textContent = 'Falha na atualização';
+  }
+}
+
+function processarDados(rawRows, pedidosRows, freqRows) {
+  MES_ATUAL = new Date().getMonth() + 1;
+  const m1 = MES_ATUAL - 1 > 0 ? MES_ATUAL - 1 : null;
+  const m2 = MES_ATUAL - 2 > 0 ? MES_ATUAL - 2 : null;
+  const m3 = MES_ATUAL - 3 > 0 ? MES_ATUAL - 3 : null;
+  const ultimosTres = [m1, m2, m3].filter(m => m !== null);
+
+  const clientes = {};
+  for (const r of rawRows) {
+    if (!clientes[r.codcli]) {
+      clientes[r.codcli] = {
+        codcli: r.codcli,
+        cliente: (r.cliente || '').trim(),
+        cidade: (r.cidade || '').trim(),
+        ramo: (r.ramo || '').trim(),
+        vendedor: (r.vendedor || '').trim(),
+        supervisor: (r.supervisor || '').trim(),
+        meses: {},
+        mesesComprou: {},
+        mesesPeso: {}
+      };
+    }
+    clientes[r.codcli].meses[r.mes] = (clientes[r.codcli].meses[r.mes] || 0) + Number(r.valor);
+    // positivação: existe pelo menos um lançamento com codoper = 'S' no mês,
+    // independente do valor líquido (devolução não deve zerar a positivação)
+    clientes[r.codcli].mesesComprou[r.mes] = clientes[r.codcli].mesesComprou[r.mes] || !!r.comprou;
+    clientes[r.codcli].mesesPeso[r.mes] = (clientes[r.codcli].mesesPeso[r.mes] || 0) + Number(r.peso_liquido || 0);
+  }
+
+  const pendingMap = {};
+  for (const p of (pedidosRows || [])) {
+    if (!pendingMap[p.codcli]) pendingMap[p.codcli] = [];
+    pendingMap[p.codcli].push(p.pedido);
+  }
+
+  const freqMap = {};
+  for (const f of (freqRows || [])) {
+    freqMap[f.codcli] = f;
+  }
+
+  // agrupa variantes de grafia (acentos/maiusculas/espacos) do mesmo vendedor/supervisor
+  // e escolhe um nome canonico, pra nenhum vendedor ficar dividido em grupos diferentes
+  const vendorNameGroups = {};
+  const supervisorNameGroups = {};
+  for (const c of Object.values(clientes)) {
+    if (c.vendedor) {
+      const k = normKey(c.vendedor);
+      (vendorNameGroups[k] = vendorNameGroups[k] || new Set()).add(c.vendedor);
+    }
+    if (c.supervisor) {
+      const k = normKey(c.supervisor);
+      (supervisorNameGroups[k] = supervisorNameGroups[k] || new Set()).add(c.supervisor);
+    }
+  }
+  const vendorCanonical = {};
+  for (const k in vendorNameGroups) vendorCanonical[k] = pickCanonical(vendorNameGroups[k]);
+  const supervisorCanonical = {};
+  for (const k in supervisorNameGroups) supervisorCanonical[k] = pickCanonical(supervisorNameGroups[k]);
+
+  ALL_CLIENTES = Object.values(clientes).map(c => {
+    const valoresComVenda = [];
+    let potencial = 0;
+    for (let m = 1; m <= MES_ATUAL; m++) {
+      const v = c.meses[m] || 0;
+      if (v > potencial) potencial = v;
+      if (v > 0) valoresComVenda.push(v);
+    }
+    const mediaAno = valoresComVenda.length
+      ? valoresComVenda.reduce((a,b)=>a+b,0) / valoresComVenda.length
+      : 0;
+
+    const valoresTres = ultimosTres.map(m => c.meses[m] || 0).filter(v => v > 0);
+    const mediaTres = valoresTres.length
+      ? valoresTres.reduce((a,b)=>a+b,0) / valoresTres.length
+      : 0;
+
+    const comprouMesAtual = !!c.mesesComprou[MES_ATUAL];
+
+    const pendingPedidos = [...new Set(pendingMap[c.codcli] || [])];
+
+    const f = freqMap[c.codcli] || {};
+    const ultimaCompra = f.ultima_data || null;
+    const freqAtual = f.frequencia_mes_atual || 0;
+    const freqMediaAnterior = (f.frequencia_media_anterior === null || f.frequencia_media_anterior === undefined)
+      ? null : Math.round(Number(f.frequencia_media_anterior));
+    const oportunidade = freqMediaAnterior !== null ? (freqMediaAnterior - freqAtual) : null;
+
+    // normaliza grafia (acentos/espacos) pro nome canonico do vendedor/supervisor,
+    // normaliza o vendedor "TATIANA ... - LITORAL" pro mesmo nome.
+    // O supervisor REAL do banco é mantido (o vendedor de Televendas continua
+    // somando dentro do supervisor dele); o grupo TELEVENDAS é só uma linha
+    // extra e isolada nos resumos, calculada à parte (não soma no Total Geral).
+    let vendedor = vendorCanonical[normKey(c.vendedor)] || c.vendedor;
+    if (normKey(vendedor) === normKey('TATIANA LACERDA BACELLAR - LITORAL')) vendedor = 'TATIANA LACERDA BACELLAR';
+    let supervisor = supervisorCanonical[normKey(c.supervisor)] || c.supervisor;
+    const isTelevendas = TELEVENDAS_KEYS.has(normKey(vendedor));
+
+    return {
+      ...c, vendedor, supervisor, isTelevendas,
+      potencial, mediaAno, mediaTres, comprouMesAtual, pendingPedidos, pendingCount: pendingPedidos.length,
+      ultimaCompra, freqAtual, freqMediaAnterior, oportunidade
+    };
+  });
+}
+
+function montarLayout() {
+  // "Resumo geral" e "Faturamento e Positivação da Empresa" ficam fixos no
+  // topo da página (fora de #content, ver #fixedTop no HTML) — só o restante
+  // dos painéis é montado aqui, dentro da área que rola.
+  let html = '';
+  html += '<div class="card"><h2>Resumo por Segmento</h2><div id="resumoSegmentoWrap"></div></div>';
+  html += '<div class="card"><h2>Resumo por Supervisor</h2><div id="resumoSupervisorWrap"></div></div>';
+  html += '<div class="card"><h2>Resumo por Vendedor / Supervisor</h2><div id="resumoWrap"></div></div>';
+  html += '<div class="card"><h2>Resumo por Cidade</h2><div id="resumoCidadeWrap"></div></div>';
+  document.getElementById('content').innerHTML = html;
+  popularFiltros();
+}
+
+function popularFiltros() {
+  const supervisores = [...new Set(ALL_CLIENTES.map(c => c.supervisor).filter(Boolean))].sort();
+  const sSel = document.getElementById('supervisorFilter');
+  sSel.innerHTML = '<option value="">Todos os supervisores</option>' +
+    supervisores.map(s => `<option value="${s}">${s}</option>`).join('') +
+    '<option value="TELEVENDAS">TELEVENDAS</option>';
+  sSel.value = selSupervisor;
+  popularVendedorFiltro();
+
+  const cidades = [...new Set(ALL_CLIENTES.map(c => c.cidade).filter(Boolean))].sort();
+  const cSel = document.getElementById('cidadeFilter');
+  cSel.innerHTML = '<option value="">Todas as cidades</option>' +
+    cidades.map(c => `<option value="${c}">${c}</option>`).join('');
+  cSel.value = selCidade;
+
+  const ramos = [...new Set(ALL_CLIENTES.map(c => c.ramo).filter(Boolean))].sort();
+  const rSel = document.getElementById('ramoFilter');
+  rSel.innerHTML = '<option value="">Todos os ramos</option>' +
+    ramos.map(r => `<option value="${r}">${r}</option>`).join('');
+  rSel.value = selRamo;
+}
+
+function popularVendedorFiltro() {
+  let relevantes = ALL_CLIENTES;
+  if (selSupervisor === 'TELEVENDAS') relevantes = ALL_CLIENTES.filter(c => c.isTelevendas);
+  else if (selSupervisor) relevantes = ALL_CLIENTES.filter(c => c.supervisor === selSupervisor);
+  const vendedores = [...new Set(relevantes.map(c => c.vendedor).filter(Boolean))].sort();
+  const vSel = document.getElementById('vendedorFilter');
+  const manter = vendedores.includes(selVendedor) ? selVendedor : '';
+  vSel.innerHTML = '<option value="">Todos os vendedores</option>' +
+    vendedores.map(v => `<option value="${v}">${v}</option>`).join('');
+  selVendedor = manter;
+  vSel.value = manter;
+}
+
+function baseFilteredList() {
+  const q = searchText.toLowerCase();
+  return ALL_CLIENTES.filter(c => {
+    if (selVendedor && c.vendedor !== selVendedor) return false;
+    if (selSupervisor === 'TELEVENDAS') { if (!c.isTelevendas) return false; }
+    else if (selSupervisor && c.supervisor !== selSupervisor) return false;
+    if (selCidade && c.cidade !== selCidade) return false;
+    if (selRamo && c.ramo !== selRamo) return false;
+    if (selSegmento && getSegmento(c.ramo) !== selSegmento) return false;
+    if (q && !(
+      (c.cliente || '').toLowerCase().includes(q) ||
+      (c.vendedor || '').toLowerCase().includes(q) ||
+      (c.supervisor || '').toLowerCase().includes(q) ||
+      String(c.codcli).includes(q)
+    )) return false;
+    return true;
+  });
+}
+
+function fullyFilteredList() {
+  const base = baseFilteredList();
+  if (statusFilter === 'comprou') return base.filter(c => c.comprouMesAtual);
+  if (statusFilter === 'naoComprou') return base.filter(c => !c.comprouMesAtual);
+  return base;
+}
+
+function renderTudo() {
+  renderCards();
+  renderPainelEmpresa();
+  renderResumoSegmento();
+  renderResumoSupervisor();
+  renderResumo();
+  renderResumoCidade();
+}
+
+// Painel "Resumo por Segmento": mesma estrutura do painel da empresa, mas
+// quebrado em 2 segmentos fixos a partir do ramo de atividade do cliente:
+// DISTRIBUIDOR/VAREJO (Atacado e Rede de Mercado, Distribuidora, Mercado)
+// e FOOD (todos os demais ramos). Respeita os mesmos filtros dos outros painéis.
+function renderResumoSegmento() {
+  const lista = baseFilteredList();
+  const porSegmento = { 'DISTRIBUIDOR/VAREJO': [], 'FOOD': [] };
+  for (const c of lista) porSegmento[getSegmento(c.ramo)].push(c);
+
+  let html = '<table class="aligned"><colgroup><col class="col-label1"><col class="col-indicador">';
+  for (let m = 1; m <= MES_ATUAL; m++) html += '<col>';
+  html += '<col class="col-final"><col class="col-final"><col class="col-final"></colgroup>';
+  html += '<thead><tr><th class="left">Segmento</th><th class="left">Indicador</th>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<th>${MESES[m-1]}</th>`;
+  html += '<th>Potencial</th><th>Acum Ano</th><th>3M Ant.</th></tr></thead><tbody>';
+
+  for (const segmento of ['DISTRIBUIDOR/VAREJO', 'FOOD']) {
+    const clientesSeg = porSegmento[segmento];
+    const fatMes = {}, posMes = {}, pesoMes = {};
+    for (let m = 1; m <= MES_ATUAL; m++) {
+      fatMes[m] = clientesSeg.reduce((a,c) => a + (c.meses[m] || 0), 0);
+      posMes[m] = clientesSeg.filter(c => c.mesesComprou[m]).length;
+      pesoMes[m] = clientesSeg.reduce((a,c) => a + (c.mesesPeso[m] || 0), 0);
+    }
+    const sFat = statsSerie(fatMes), sPos = statsSerie(posMes), sPeso = statsSerie(pesoMes);
+    const ticketMes = calcTicketMedioMes(fatMes, posMes);
+    const sTicket = statsSerie(ticketMes);
+    const isActive = selSegmento === segmento;
+
+    html += `<tr class="total-row ${isActive ? 'active-row' : ''}">` +
+      `<td class="left segmento-cell" rowspan="4" onclick="toggleSegmentoFilter('${segmento}')">${segmento}</td>` +
+      '<td class="left">Faturamento</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(fatMes[m])}</td>`;
+    html += `<td>${fmt(sFat.potencial)}</td><td>${fmt(sFat.mediaAno)}</td><td>${fmt(sFat.mediaTres)}</td></tr>`;
+
+    html += '<tr><td class="left">Positivação</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(posMes[m])}</td>`;
+    html += `<td>${fmt(sPos.potencial)}</td><td>${fmt(sPos.mediaAno)}</td><td>${fmt(sPos.mediaTres)}</td></tr>`;
+
+    html += '<tr><td class="left">Peso Líquido</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(pesoMes[m])}</td>`;
+    html += `<td>${fmt(sPeso.potencial)}</td><td>${fmt(sPeso.mediaAno)}</td><td>${fmt(sPeso.mediaTres)}</td></tr>`;
+
+    html += '<tr><td class="left">Ticket Médio</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(ticketMes[m])}</td>`;
+    html += `<td>${fmt(sTicket.potencial)}</td><td>${fmt(sTicket.mediaAno)}</td><td>${fmt(sTicket.mediaTres)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('resumoSegmentoWrap').innerHTML = html;
+}
+
+function toggleSegmentoFilter(segmento) {
+  selSegmento = (selSegmento === segmento) ? null : segmento;
+  renderTudo();
+}
+
+// Painel "Resumo por Cidade": mesma estrutura do painel da empresa
+// (Faturamento / Positivação / Peso Líquido por mês + Potencial/Acum Ano/3M Ant.),
+// só que quebrado por cidade. Respeita os filtros de vendedor/supervisor/cidade/
+// ramo/busca (mas não o clique de status, que é conceito de um único mês).
+function renderResumoCidade() {
+  const lista = baseFilteredList();
+  const porCidade = {};
+  for (const c of lista) {
+    const cidade = c.cidade || '-';
+    (porCidade[cidade] = porCidade[cidade] || []).push(c);
+  }
+
+  // classifica cidade por maior faturamento acumulado (jan..mês atual) primeiro
+  const cidades = Object.keys(porCidade).sort((a, b) => {
+    const totalA = porCidade[a].reduce((acc, c) => acc + Object.values(c.meses).reduce((x,y)=>x+(y||0),0), 0);
+    const totalB = porCidade[b].reduce((acc, c) => acc + Object.values(c.meses).reduce((x,y)=>x+(y||0),0), 0);
+    return totalB - totalA;
+  });
+
+  let html = '<table class="aligned"><colgroup><col class="col-label1"><col class="col-indicador">';
+  for (let m = 1; m <= MES_ATUAL; m++) html += '<col>';
+  html += '<col class="col-final"><col class="col-final"><col class="col-final"></colgroup>';
+  html += '<thead><tr><th class="left">Cidade</th><th class="left">Indicador</th>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<th>${MESES[m-1]}</th>`;
+  html += '<th>Potencial</th><th>Acum Ano</th><th>3M Ant.</th></tr></thead><tbody>';
+
+  for (const cidade of cidades) {
+    const clientesCidade = porCidade[cidade];
+    const fatMes = {}, posMes = {}, pesoMes = {};
+    for (let m = 1; m <= MES_ATUAL; m++) {
+      fatMes[m] = clientesCidade.reduce((a,c) => a + (c.meses[m] || 0), 0);
+      posMes[m] = clientesCidade.filter(c => c.mesesComprou[m]).length;
+      pesoMes[m] = clientesCidade.reduce((a,c) => a + (c.mesesPeso[m] || 0), 0);
+    }
+    const sFat = statsSerie(fatMes), sPos = statsSerie(posMes), sPeso = statsSerie(pesoMes);
+
+    html += `<tr class="total-row"><td class="left" rowspan="3">${cidade}</td><td class="left">Faturamento</td>`;
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(fatMes[m])}</td>`;
+    html += `<td>${fmt(sFat.potencial)}</td><td>${fmt(sFat.mediaAno)}</td><td>${fmt(sFat.mediaTres)}</td></tr>`;
+
+    html += '<tr><td class="left">Positivação</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(posMes[m])}</td>`;
+    html += `<td>${fmt(sPos.potencial)}</td><td>${fmt(sPos.mediaAno)}</td><td>${fmt(sPos.mediaTres)}</td></tr>`;
+
+    html += '<tr><td class="left">Peso Líquido</td>';
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(pesoMes[m])}</td>`;
+    html += `<td>${fmt(sPeso.potencial)}</td><td>${fmt(sPeso.mediaAno)}</td><td>${fmt(sPeso.mediaTres)}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('resumoCidadeWrap').innerHTML = html;
+}
+
+function statsSerie(valoresPorMes) {
+  const m1 = MES_ATUAL - 1 > 0 ? MES_ATUAL - 1 : null;
+  const m2 = MES_ATUAL - 2 > 0 ? MES_ATUAL - 2 : null;
+  const m3 = MES_ATUAL - 3 > 0 ? MES_ATUAL - 3 : null;
+  const ultimosTres = [m1, m2, m3].filter(m => m !== null);
+
+  let potencial = 0;
+  const comVenda = [];
+  for (let m = 1; m <= MES_ATUAL; m++) {
+    const v = valoresPorMes[m] || 0;
+    if (v > potencial) potencial = v;
+    if (v > 0) comVenda.push(v);
+  }
+  const mediaAno = comVenda.length ? comVenda.reduce((a,b)=>a+b,0) / comVenda.length : 0;
+  const valoresTres = ultimosTres.map(m => valoresPorMes[m] || 0).filter(v => v > 0);
+  const mediaTres = valoresTres.length ? valoresTres.reduce((a,b)=>a+b,0) / valoresTres.length : 0;
+  return { potencial, mediaAno, mediaTres };
+}
+
+// Ticket médio por mês = faturamento do mês / positivação do mês (0 se não houve positivação)
+function calcTicketMedioMes(fatMes, posMes) {
+  const ticketMes = {};
+  for (let m = 1; m <= MES_ATUAL; m++) ticketMes[m] = posMes[m] ? (fatMes[m] || 0) / posMes[m] : 0;
+  return ticketMes;
+}
+
+// Painel "Faturamento e Positivação da Empresa": mesmas colunas do grid de
+// clientes (Jan..mês atual, Potencial, Acum Ano, 3M Ant.). Respeita os filtros
+// de vendedor/supervisor/cidade/ramo/busca (assim como os demais painéis).
+// Faturamento = soma do valor líquido faturado; Positivação = qtd de clientes
+// distintos com venda (codoper = 'S') no mês, sem descontar devolução.
+function renderPainelEmpresa() {
+  const lista = baseFilteredList();
+  const fatMes = {}, posMes = {}, pesoMes = {};
+  for (let m = 1; m <= MES_ATUAL; m++) {
+    fatMes[m] = lista.reduce((a,c) => a + (c.meses[m] || 0), 0);
+    posMes[m] = lista.filter(c => c.mesesComprou[m]).length;
+    pesoMes[m] = lista.reduce((a,c) => a + (c.mesesPeso[m] || 0), 0);
+  }
+  const statsFat = statsSerie(fatMes);
+  const statsPos = statsSerie(posMes);
+  const statsPeso = statsSerie(pesoMes);
+  const ticketMes = calcTicketMedioMes(fatMes, posMes);
+  const statsTicket = statsSerie(ticketMes);
+
+  let html = '<table class="aligned"><colgroup><col class="col-label1"><col class="col-indicador">';
+  for (let m = 1; m <= MES_ATUAL; m++) html += '<col>';
+  html += '<col class="col-final"><col class="col-final"><col class="col-final"></colgroup>';
+  html += '<thead><tr><th></th><th class="left">Indicador</th>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<th>${MESES[m-1]}</th>`;
+  html += '<th>Potencial</th><th>Acum Ano</th><th>3M Ant.</th></tr></thead><tbody>';
+
+  html += '<tr><td></td><td class="left">Faturamento</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(fatMes[m])}</td>`;
+  html += `<td>${fmt(statsFat.potencial)}</td><td>${fmt(statsFat.mediaAno)}</td><td>${fmt(statsFat.mediaTres)}</td></tr>`;
+
+  html += '<tr><td></td><td class="left">Positivação</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(posMes[m])}</td>`;
+  html += `<td>${fmt(statsPos.potencial)}</td><td>${fmt(statsPos.mediaAno)}</td><td>${fmt(statsPos.mediaTres)}</td></tr>`;
+
+  html += '<tr><td></td><td class="left">Peso Líquido</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(pesoMes[m])}</td>`;
+  html += `<td>${fmt(statsPeso.potencial)}</td><td>${fmt(statsPeso.mediaAno)}</td><td>${fmt(statsPeso.mediaTres)}</td></tr>`;
+
+  html += '<tr><td></td><td class="left">Ticket Médio</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(ticketMes[m])}</td>`;
+  html += `<td>${fmt(statsTicket.potencial)}</td><td>${fmt(statsTicket.mediaAno)}</td><td>${fmt(statsTicket.mediaTres)}</td></tr>`;
+
+  html += '</tbody></table>';
+  document.getElementById('painelEmpresaWrap').innerHTML = html;
+}
+
+function renderCards() {
+  const base = baseFilteredList();
+  const total = base.length;
+  const comprou = base.filter(c => c.comprouMesAtual).length;
+  const naoComprou = total - comprou;
+
+  // acumulados do ano (jan..mês atual) pros novos cards financeiros
+  const fatMesObj = {};
+  for (let m = 1; m <= MES_ATUAL; m++) fatMesObj[m] = base.reduce((a,c) => a + (c.meses[m] || 0), 0);
+  const fatTotal = Object.values(fatMesObj).reduce((a,v) => a + v, 0);
+  const pesoTotal = base.reduce((a,c) => a + Object.values(c.mesesPeso || {}).reduce((x,y) => x + (y||0), 0), 0);
+  const statsFatGeral = statsSerie(fatMesObj);
+  const positivadosAno = base.filter(c => Object.values(c.mesesComprou || {}).some(Boolean)).length;
+  const ticketMedio = positivadosAno ? (fatTotal / positivadosAno) : 0;
+
+  const cards = [
+    { key: null, n: total, l: `Clientes ativos no ano (Frutas Congeladas)`, cls: '' },
+    { key: 'comprou', n: comprou, l: `Já compraram em ${MESES[MES_ATUAL-1]}`, cls: 'status-ok' },
+    { key: 'naoComprou', n: naoComprou, l: `Ainda não compraram em ${MESES[MES_ATUAL-1]}`, cls: 'status-warn' },
+    { key: null, n: fmt(fatTotal), l: 'Faturamento Total', cls: '', clickable: false },
+    { key: null, n: fmt(pesoTotal), l: 'Peso Líquido Total', cls: '', clickable: false },
+    { key: null, n: fmt(statsFatGeral.mediaAno), l: 'Faturamento Médio Mensal', cls: '', clickable: false },
+    { key: null, n: fmt(ticketMedio), l: 'Ticket Médio por Cliente', cls: '', clickable: false }
+  ];
+
+  document.getElementById('summaryGrid').innerHTML = cards.map(c => `
+    <div class="summary-item ${statusFilter === c.key && c.clickable !== false ? 'active' : ''}" ${c.clickable === false ? '' : `onclick="toggleStatusFilter(${c.key ? "'"+c.key+"'" : 'null'})"`} style="${c.clickable === false ? 'cursor:default;' : ''}">
+      <div class="n ${c.cls}">${c.n}</div>
+      <div class="l">${c.l}</div>
+    </div>
+  `).join('');
+}
+
+function toggleStatusFilter(key) {
+  statusFilter = (statusFilter === key) ? null : key;
+  renderCards();
+  renderResumoSupervisor();
+  renderResumo();
+}
+
+function statsDoGrupo(key, label, clientesDoGrupo) {
+  const comprou = clientesDoGrupo.filter(c => c.comprouMesAtual).length;
+  const total = clientesDoGrupo.length;
+  const naoComprou = total - comprou;
+  const temPedido = clientesDoGrupo.reduce((a,c) => a + (c.pendingCount || 0), 0);
+  return {
+    key, label, clientes: clientesDoGrupo,
+    comprou, naoComprou, total, temPedido,
+    pctComprou: total ? (comprou / total * 100) : 0,
+    pctNaoComprou: total ? (naoComprou / total * 100) : 0
+  };
+}
+
+function agruparStats(lista, keyFn, labelFn) {
+  const map = {};
+  for (const c of lista) {
+    const key = keyFn(c);
+    if (!map[key]) map[key] = { label: labelFn(c), clientes: [] };
+    map[key].clientes.push(c);
+  }
+  return Object.entries(map)
+    .map(([key, grupo]) => statsDoGrupo(key, grupo.label, grupo.clientes))
+    .sort((a,b) => (a.label || '').localeCompare(b.label || ''));
+}
+
+// Linha extra e isolada de TELEVENDAS: agrega os clientes cujo vendedor é de
+// Televendas, mas SEM tirá-los do grupo do supervisor real (eles continuam
+// sendo contados lá também). Por isso essa linha nunca entra no Total Geral.
+function grupoTelevendas(lista) {
+  const clientesTele = lista.filter(c => c.isTelevendas);
+  if (!clientesTele.length) return null;
+  return statsDoGrupo('__TELEVENDAS__', 'TELEVENDAS', clientesTele);
+}
+
+function renderResumoSupervisor() {
+  const lista = fullyFilteredList();
+  const grupos = agruparStats(lista, c => c.supervisor || '-', c => c.supervisor || '-');
+  const tele = grupoTelevendas(lista);
+  if (tele) grupos.push(tele);
+  grupos.sort((a,b) =>
+    (a.label === 'TELEVENDAS' ? 1 : 0) - (b.label === 'TELEVENDAS' ? 1 : 0) ||
+    b.pctNaoComprou - a.pctNaoComprou || b.naoComprou - a.naoComprou
+  );
+
+  const gruposParaTotal = grupos.filter(g => g.label !== 'TELEVENDAS');
+  const totalComprou = gruposParaTotal.reduce((a,g) => a + g.comprou, 0);
+  const totalNao = gruposParaTotal.reduce((a,g) => a + g.naoComprou, 0);
+  const totalGeral = totalComprou + totalNao;
+
+  const totalPedido = gruposParaTotal.reduce((a,g) => a + g.temPedido, 0);
+
+  let html = '<table class="aligned"><colgroup>' +
+    '<col class="col-toggle"><col class="col-vendedor"><col class="col-supervisor">' +
+    '<col class="col-num"><col class="col-num"><col class="col-num"><col class="col-num">' +
+    '<col class="col-total"><col class="col-pedido"></colgroup><thead><tr>' +
+    '<th></th><th></th><th class="left">Supervisor</th><th>Já compraram</th><th>Não compraram</th>' +
+    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th>' +
+    '</tr></thead><tbody>';
+
+  html += `<tr class="total-row"><td></td><td></td><td class="left">Total Geral</td>` +
+    `<td class="status-ok">${totalComprou}</td><td class="status-warn">${totalNao}</td>` +
+    `<td>${pct(totalGeral ? totalComprou/totalGeral*100 : 0)}</td>` +
+    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td></tr>`;
+
+  for (const g of grupos) {
+    const isActive = selSupervisor === g.label;
+    html += `<tr class="vendor-row ${isActive ? 'active-row' : ''}" onclick="toggleSupervisorFilter('${g.label.replace(/'/g,"\\'")}')"><td></td><td></td><td class="left">${g.label}</td>` +
+      `<td class="status-ok">${g.comprou}</td><td class="status-warn">${g.naoComprou}</td>` +
+      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td></tr>`;
+  }
+  html += '</tbody></table>';
+  document.getElementById('resumoSupervisorWrap').innerHTML = html;
+}
+
+function renderResumo() {
+  const lista = fullyFilteredList();
+  const grupos = agruparStats(
+    lista,
+    c => (c.vendedor || '-') + '||' + (c.supervisor || '-'),
+    c => (c.vendedor || '-') + ' / ' + (c.supervisor || '-')
+  );
+  const tele = grupoTelevendas(lista);
+  if (tele) grupos.push(tele);
+
+  grupos.sort((a,b) =>
+    (a.key === '__TELEVENDAS__' ? 1 : 0) - (b.key === '__TELEVENDAS__' ? 1 : 0) ||
+    b.pctNaoComprou - a.pctNaoComprou || b.naoComprou - a.naoComprou
+  );
+
+  const gruposParaTotal = grupos.filter(g => g.key !== '__TELEVENDAS__');
+  const totalComprou = gruposParaTotal.reduce((a,g) => a + g.comprou, 0);
+  const totalNao = gruposParaTotal.reduce((a,g) => a + g.naoComprou, 0);
+  const totalGeral = totalComprou + totalNao;
+  const totalPedido = gruposParaTotal.reduce((a,g) => a + g.temPedido, 0);
+
+  let html = '<table class="aligned"><colgroup>' +
+    '<col class="col-toggle"><col class="col-vendedor"><col class="col-supervisor">' +
+    '<col class="col-num"><col class="col-num"><col class="col-num"><col class="col-num">' +
+    '<col class="col-total"><col class="col-pedido"></colgroup><thead><tr>' +
+    '<th></th><th class="left">Vendedor</th><th class="left">Supervisor</th><th>Já compraram</th><th>Não compraram</th>' +
+    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th>' +
+    '</tr></thead><tbody>';
+
+  html += `<tr class="total-row"><td></td><td class="left" colspan="2">Total Geral</td>` +
+    `<td class="status-ok">${totalComprou}</td><td class="status-warn">${totalNao}</td>` +
+    `<td>${pct(totalGeral ? totalComprou/totalGeral*100 : 0)}</td>` +
+    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td></tr>`;
+
+  for (const g of grupos) {
+    const key = g.key;
+    const isOpen = vendorExpanded.has(key);
+    const isTele = key === '__TELEVENDAS__';
+    const vendedor = isTele ? 'TELEVENDAS' : g.clientes[0].vendedor;
+    const supervisor = isTele ? '' : g.clientes[0].supervisor;
+    html += `<tr class="vendor-row" onclick="toggleVendor('${key.replace(/'/g,"\\'")}')">` +
+      `<td><span class="toggle-icon">${isOpen ? '▾' : '▸'}</span></td>` +
+      `<td class="left">${vendedor || '-'}</td><td class="left">${supervisor || '-'}</td>` +
+      `<td class="status-ok">${g.comprou}</td><td class="status-warn">${g.naoComprou}</td>` +
+      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td></tr>`;
+
+    if (isOpen) {
+      html += `<tr><td colspan="9" class="nested-wrap">${renderClientesNested(key, g.clientes)}</td></tr>`;
+    }
+  }
+  html += '</tbody></table>';
+  document.getElementById('resumoWrap').innerHTML = html;
+}
+
+function renderClientesNested(vendorKey, clientes) {
+  const colCount = 14 + MES_ATUAL;
+  let html = '<table class="nested-table"><thead><tr>' +
+    '<th></th><th class="left">Codcli</th><th class="left">Cliente</th><th class="left">Cidade</th><th class="left">Ramo</th>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<th>${MESES[m-1]}</th>`;
+  html += '<th>Potencial</th><th>Med. Ano</th><th>Med. 3M</th>' +
+    '<th>Ult. Compra</th><th>Freq.</th><th>Freq Med.</th><th>Oportunidade</th>' +
+    '<th>Status</th><th>Tem Pedido</th></tr></thead><tbody>';
+
+  const listaOrdenada = [...clientes].sort((a,b) => b.mediaAno - a.mediaAno);
+
+  // totalizador: Jan ... mês atual, Potencial, Med. Ano, Med. 3M
+  const totJan = [];
+  for (let m = 1; m <= MES_ATUAL; m++) totJan.push(listaOrdenada.reduce((a,c) => a + (c.meses[m] || 0), 0));
+  const totPotencial = listaOrdenada.reduce((a,c) => a + c.potencial, 0);
+  const totMediaAno = listaOrdenada.reduce((a,c) => a + c.mediaAno, 0);
+  const totMedia3M = listaOrdenada.reduce((a,c) => a + c.mediaTres, 0);
+
+  html += '<tr class="total-row"><td></td><td class="left" colspan="4">Total</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(totJan[m-1])}</td>`;
+  html += `<td>${fmt(totPotencial)}</td><td>${fmt(totMediaAno)}</td><td>${fmt(totMedia3M)}</td>` +
+    '<td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+
+  // totalizador: qtd de clientes positivados (codoper 'S') por mês, desse vendedor
+  const posMes = {};
+  for (let m = 1; m <= MES_ATUAL; m++) posMes[m] = listaOrdenada.filter(c => c.mesesComprou[m]).length;
+  const statsPosVend = statsSerie(posMes);
+
+  html += '<tr class="total-row"><td></td><td class="left" colspan="4">Clientes positivados</td>';
+  for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(posMes[m])}</td>`;
+  html += `<td>${fmt(statsPosVend.potencial)}</td><td>${fmt(statsPosVend.mediaAno)}</td><td>${fmt(statsPosVend.mediaTres)}</td>` +
+    '<td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+
+  for (const c of listaOrdenada) {
+    const ck = vendorKey + '||' + c.codcli;
+    const isOpen = clientExpanded.has(ck);
+    html += `<tr class="client-row" onclick="event.stopPropagation(); toggleClient('${ck.replace(/'/g,"\\'")}', '${String(c.codcli).replace(/'/g,"\\'")}')">` +
+      `<td><span class="toggle-icon">${isOpen ? '▾' : '▸'}</span></td>` +
+      `<td class="left">${c.codcli}</td><td class="left">${c.cliente || ''}</td>` +
+      `<td class="left">${c.cidade || ''}</td><td class="left">${c.ramo || ''}</td>`;
+    for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(c.meses[m] || 0)}</td>`;
+    html += `<td>${fmt(c.potencial)}</td><td>${fmt(c.mediaAno)}</td><td>${fmt(c.mediaTres)}</td>` +
+      `<td>${c.ultimaCompra ? new Date(c.ultimaCompra + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>` +
+      `<td>${c.freqAtual}</td><td>${c.freqMediaAnterior !== null ? c.freqMediaAnterior : '-'}</td>` +
+      `<td>${c.oportunidade !== null ? c.oportunidade : '-'}</td>` +
+      `<td class="${c.comprouMesAtual ? 'status-ok' : 'status-warn'}">${c.comprouMesAtual ? 'Comprou' : 'Não comprou'}</td>` +
+      `<td class="left">${c.pendingPedidos && c.pendingPedidos.length ? c.pendingPedidos.join(', ') : '-'}</td></tr>`;
+    if (isOpen) {
+      html += `<tr><td colspan="${colCount}" class="produtos-wrap" id="produtos-${ck.replace(/[^a-zA-Z0-9]/g,'_')}">Carregando produtos...</td></tr>`;
+    }
+  }
+  html += '</tbody></table>';
+  return html;
+}
+
+function toggleSupervisorFilter(supervisor) {
+  selSupervisor = (selSupervisor === supervisor) ? '' : supervisor;
+  document.getElementById('supervisorFilter').value = selSupervisor;
+  popularVendedorFiltro();
+  renderTudo();
+}
+
+function toggleVendor(key) {
+  if (vendorExpanded.has(key)) vendorExpanded.delete(key);
+  else vendorExpanded.add(key);
+  renderResumo();
+}
+
+function toggleClient(clientKey, codcli) {
+  if (clientExpanded.has(clientKey)) {
+    clientExpanded.delete(clientKey);
+    renderResumo();
+    return;
+  }
+  clientExpanded.add(clientKey);
+  renderResumo();
+  carregarProdutos(clientKey, codcli);
+}
+
+async function carregarProdutos(clientKey, codcli) {
+  const cellId = 'produtos-' + clientKey.replace(/[^a-zA-Z0-9]/g,'_');
+  try {
+    let produtos = PRODUTOS_CACHE[codcli];
+    if (!produtos) {
+      const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_produtos_mes`, {
+        method: 'POST',
+        headers: {
+          'apikey': SUPABASE_ANON_KEY,
+          'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ p_codcli: String(codcli) })
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      produtos = await resp.json();
+      PRODUTOS_CACHE[codcli] = produtos;
+    }
+
+    const el = document.getElementById(cellId);
+    if (!el) return;
+
+    if (!produtos.length) {
+      el.innerHTML = 'Nenhum produto encontrado para o mês atual.';
+      return;
+    }
+    let html = '<table class="nested-table" style="font-style: normal;"><thead><tr><th class="left">Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>';
+    for (const p of produtos) {
+      html += `<tr><td class="left">${p.produto || p.descricao || '-'}</td><td>${p.qt ?? '-'}</td><td>${fmt(p.total)}</td></tr>`;
+    }
+    html += '</tbody></table>';
+    el.innerHTML = html;
+  } catch (err) {
+    const el = document.getElementById(cellId);
+    if (el) el.innerHTML = 'Erro ao buscar produtos: ' + err.message;
+  }
+}
+
+function exportExcelDetalhado() {
+  const lista = [...fullyFilteredList()].sort((a,b) =>
+    (a.vendedor || '').localeCompare(b.vendedor || '') ||
+    (a.supervisor || '').localeCompare(b.supervisor || '') ||
+    b.mediaAno - a.mediaAno
+  );
+  const rows = lista.map(c => {
+    const row = {
+      Codcli: c.codcli, Cliente: c.cliente, Cidade: c.cidade, Ramo: c.ramo,
+      Vendedor: c.vendedor, Supervisor: c.supervisor
+    };
+    for (let m = 1; m <= MES_ATUAL; m++) row[MESES[m-1]] = Number((c.meses[m] || 0).toFixed(2));
+    row['Potencial'] = Number(c.potencial.toFixed(2));
+    row['Media Ano'] = Number(c.mediaAno.toFixed(2));
+    row['Media M-1 a M-3'] = Number(c.mediaTres.toFixed(2));
+    row['Ultima Compra'] = c.ultimaCompra || '';
+    row['Frequencia'] = c.freqAtual;
+    row['Freq Media Anterior'] = c.freqMediaAnterior !== null ? c.freqMediaAnterior : '';
+    row['Oportunidade'] = c.oportunidade !== null ? c.oportunidade : '';
+    row['Status'] = c.comprouMesAtual ? 'Comprou' : 'Nao comprou';
+    row['Tem Pedido'] = (c.pendingPedidos && c.pendingPedidos.length) ? c.pendingPedidos.join(', ') : '';
+    return row;
+  });
+  const ws = XLSX.utils.json_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Detalhado');
+  const dataStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `painel_acai_detalhado_${dataStr}.xlsx`);
+}
+
+function exportExcelResumido() {
+  const lista = fullyFilteredList();
+
+  const gruposSup = agruparStats(lista, c => c.supervisor || '-', c => c.supervisor || '-');
+  const teleSup = grupoTelevendas(lista);
+  gruposSup.sort((a,b) => b.pctNaoComprou - a.pctNaoComprou || b.naoComprou - a.naoComprou);
+  if (teleSup) gruposSup.push(teleSup);
+  const rowsSup = gruposSup.map(g => ({
+    Supervisor: g.label,
+    'Ja Compraram': g.comprou,
+    'Nao Compraram': g.naoComprou,
+    '% Comprador': Number(g.pctComprou.toFixed(1)),
+    '% Nao Comprador': Number(g.pctNaoComprou.toFixed(1)),
+    'Total': g.total,
+    'Tem Pedido': g.temPedido
+  }));
+
+  const gruposVend = agruparStats(
+    lista,
+    c => (c.vendedor || '-') + '||' + (c.supervisor || '-'),
+    c => (c.vendedor || '-') + ' / ' + (c.supervisor || '-')
+  );
+  const teleVend = grupoTelevendas(lista);
+  gruposVend.sort((a,b) => b.pctNaoComprou - a.pctNaoComprou || b.naoComprou - a.naoComprou);
+  if (teleVend) gruposVend.push(teleVend);
+  const rowsVend = gruposVend.map(g => ({
+    Vendedor: g.key === '__TELEVENDAS__' ? 'TELEVENDAS' : g.clientes[0].vendedor,
+    Supervisor: g.key === '__TELEVENDAS__' ? '' : g.clientes[0].supervisor,
+    'Ja Compraram': g.comprou,
+    'Nao Compraram': g.naoComprou,
+    '% Comprador': Number(g.pctComprou.toFixed(1)),
+    '% Nao Comprador': Number(g.pctNaoComprou.toFixed(1)),
+    'Total': g.total,
+    'Tem Pedido': g.temPedido
+  }));
+
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rowsSup), 'Por Supervisor');
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rowsVend), 'Por Vendedor');
+  const dataStr = new Date().toISOString().slice(0,10);
+  XLSX.writeFile(wb, `painel_acai_resumido_${dataStr}.xlsx`);
+}
+
+document.getElementById('filterInput').addEventListener('input', (e) => {
+  searchText = e.target.value;
+  renderTudo();
+});
+document.getElementById('vendedorFilter').addEventListener('change', (e) => {
+  selVendedor = e.target.value;
+  renderTudo();
+});
+document.getElementById('supervisorFilter').addEventListener('change', (e) => {
+  selSupervisor = e.target.value;
+  popularVendedorFiltro();
+  renderTudo();
+});
+document.getElementById('cidadeFilter').addEventListener('change', (e) => {
+  selCidade = e.target.value;
+  renderTudo();
+});
+document.getElementById('ramoFilter').addEventListener('change', (e) => {
+  selRamo = e.target.value;
+  renderTudo();
+});
+
+carregar();
+</script>
+
+</body>
+</html>
