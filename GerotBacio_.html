@@ -430,7 +430,8 @@ tbody td { padding: 11px 12px; }
     <button class="btn btn-secondary" onclick="_historicoRotasCache=null;renderDashboard()" style="margin-top:auto">🔄 Atualizar</button>
   </div>
 
-  <div id="db-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
+  <div id="db-cards" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:12px"></div>
+  <div id="db-cards-extra" style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px"></div>
 
   <div id="db-charts-wrap" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(320px,1fr));gap:16px;margin-bottom:18px"></div>
 
@@ -731,7 +732,7 @@ tbody td { padding: 11px 12px; }
     <div id="rot-lista"></div>
   </div>
   <div class="card">
-    <div class="card-title">Reprogramações pendentes (todas as datas)</div>
+    <div class="card-title">Reprogramações pendentes (hoje em diante)</div>
     <div id="rot-reprog"></div>
   </div>
   <div class="card">
@@ -1075,6 +1076,23 @@ tbody td { padding: 11px 12px; }
     </div>
     <div class="filter-row" style="margin-top:20px;margin-bottom:14px">
       <div class="field"><label>Buscar por cliente (documento ou nome)</label><input id="frz-f-busca" placeholder="Código ou nome..." oninput="renderFreezersPage()"></div>
+      <div class="field"><label>Status do Contrato</label>
+        <select id="frz-f-contrato" onchange="renderFreezersPage()">
+          <option value="">Todos</option>
+          <option value="arquivado">Arquivado</option>
+          <option value="pendente">Pendente de arquivamento</option>
+        </select>
+      </div>
+      <div class="field"><label>Status do Freezer</label>
+        <select id="frz-f-status" onchange="renderFreezersPage()">
+          <option value="">Todos</option>
+          <option value="ATIVO">Ativo</option>
+          <option value="DEVOLVIDO">Devolvido</option>
+          <option value="EM_CONSERTO">Em Conserto</option>
+        </select>
+      </div>
+      <div class="field"><label>Entrega de</label><input type="date" id="frz-f-data-de" onchange="renderFreezersPage()"></div>
+      <div class="field"><label>Entrega até</label><input type="date" id="frz-f-data-ate" onchange="renderFreezersPage()"></div>
       <div id="frz-filtro-modelo-chip" style="display:none;align-items:center;gap:6px;background:rgba(0,102,204,.12);border:1px solid var(--accent);color:var(--accent);border-radius:8px;padding:8px 12px;font-size:.8rem"></div>
       <button class="btn btn-secondary" onclick="renderFreezersPage()" style="margin-top:auto">🔄 Atualizar</button>
       <button class="btn btn-primary" id="btn-ver-mapa-freezers" onclick="abrirModalMapaFreezers()" style="margin-top:auto">🗺️ Ver no Mapa</button>
@@ -1102,6 +1120,21 @@ tbody td { padding: 11px 12px; }
   <div class="card" style="margin-bottom:20px">
     <div class="card-title">📒 Conta Corrente — Movimentação de Freezers</div>
     <p style="font-size:.78rem;color:var(--muted);margin-bottom:12px">Todo lançamento, troca ou atualização de freezer fica registrado aqui, por cliente e por data.</p>
+    <div class="filter-row" style="margin-bottom:14px">
+      <div class="field"><label>Filtrar por tipo</label>
+        <select id="frz-mov-f-tipo" onchange="renderMovimentacoesFreezer()">
+          <option value="">Todos</option>
+          <option value="instalacao">Instalação</option>
+          <option value="devolucao">Devolução</option>
+          <option value="conserto">Conserto</option>
+          <option value="consertado">Consertado no Local</option>
+          <option value="troca">Troca</option>
+          <option value="retirada">Retirada</option>
+          <option value="atualizacao">Atualização</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" onclick="exportarMovimentosFreezerExcel()" style="margin-top:auto">📊 Exportar Excel</button>
+    </div>
     <div class="table-wrap" style="overflow-x:auto">
       <table style="width:100%;border-collapse:collapse;font-size:.82rem">
         <thead>
@@ -2988,7 +3021,9 @@ async function renderDashboard() {
   cardsEl.innerHTML = '<div class="empty-state">⏳ Carregando...</div>';
   listaEl.innerHTML = '<tr><td colspan="7" style="padding:12px;color:var(--muted)">⏳ Carregando...</td></tr>';
 
-  const [rotasBrutas, vendas] = await Promise.all([sbListarRotasBrutas(), sbListarVendasBacio()]);
+  const [rotasBrutas, vendas, clientesComDia, todosClientesAtivos] = await Promise.all([
+    sbListarRotasBrutas(), sbListarVendasBacio(), sbListarClientesAtivosComDia(), sbListarClientesCRM()
+  ]);
   if(!_historicoRotasCache) _historicoRotasCache = rotasBrutas;
 
   const escopo = await vendedoresDoEscopo();
@@ -3114,6 +3149,72 @@ async function renderDashboard() {
     <div class="metric-card" style="--c:#7c3aed"><div class="m-label">Taxa de Conversão (visitados/venda)</div><div class="m-val" style="color:#7c3aed">${totComVenda?(totVisitados/totComVenda).toFixed(1):'0.0'}</div></div>
   `;
 
+  // ==================================================================
+  // NOVOS INDICADORES: Vendas por Rota, Adesão aos 9 Passos (clientes
+  // com freezer), Aderência média ao Roteiro, Base de Clientes,
+  // % Visitados/Base, Não Visitados, % Não Visitados/Base.
+  // ==================================================================
+
+  // ---- Vendas por Rota ----
+  const vendasPorRota = totRotas ? totVenda/totRotas : 0;
+
+  // ---- Adesão aos 9 Passos (só visitas que tinham checklist, ou seja,
+  // cliente já tinha freezer instalado — é a única situação em que o
+  // checklist aparece no formulário) ----
+  let pontosPassos = 0, possivelPassos = 0;
+  rows.forEach(r => {
+    const p = r.passos;
+    if(!p || typeof p !== 'object' || !Object.keys(p).length) return;
+    for(let i=1;i<=9;i++) {
+      const v = p['p'+i];
+      if(v==null) continue;
+      possivelPassos += 1;
+      if(v==='E') pontosPassos += 1;
+      else if(v==='P') pontosPassos += 0.5;
+    }
+  });
+  const adesaoPassos = possivelPassos ? (pontosPassos/possivelPassos)*100 : null;
+
+  // ---- Base de clientes (atrelados ao vendedor filtrado, ou ao escopo inteiro) ----
+  const clientesBase = (escopo ? todosClientesAtivos.filter(c=>escopo.includes(c.vendedor)) : todosClientesAtivos)
+    .filter(c => c.status !== 'descartado' && !c.arquivado && (!filtroVend || c.vendedor === filtroVend));
+  const baseTotal = clientesBase.length;
+  const idsVisitadosNoPeriodo = new Set(rows.filter(r=>r.cliente_id).map(r=>r.cliente_id));
+  const chaveClienteDash = c => c.documento || c.id;
+  const visitadosDaBase = clientesBase.filter(c => idsVisitadosNoPeriodo.has(chaveClienteDash(c))).length;
+  const naoVisitados = baseTotal - visitadosDaBase;
+  const pctVisitadosBase = baseTotal ? (visitadosDaBase/baseTotal)*100 : 0;
+  const pctNaoVisitadosBase = baseTotal ? (naoVisitados/baseTotal)*100 : 0;
+
+  // ---- Aderência média ao Roteiro — pra cada dia com atividade no período,
+  // calcula quantos dos "previstos" daquele dia da semana foram realmente
+  // visitados, depois tira a média entre os dias (mesmo critério de dia fixo +
+  // frequência/semana do mês já usado na página Roteiro). ----
+  const clientesComDiaEscopo = (escopo ? clientesComDia.filter(c=>escopo.includes(c.vendedor)) : clientesComDia)
+    .filter(c => !filtroVend || c.vendedor === filtroVend);
+  const aderenciasPorDia = [];
+  todosDias.forEach(dia => {
+    const diaSemanaNum = diaSemanaDeData(dia);
+    const previstos = clientesComDiaEscopo.filter(c => String(c.dia_visita)===String(diaSemanaNum) && clienteNaFrequenciaData(c, dia));
+    if(!previstos.length) return;
+    const visitadosHoje = new Set((porDiaRotas[dia] ? rows.filter(r=>r.data===dia) : []).map(r=>r.cliente_id));
+    const idsprevistos = new Set(previstos.map(chaveClienteDash));
+    const qtdCumpridos = [...idsprevistos].filter(id=>visitadosHoje.has(id)).length;
+    aderenciasPorDia.push(qtdCumpridos/previstos.length);
+  });
+  const aderenciaMediaRoteiro = aderenciasPorDia.length ? (aderenciasPorDia.reduce((s,v)=>s+v,0)/aderenciasPorDia.length)*100 : null;
+
+  const cardsExtraEl = document.getElementById('db-cards-extra');
+  if(cardsExtraEl) cardsExtraEl.innerHTML = `
+    <div class="metric-card" style="--c:#0066cc"><div class="m-label">Vendas por Rota</div><div class="m-val" style="color:#0066cc;font-size:1.3rem">R$ ${vendasPorRota.toLocaleString('pt-BR',{maximumFractionDigits:0})}</div></div>
+    <div class="metric-card" style="--c:#d6304f"><div class="m-label">Adesão aos 9 Passos (c/ Freezer)</div><div class="m-val" style="color:#d6304f">${adesaoPassos!=null?adesaoPassos.toFixed(0)+'%':'—'}</div></div>
+    <div class="metric-card" style="--c:#0891b2"><div class="m-label">Aderência ao Roteiro (média)</div><div class="m-val" style="color:#0891b2">${aderenciaMediaRoteiro!=null?aderenciaMediaRoteiro.toFixed(0)+'%':'—'}</div></div>
+    <div class="metric-card" style="--c:var(--accent)"><div class="m-label">Base de Clientes</div><div class="m-val">${baseTotal}</div></div>
+    <div class="metric-card" style="--c:var(--ok)"><div class="m-label">% Visitados / Base</div><div class="m-val" style="color:var(--ok)">${pctVisitadosBase.toFixed(0)}%</div></div>
+    <div class="metric-card" style="--c:var(--warn)"><div class="m-label">Não Visitados</div><div class="m-val" style="color:var(--warn)">${naoVisitados}</div></div>
+    <div class="metric-card" style="--c:var(--danger)"><div class="m-label">% Não Visitados / Base</div><div class="m-val" style="color:var(--danger)">${pctNaoVisitadosBase.toFixed(0)}%</div></div>
+  `;
+
   // ---- Gráficos comparativos por vendedor — só pra quem gerencia time (não vendedor) ----
   const chartsWrap = document.getElementById('db-charts-wrap');
   if(_loggedPerfil === 'vendedor') { chartsWrap.innerHTML = ''; return; }
@@ -3137,7 +3238,8 @@ async function renderDashboard() {
     porVendVendas[vd].valor += parseFloat(v.valor_total)||0;
   });
 
-  const vendedoresTodos = [...new Set([...Object.keys(porVendRotas), ...Object.keys(porVendVendas)])];
+  const vendedoresTodos = [...new Set([...Object.keys(porVendRotas), ...Object.keys(porVendVendas)])]
+    .filter(vd => vd !== 'FRONER'); // Froner é supervisor, não entra nos comparativos entre vendedores
   const metricasPorVend = vendedoresTodos.map(vd => {
     const r = porVendRotas[vd] || {rotasSet:new Set(), visitados:0, prospectados:0};
     const v = porVendVendas[vd] || {clientes:new Set(), valor:0};
@@ -5525,9 +5627,18 @@ async function renderFreezersPage() {
   }
 
   const busca = (document.getElementById('frz-f-busca')?.value||'').toLowerCase();
+  const filtroContrato = document.getElementById('frz-f-contrato')?.value || '';
+  const filtroStatus = document.getElementById('frz-f-status')?.value || '';
+  const filtroDataDe = document.getElementById('frz-f-data-de')?.value || '';
+  const filtroDataAte = document.getElementById('frz-f-data-ate')?.value || '';
   let lista = freezersDoEscopo;
   if(busca) lista = lista.filter(f => (f.cliente_documento||'').toLowerCase().includes(busca) || (clientePorDoc[f.cliente_documento]?.nome||'').toLowerCase().includes(busca) || (clientePorDoc[f.cliente_documento]?.razao_social||'').toLowerCase().includes(busca));
-  if(_frzModeloSelecionado) lista = lista.filter(f => f.modelo_desc === _frzModeloSelecionado);
+  if(_frzModeloSelecionado) lista = lista.filter(f => nomeCurtoModelo(f.modelo_desc) === _frzModeloSelecionado);
+  if(filtroContrato==='arquivado') lista = lista.filter(f => f.contrato_status==='arquivado');
+  else if(filtroContrato==='pendente') lista = lista.filter(f => f.contrato_status!=='arquivado');
+  if(filtroStatus) lista = lista.filter(f => (f.status_freezer||'ATIVO')===filtroStatus);
+  if(filtroDataDe) lista = lista.filter(f => f.data_entrega && f.data_entrega >= filtroDataDe);
+  if(filtroDataAte) lista = lista.filter(f => f.data_entrega && f.data_entrega <= filtroDataAte);
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhum freezer encontrado.</td></tr>'; return; }
 
@@ -5553,12 +5664,23 @@ async function renderFreezersPage() {
   renderMovimentacoesFreezer();
 }
 
+// Nome curto pros CARDS de resumo da página Freezers (só ali — o resto do app
+// continua com a descrição original). HOR216 e NF20RC são o mesmo equipamento,
+// só muda o fabricante, por isso os dois entram juntos no grupo "NF20".
+function nomeCurtoModelo(desc) {
+  const d = (desc||'').toUpperCase();
+  if(d.includes('VF50')) return 'VF50';
+  if(d.includes('HOR 216') || d.includes('HOR216') || d.includes('NF20')) return 'NF20';
+  if(d.includes('VF28')) return 'VF28';
+  if(d.includes('NF40')) return 'NF40';
+  return desc || 'Sem modelo';
+}
 function renderDashboardFreezers(freezers) {
   const el = document.getElementById('frz-dashboard');
   if(!el) return;
   const porModelo = {};
   freezers.forEach(f => {
-    const key = f.modelo_desc || 'Sem modelo';
+    const key = nomeCurtoModelo(f.modelo_desc);
     porModelo[key] = (porModelo[key]||0) + 1;
   });
   const cores = ['var(--accent)','var(--accent2)','var(--ok)','var(--warn)','#7c4a3d'];
@@ -5687,14 +5809,17 @@ async function renderMovimentacoesFreezer() {
   clientes.forEach(c => { if(c.documento) { nomesPorDoc[c.documento] = c.nome; razaoPorDoc[c.documento] = c.razao_social; } });
 
   const busca = (document.getElementById('frz-f-busca')?.value||'').toLowerCase();
+  const filtroTipo = document.getElementById('frz-mov-f-tipo')?.value || '';
   let lista = movs;
   if(busca) lista = lista.filter(m => (m.cliente_documento||'').toLowerCase().includes(busca) || (nomesPorDoc[m.cliente_documento]||'').toLowerCase().includes(busca) || (razaoPorDoc[m.cliente_documento]||'').toLowerCase().includes(busca));
-  if(_frzModeloSelecionado) lista = lista.filter(m => m.modelo_desc_novo===_frzModeloSelecionado || m.modelo_desc_antigo===_frzModeloSelecionado);
+  if(_frzModeloSelecionado) lista = lista.filter(m => nomeCurtoModelo(m.modelo_desc_novo)===_frzModeloSelecionado || nomeCurtoModelo(m.modelo_desc_antigo)===_frzModeloSelecionado);
+  if(filtroTipo) lista = lista.filter(m => m.tipo_movimento === filtroTipo);
 
   if(!lista.length) { el.innerHTML = '<tr><td colspan="6" class="empty-state">Nenhuma movimentação encontrada para este filtro.</td></tr>'; return; }
 
   const tipoLbl = {instalacao:'Instalação', troca:'Troca', atualizacao:'Atualização', retirada:'Retirada', devolucao:'🔴 Devolução', conserto:'🔧 Enviado p/ Conserto', consertado:'✅ Consertado no Local'};
   const tipoCor = {devolucao:'var(--danger)', conserto:'var(--warn)', consertado:'var(--ok)'};
+  window._movimentosFreezerListaAtual = lista.map(m => ({...m, _clienteNome: nomesPorDoc[m.cliente_documento]}));
   el.innerHTML = lista.map(m => {
     const cor = tipoCor[m.tipo_movimento] || 'var(--accent)';
     return `<tr style="border-bottom:1px solid var(--border)">
@@ -5922,6 +6047,29 @@ function exportarFreezersExcel() {
   XLSX.writeFile(wb, `freezers_bacio_${hojeLocalISO()}.xlsx`);
 }
 
+function exportarMovimentosFreezerExcel() {
+  const lista = window._movimentosFreezerListaAtual || [];
+  if(!lista.length) { showToast('Nada pra exportar','#b8860b'); return; }
+  const tipoLbl = {instalacao:'Instalação', troca:'Troca', atualizacao:'Atualização', retirada:'Retirada', devolucao:'Devolução', conserto:'Enviado p/ Conserto', consertado:'Consertado no Local'};
+  const linhas = lista.map(m => ({
+    'Data': m.data_movimento || '',
+    'Cliente': m._clienteNome || '',
+    'ID/Documento': m.cliente_documento || '',
+    'Tipo': tipoLbl[m.tipo_movimento] || m.tipo_movimento || '',
+    'Modelo Antigo': m.modelo_desc_antigo || '',
+    'Série Antiga': m.serie_antiga || '',
+    'Modelo Novo': m.modelo_desc_novo || '',
+    'Série Nova': m.serie_nova || '',
+    'NF Devolução': m.nf_devolucao || '',
+    'Observação': m.observacao || '',
+    'Usuário': m.usuario || '',
+  }));
+  const ws = XLSX.utils.json_to_sheet(linhas);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, 'Conta Corrente');
+  XLSX.writeFile(wb, `conta_corrente_freezers_${hojeLocalISO()}.xlsx`);
+}
+
 function normalizarCidade(s) {
   if(!s) return s;
   return s.toString().normalize('NFD').replace(/[\u0300-\u036f]/g,'').toUpperCase().trim();
@@ -6101,7 +6249,7 @@ async function renderRoteiro() {
     </div>`;
   }).join('') : '<div class="empty-state">Nenhum cliente previsto para esta data.</div>';
 
-  const futuras = reprogs.filter(r => r.reprogramar_para && dentroDoEscopo(r.vendedor))
+  const futuras = reprogs.filter(r => r.reprogramar_para && r.reprogramar_para >= hojeLocalISO() && dentroDoEscopo(r.vendedor))
     .sort((a,b)=>(a.reprogramar_para||'').localeCompare(b.reprogramar_para||''));
   document.getElementById('rot-reprog').innerHTML = futuras.length ? futuras.map(r=>`
     <div class="roteiro-item">
