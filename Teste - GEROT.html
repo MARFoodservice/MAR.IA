@@ -207,7 +207,7 @@ tbody td { padding: 11px 12px; }
 }
 /* ===== PLANO DE GUERRA — POLPA NORTE ===== */
 #page-planoguerra { --pn:#6d3b8e; --pn2:#8e5bb5; --pnl:#c9a2ea; --pnbg:rgba(142,91,181,.14); }
-#page-planoguerra .pg-head { position:sticky; top:var(--pg-top,110px); z-index:60; background:var(--bg); margin:-32px -24px 0; padding:16px 24px 12px; border-bottom:1px solid rgba(142,91,181,.35); box-shadow:0 8px 18px -12px rgba(0,0,0,.6); }
+#page-planoguerra .pg-sticky { position:sticky; top:var(--pg-top,52px); z-index:60; background:var(--bg); margin:12px -24px 0; padding:10px 24px; border-bottom:1px solid rgba(142,91,181,.35); box-shadow:0 8px 16px -12px rgba(0,0,0,.6); }
 .pg-banner { background:linear-gradient(100deg,#3d1b58 0%,#6d3b8e 55%,#9a67c4 100%); border-radius:14px; padding:12px 18px; display:flex; align-items:center; gap:16px; flex-wrap:wrap; box-shadow:0 6px 22px rgba(109,59,142,.35); }
 .pg-logo { background:#fff; border-radius:11px; padding:7px 16px; display:flex; align-items:center; box-shadow:0 2px 10px rgba(0,0,0,.25); }
 .pg-logo img { height:34px; display:block; }
@@ -216,15 +216,15 @@ tbody td { padding: 11px 12px; }
 .pg-btns { margin-left:auto; display:flex; gap:8px; }
 .pg-btn { background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35); color:#fff; border-radius:9px; padding:8px 14px; cursor:pointer; font-family:'DM Sans',sans-serif; font-size:.8rem; font-weight:600; white-space:nowrap; }
 .pg-btn:hover { background:rgba(255,255,255,.25); }
-.pg-filtros { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; margin-top:12px; }
+.pg-filtros { display:grid; grid-template-columns:repeat(auto-fit,minmax(170px,1fr)); gap:10px; }
 .pg-filtros label { display:block; font-size:.68rem; font-weight:700; color:var(--pnl); text-transform:uppercase; letter-spacing:.06em; margin-bottom:4px; }
 .pg-filtros select, .pg-filtros input { width:100%; box-sizing:border-box; background:var(--surface2); border:1px solid var(--pn2); color:var(--text); border-radius:9px; padding:9px 10px; font-family:'DM Sans',sans-serif; font-size:.85rem; }
 .pg-filtros select:focus, .pg-filtros input:focus { outline:none; border-color:var(--pnl); box-shadow:0 0 0 3px rgba(142,91,181,.3); }
-.pg-cards { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; margin-top:12px; }
-.pg-card { background:var(--surface); border:1px solid var(--border); border-top:3px solid var(--pn2); border-radius:11px; padding:10px 12px; min-width:0; }
-.pg-card .l { font-size:.64rem; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
-.pg-card .v { font-family:'Syne',sans-serif; font-weight:800; font-size:1.25rem; color:var(--pnl); margin-top:3px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.pg-card .s { font-size:.68rem; color:var(--muted); margin-top:2px; }
+.pg-cards { display:grid; grid-template-columns:repeat(7,1fr); gap:8px; margin-top:12px; }
+.pg-card { background:var(--surface); border:1px solid var(--border); border-top:2px solid var(--pn2); border-radius:8px; padding:5px 8px; min-width:0; }
+.pg-card .l { font-size:.56rem; line-height:1.2; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.05em; }
+.pg-card .v { font-family:'Syne',sans-serif; font-weight:800; font-size:.98rem; color:var(--pnl); margin-top:1px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pg-card .s { font-size:.56rem; color:var(--muted); margin-top:0; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 #pg-status { margin-top:14px; font-size:.82rem; color:var(--pnl); display:none; }
 .pg-wrap { margin-top:14px; background:var(--surface); border:1px solid var(--border); border-radius:12px; overflow-x:auto; }
 .pg-table { width:100%; border-collapse:collapse; font-size:.83rem; }
@@ -234,7 +234,9 @@ tbody td { padding: 11px 12px; }
 .pg-table .num { text-align:right; white-space:nowrap; }
 .pg-cli { cursor:pointer; }
 .pg-cli b { color:var(--text); border-bottom:1px dotted var(--pnl); }
-.pg-cli small { display:block; color:var(--muted); font-size:.7rem; margin-top:2px; }
+.pg-cli small { display:block; color:var(--muted); font-size:.66rem; line-height:1.35; margin-top:1px; }
+.pg-freq { font-family:'Syne',sans-serif; font-weight:800; white-space:nowrap; }
+.pg-freq .ok { color:#4ade80; } .pg-freq .bad { color:var(--danger); }
 .pg-tag { display:inline-block; padding:3px 9px; border-radius:20px; font-size:.7rem; font-weight:700; }
 .pg-sim { background:rgba(34,197,94,.15); color:#4ade80; }
 .pg-nao { background:rgba(255,77,109,.14); color:var(--danger); }
@@ -272,28 +274,39 @@ tbody td { padding: 11px 12px; }
 .pg-save:disabled { opacity:.6; }
 @media (max-width:1100px){ .pg-cards { grid-template-columns:repeat(4,1fr); } }
 @media (max-width:768px){
-  #page-planoguerra .pg-head { margin:-16px -14px 0; padding:10px 14px 10px; }
-  .pg-banner { padding:10px 12px; gap:10px; }
-  .pg-logo { padding:5px 10px; } .pg-logo img { height:24px; }
-  .pg-tit { font-size:1.05rem; } .pg-sub { display:none; }
+  #page-planoguerra .pg-sticky { margin:8px -14px 0; padding:8px 14px; }
+  .pg-banner { padding:8px 12px; gap:10px; border-radius:11px; }
+  .pg-logo { padding:4px 10px; } .pg-logo img { height:22px; }
+  .pg-tit { font-size:1rem; } .pg-sub { display:none; }
   .pg-btn { padding:6px 10px; font-size:.72rem; }
-  .pg-filtros { grid-template-columns:1fr 1fr; gap:8px; margin-top:8px; }
-  .pg-filtros select, .pg-filtros input { padding:7px 8px; font-size:.8rem; }
-  .pg-cards { display:flex; overflow-x:auto; gap:8px; margin-top:8px; padding-bottom:4px; scrollbar-width:none; -webkit-overflow-scrolling:touch; }
-  .pg-card { min-width:118px; padding:8px 10px; } .pg-card .v { font-size:1.05rem; }
+  .pg-filtros { grid-template-columns:1fr 1fr; gap:6px; }
+  .pg-filtros label { display:none; }
+  .pg-filtros select, .pg-filtros input { padding:7px 8px; font-size:.78rem; }
+  .pg-filtros > div:last-child { grid-column:1 / -1; }
+  .pg-cards { grid-template-columns:repeat(4,1fr); gap:5px; margin-top:8px; }
+  .pg-card { padding:4px 5px; text-align:center; }
+  .pg-card .l { font-size:.5rem; } .pg-card .v { font-size:.82rem; } .pg-card .s { display:none; }
   .pg-wrap { background:none; border:none; }
   .pg-table thead { display:none; }
   .pg-table, .pg-table tbody, .pg-table tr, .pg-table td { display:block; width:100%; box-sizing:border-box; }
-  .pg-table tr { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--pn2); border-radius:11px; margin-bottom:10px; padding:6px 4px; }
-  .pg-table td { border:none; padding:4px 10px; display:flex; justify-content:space-between; gap:10px; text-align:right; }
-  .pg-table td::before { content:attr(data-label); color:var(--muted); font-size:.72rem; text-align:left; flex-shrink:0; }
-  .pg-table td.pg-cli { display:block; text-align:left; font-size:.95rem; padding-top:6px; }
+  .pg-table tr { background:var(--surface); border:1px solid var(--border); border-left:3px solid var(--pn2); border-radius:10px; margin-bottom:8px; padding:5px 2px; }
+  .pg-table td { border:none; padding:3px 10px; display:flex; justify-content:space-between; gap:10px; text-align:right; }
+  .pg-table td::before { content:attr(data-label); color:var(--muted); font-size:.7rem; text-align:left; flex-shrink:0; }
+  .pg-table td.pg-cli { display:block; text-align:left; font-size:.92rem; padding-top:6px; }
   .pg-table td.pg-cli::before, .pg-table td.pg-acao::before { display:none; }
   .pg-table td.pg-acao { display:block; }
-  .pg-fbbtn { width:100%; padding:10px; font-size:.85rem; }
+  .pg-fbbtn { width:100%; padding:9px; font-size:.82rem; }
   .pg-modal { padding:0; }
   .pg-modal-box { border-radius:0; min-height:100%; border:none; }
   .pg-kpis { grid-template-columns:1fr 1fr; }
+}
+/* ===== MOBILE: menu inferior oculto (navegação pela tela inicial) ===== */
+.mob-only { display:none !important; }
+@media (max-width:768px){
+  nav { display:none !important; }
+  .page { padding-bottom:28px; }
+  .mob-only { display:flex !important; }
+  .toast { bottom:24px; }
 }
 </style>
 </head>
@@ -410,7 +423,41 @@ tbody td { padding: 11px 12px; }
         <div class="home-card-sub">Polpa Norte · feedback cliente a cliente</div>
         <div class="home-card-btn" style="background:#6d3b8e">Acessar →</div>
       </div>
+      <div onclick="showPage('vespertina',null)" class="home-card" style="border-color:#fb923c">
+        <div style="font-size:2.2rem">🌇</div>
+        <div class="home-card-title" style="color:#fb923c">VESPERTINA</div>
+        <div class="home-card-sub">Ritual de fim de dia</div>
+        <div class="home-card-btn" style="background:#fb923c">Acessar →</div>
+      </div>
+      <div onclick="showPage('carteira',null)" class="home-card" style="border-color:#34d399">
+        <div style="font-size:2.2rem">📇</div>
+        <div class="home-card-title" style="color:#34d399">CARTEIRA</div>
+        <div class="home-card-sub">Perfil da carteira por vendedor</div>
+        <div class="home-card-btn" style="background:#34d399">Acessar →</div>
+      </div>
+      <div id="home-card-acesso" onclick="showPage('acesso',null)" class="home-card" style="border-color:#f472b6;display:none">
+        <div style="font-size:2.2rem">🔐</div>
+        <div class="home-card-title" style="color:#f472b6">ACESSO</div>
+        <div class="home-card-sub">Logs de acesso</div>
+        <div class="home-card-btn" style="background:#f472b6">Acessar →</div>
+      </div>
+      <div id="home-card-cadastros" onclick="showPage('cadastros',null)" class="home-card" style="border-color:#94a3b8;display:none">
+        <div style="font-size:2.2rem">📋</div>
+        <div class="home-card-title" style="color:#94a3b8">CADASTROS</div>
+        <div class="home-card-sub">Supervisores, metas e batalha naval</div>
+        <div class="home-card-btn" style="background:#64748b">Acessar →</div>
+      </div>
+      <div id="home-card-config" onclick="showPage('config',null)" class="home-card" style="border-color:#94a3b8;display:none">
+        <div style="font-size:2.2rem">⚙️</div>
+        <div class="home-card-title" style="color:#94a3b8">CONFIG.</div>
+        <div class="home-card-sub">Configurações do app</div>
+        <div class="home-card-btn" style="background:#64748b">Acessar →</div>
+      </div>
 
+    </div>
+    <div class="mob-only" style="width:100%;max-width:960px;align-items:center;justify-content:space-between;gap:10px;background:var(--surface);border:1px solid var(--border);border-radius:12px;padding:10px 14px">
+      <span id="home-user-info" style="font-size:.8rem;color:var(--muted);font-weight:600"></span>
+      <button onclick="doLogout()" style="background:rgba(255,77,109,.15);border:1px solid var(--danger);color:var(--danger);border-radius:8px;padding:8px 16px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.85rem;font-weight:700;white-space:nowrap">🚪 Sair</button>
     </div>
   </div>
 </div>
@@ -646,18 +693,20 @@ tbody td { padding: 11px 12px; }
         <button class="pg-btn" onclick="renderPlanoGuerra(true)">🔄 Atualizar</button>
       </div>
     </div>
-    <div class="pg-filtros">
-      <div id="pg-sup-wrap"><label>Supervisor</label><select id="pg-f-sup" onchange="pgRenderLista()"><option value="">Todos</option></select></div>
-      <div><label>Vendedor</label><select id="pg-f-vend" onchange="pgRenderLista()"><option value="">Todos</option></select></div>
-      <div><label>Ramo de atividade</label><select id="pg-f-ramo" onchange="pgRenderLista()"><option value="">Todos</option></select></div>
-      <div><label>Buscar cliente</label><input id="pg-f-busca" placeholder="Nome ou ID" oninput="pgRenderLista()"></div>
-    </div>
-    <div class="pg-cards" id="pg-cards"></div>
   </div>
+  <div class="pg-sticky">
+    <div class="pg-filtros">
+      <div id="pg-sup-wrap"><label>Supervisor</label><select id="pg-f-sup" onchange="pgRenderLista()"><option value="">Todos os supervisores</option></select></div>
+      <div><label>Vendedor</label><select id="pg-f-vend" onchange="pgRenderLista()"><option value="">Todos os vendedores</option></select></div>
+      <div><label>Ramo de atividade</label><select id="pg-f-ramo" onchange="pgRenderLista()"><option value="">Todos os ramos</option></select></div>
+      <div><label>Buscar cliente</label><input id="pg-f-busca" placeholder="🔍 Buscar cliente (nome ou ID)" oninput="pgRenderLista()"></div>
+    </div>
+  </div>
+  <div class="pg-cards" id="pg-cards"></div>
   <div id="pg-status"></div>
   <div class="pg-wrap">
     <table class="pg-table">
-      <thead><tr><th>ID</th><th>Cliente</th><th>Cidade</th><th class="num">Vlr Méd Ano</th><th class="num">Vlr Mês Atual</th><th>Dt Últ Compra</th><th>Últ Contato</th><th>Contato</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Cliente</th><th class="num">Freq / Méd</th><th class="num">Vlr Mês Atual</th><th>Últ Contato</th><th>Contato</th><th></th></tr></thead>
       <tbody id="pg-tbody"></tbody>
     </table>
   </div>
@@ -668,6 +717,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- CADASTROS -->
 <div id="page-cadastros" class="page">
+  <div class="mob-only" style="margin-bottom:12px"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem">← Início</button></div>
   <div id="cad-lock" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:48px 0">
     <div style="font-size:2.5rem">🔒</div>
     <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--text)">Área Restrita</div>
@@ -851,6 +901,7 @@ tbody td { padding: 11px 12px; }
 
 <!-- CONFIG -->
 <div id="page-config" class="page">
+  <div class="mob-only" style="margin-bottom:12px"><button onclick="voltarInicio()" style="background:var(--surface2);border:1px solid var(--border);color:var(--muted);border-radius:9px;padding:8px 14px;cursor:pointer;font-family:'DM Sans',sans-serif;font-size:.82rem">← Início</button></div>
   <div id="config-lock" style="display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;padding:48px 0">
     <div style="font-size:2.5rem">⚙️</div>
     <div style="font-family:'Syne',sans-serif;font-weight:700;color:var(--text)">Configurações</div>
@@ -5199,6 +5250,12 @@ function aplicarVisibilidadePerfil(perfil) {
   const navCad = document.getElementById('nav-tab-cadastros');
   if(navCad) navCad.style.display = (['suporte','diretoria'].includes(perfil)) ? '' : 'none';
 
+  // Tela inicial: mesmas regras de visibilidade das abas
+  const hcA = document.getElementById('home-card-acesso'); if(hcA) hcA.style.display = (['gerente','suporte','diretoria'].includes(perfil)) ? '' : 'none';
+  const hcC = document.getElementById('home-card-cadastros'); if(hcC) hcC.style.display = (['suporte','diretoria'].includes(perfil)) ? '' : 'none';
+  const hcG = document.getElementById('home-card-config'); if(hcG) hcG.style.display = (['suporte','diretoria'].includes(perfil)) ? '' : 'none';
+  const hUi = document.getElementById('home-user-info'); if(hUi) hUi.textContent = '👤 ' + (_loggedSupervisor||'') + ' · ' + (perfil||_loggedPerfil||'');
+
   // Badge de perfil no nav
   let badge = document.getElementById('perfil-badge');
   if(!badge) {
@@ -6225,6 +6282,13 @@ const pgEsc = t => String(t??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;'
 const pgMoney = v => 'R$ '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pgMoneyK = v => { v=+v||0; return v>=1e6 ? 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi' : v>=1e3 ? 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : pgMoney(v); };
 const pgData = d => d ? String(d).slice(0,10).split('-').reverse().join('/') : '—';
+// Valor curto para os cards compactos
+const pgMoneyC = v => { v=+v||0; return v>=1e6 ? 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:1})+'M' : v>=1e3 ? 'R$ '+Math.round(v/1e3).toLocaleString('pt-BR')+'k' : 'R$ '+Math.round(v).toLocaleString('pt-BR'); };
+// Frequência média: decimal >= 0,4 arredonda pra cima (1,3 → 1 | 1,4 → 2), igual ao outro app
+const pgFreqMed = v => Math.floor((+v||0) + 0.6 + 1e-9);
+const pgFreqAtual = v => Math.round(+v||0);
+// "6/7" com o realizado em verde (>= média) ou vermelho (abaixo)
+const pgFreqHtml = r => { const a=pgFreqAtual(r.frequencia_atual), m=pgFreqMed(r.frequencia_media); return `<span class="pg-freq"><span class="${a>=m?'ok':'bad'}">${a}</span>/${m}</span>`; };
 const pgMesAtual = () => { const h=new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}`; };
 const pgMesLabel = k => { const [a,m]=String(k).split('-'); return `${PG_MESES[+m-1]||m}/${a}`; };
 const pgHoje = () => { const h=new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`; };
@@ -6246,13 +6310,15 @@ function pgAjustaSticky() {
   const pg = document.getElementById('page-planoguerra'); if(!pg) return;
   const lb = document.querySelector('.logo-bar'); const nav = document.querySelector('nav');
   let top = lb ? lb.offsetHeight : 0;
-  if(nav && getComputedStyle(nav).position === 'sticky') top += nav.offsetHeight;
+  if(nav && getComputedStyle(nav).display !== 'none' && getComputedStyle(nav).position === 'sticky') top += nav.offsetHeight;
   pg.style.setProperty('--pg-top', top+'px');
 }
 window.addEventListener('resize', pgAjustaSticky);
 
 // Contatos do mês de referência (mês atual) → Contato Sim/Não
 const pgFbMes = cod => (_pg.fbCli[cod]||[]).filter(f => String(f.data_contato||'').slice(0,7) === pgMesAtual());
+// Contatado no mês = tem feedback no mês OU comprou no mês atual (vendeu = houve contato)
+const pgContatado = r => pgFbMes(r.codcli).length > 0 || (+r.valor_compra_mes_atual||0) > 0;
 
 async function renderPlanoGuerra(forcar) {
   pgAjustaSticky();
@@ -6287,10 +6353,10 @@ async function renderPlanoGuerra(forcar) {
     // Opções de filtro
     const selSup = document.getElementById('pg-f-sup'); const curS = selSup.value;
     const sups = [...new Set(rows.map(r=>r.supervisor).filter(Boolean))].sort();
-    selSup.innerHTML = '<option value="">Todos</option>' + sups.map(s=>`<option ${s===curS?'selected':''} value="${pgEsc(s)}">${pgEsc(s)}</option>`).join('');
+    selSup.innerHTML = '<option value="">Todos os supervisores</option>' + sups.map(s=>`<option ${s===curS?'selected':''} value="${pgEsc(s)}">${pgEsc(s)}</option>`).join('');
     const selRamo = document.getElementById('pg-f-ramo'); const curR = selRamo.value;
     const ramos = [...new Set(rows.map(r=>r.ramo).filter(Boolean))].sort();
-    selRamo.innerHTML = '<option value="">Todos</option>' + ramos.map(s=>`<option ${s===curR?'selected':''} value="${pgEsc(s)}">${pgEsc(s)}</option>`).join('');
+    selRamo.innerHTML = '<option value="">Todos os ramos</option>' + ramos.map(s=>`<option ${s===curR?'selected':''} value="${pgEsc(s)}">${pgEsc(s)}</option>`).join('');
     const upd = rows[0]?.atualizado_em ? new Date(rows[0].atualizado_em).toLocaleString('pt-BR') : '—';
     st.textContent = `✅ ${rows.length} clientes · Base atualizada em ${upd}` + avisoFb;
     pgRenderLista();
@@ -6315,40 +6381,40 @@ function pgRenderLista() {
   const sup = perfilVeTudo() ? document.getElementById('pg-f-sup').value : '';
   const selV = document.getElementById('pg-f-vend'); const curV = selV.value;
   const vends = [...new Set(_pg.rows.filter(r=>!sup||r.supervisor===sup).map(r=>r.vendedor).filter(Boolean))].sort();
-  selV.innerHTML = '<option value="">Todos</option>' + vends.map(v=>`<option ${v===curV?'selected':''} value="${pgEsc(v)}">${pgEsc(v)}</option>`).join('');
+  selV.innerHTML = '<option value="">Todos os vendedores</option>' + vends.map(v=>`<option ${v===curV?'selected':''} value="${pgEsc(v)}">${pgEsc(v)}</option>`).join('');
 
   const lista = pgFiltrados();
   const total = lista.length;
-  const abord = lista.filter(r => pgFbMes(r.codcli).length).length;
+  const abord = lista.filter(pgContatado).length;
   const posit = lista.filter(r => (+r.valor_compra_mes_atual||0) > 0).length;
-  const conv  = lista.filter(r => pgFbMes(r.codcli).length && (+r.valor_compra_mes_atual||0) > 0).length;
+  const conv  = lista.filter(r => pgContatado(r) && (+r.valor_compra_mes_atual||0) > 0).length;
   const pot   = lista.reduce((s,r)=>s+(+r.valor_medio_ano||0),0);
   const fat   = lista.reduce((s,r)=>s+(+r.valor_compra_mes_atual||0),0);
   const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
   const card = (l,v,s,c) => `<div class="pg-card" ${c?`style="border-top-color:${c}"`:''}><div class="l">${l}</div><div class="v" ${c?`style="color:${c}"`:''}>${v}</div><div class="s">${s}</div></div>`;
   document.getElementById('pg-cards').innerHTML =
-    card('Total Clientes', total.toLocaleString('pt-BR'), 'na lista') +
-    card('Clientes Abordados', abord.toLocaleString('pt-BR'), `com feedback em ${PG_MESES[new Date().getMonth()]}`) +
+    card('Clientes', total.toLocaleString('pt-BR'), 'na lista') +
+    card('Abordados', abord.toLocaleString('pt-BR'), `contato/compra em ${PG_MESES[new Date().getMonth()]}`) +
     card('% Abordados', pct(abord,total), 'abordados / total', abord/(total||1)>=.5?'#4ade80':'#ffc24a') +
-    card('Clientes Positivados', posit.toLocaleString('pt-BR'), 'compraram no mês atual') +
+    card('Positivados', posit.toLocaleString('pt-BR'), 'compraram no mês atual') +
     card('% Convertidos', pct(conv,abord), `${conv} de ${abord} abordados compraram`, conv/(abord||1)>=.5?'#4ade80':'#ffc24a') +
-    card('Vlr. Potencial', pgMoneyK(pot), 'soma do vlr. méd. mensal') +
-    card('Vlr. Faturado', pgMoneyK(fat), `${pct(fat,pot)} do potencial`, fat>=pot?'#4ade80':null);
+    card('Vlr. Potencial', pgMoneyC(pot), 'soma do vlr. méd. mensal') +
+    card('Vlr. Faturado', pgMoneyC(fat), `${pct(fat,pot)} do potencial`, fat>=pot?'#4ade80':null);
 
   const tb = document.getElementById('pg-tbody');
-  if(!total) { tb.innerHTML = `<tr><td colspan="9" style="text-align:center;color:var(--muted);padding:30px">${_pg.carregado?'Nenhum cliente para os filtros selecionados.':''}</td></tr>`; return; }
+  if(!total) { tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">${_pg.carregado?'Nenhum cliente para os filtros selecionados.':''}</td></tr>`; return; }
   tb.innerHTML = lista.map(r => {
     const fbs = _pg.fbCli[r.codcli]||[];
     const ult = fbs[0]?.data_contato;
-    const contato = pgFbMes(r.codcli).length > 0;
+    const contato = pgContatado(r);
     const vMes = +r.valor_compra_mes_atual||0;
     return `<tr>
       <td data-label="ID">${pgEsc(r.codcli)}</td>
-      <td data-label="Cliente" class="pg-cli" onclick="pgAbrirCliente('${pgEsc(r.codcli)}')"><b>${pgEsc(r.cliente)}</b><small>${pgEsc(r.ramo)} · ${pgEsc(r.vendedor)}</small></td>
-      <td data-label="Cidade">${pgEsc(r.cidade)||'—'}</td>
-      <td data-label="Vlr Méd Ano" class="num">${pgMoney(r.valor_medio_ano)}</td>
+      <td data-label="Cliente" class="pg-cli" onclick="pgAbrirCliente('${pgEsc(r.codcli)}')"><b>${pgEsc(r.cliente)}</b>
+        <small>${pgEsc(r.ramo)} - ${pgEsc(r.vendedor)}</small>
+        <small>Méd/ano ${pgMoney(r.valor_medio_ano)} · Últ compra ${pgData(r.data_ultima_compra)}</small></td>
+      <td data-label="Freq / Méd" class="num">${pgFreqHtml(r)}</td>
       <td data-label="Vlr Mês Atual" class="num" style="color:${vMes>0?'#4ade80':'var(--muted)'}">${pgMoney(vMes)}</td>
-      <td data-label="Dt Últ Compra">${pgData(r.data_ultima_compra)}</td>
       <td data-label="Últ Contato">${ult?pgData(ult):'—'}</td>
       <td data-label="Contato"><span class="pg-tag ${contato?'pg-sim':'pg-nao'}">${contato?'✅ Sim':'Não'}</span></td>
       <td class="pg-acao"><button class="pg-fbbtn" onclick="pgAbrirFeedback('${pgEsc(r.codcli)}')">💬 Feedback</button></td>
@@ -6388,14 +6454,13 @@ function pgHistoricoHtml(cod) {
 
 function pgAbrirCliente(cod) {
   const r = _pg.rows.find(x=>x.codcli===cod); if(!r) return;
-  const fa = +r.frequencia_atual||0, fm = +r.frequencia_media||0;
-  const fmt1 = v => (+v||0).toLocaleString('pt-BR',{maximumFractionDigits:1});
+  const fa = pgFreqAtual(r.frequencia_atual), fm = pgFreqMed(r.frequencia_media);
   const kpi = (l,v,dest) => `<div class="pg-kpi ${dest?'dest':''}"><div class="l">${l}</div><div class="v">${v}</div></div>`;
   pgAbrirModal(pgHeadCli(r) + `<div class="pg-mbody">
     <div class="pg-sec" style="margin-top:0">📈 Frequência de compra</div>
     <div class="pg-kpis" style="grid-template-columns:1fr 1fr">
-      ${kpi('Frequência realizada', fmt1(fa), true)}
-      ${kpi('Frequência média histórica', fmt1(fm), true)}
+      ${kpi('Frequência realizada', `<span style="color:${fa>=fm?'#4ade80':'#ff4d6d'}">${fa}</span>`, true)}
+      ${kpi('Frequência média histórica', fm, true)}
     </div>
     <div style="font-size:.78rem;margin-top:6px;color:${fa>=fm?'#4ade80':'#ffc24a'}">${fa>=fm?'✅ Frequência dentro ou acima da média histórica':'⚠️ Frequência abaixo da média histórica'}</div>
     <div class="pg-sec">💰 Valores</div>
