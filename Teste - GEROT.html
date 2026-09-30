@@ -6277,12 +6277,9 @@ function supCodigo(loginName) {
 // Feedbacks: gerot_plandeguerra_feedback (1 linha por contato — histórico completo)
 const PG_TABELA = 'Gerot_plandeguerra_polpanorte';
 const PG_FB = 'gerot_plandeguerra_feedback';
-// Vendas (view sobre faturamento, 1 linha por cliente/dia) → aparecem como "Vendeu" no histórico
-const PG_VENDAS = 'gerot_plandeguerra_vendas';
-const PG_VENDAS_DESDE = '2026-09-01';
 const PG_MESES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro'];
 const PG_DSEM = ['dom','seg','ter','qua','qui','sex','sáb'];
-let _pg = { rows:[], fbCli:{}, vendCli:{}, vendasOk:false, carregado:false };
+let _pg = { rows:[], fbCli:{}, carregado:false };
 const pgEsc = t => String(t??'').replace(/[&<>"']/g, c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const pgMoney = v => 'R$ '+(+v||0).toLocaleString('pt-BR',{minimumFractionDigits:2,maximumFractionDigits:2});
 const pgMoneyK = v => { v=+v||0; return v>=1e6 ? 'R$ '+(v/1e6).toLocaleString('pt-BR',{maximumFractionDigits:2})+' mi' : v>=1e3 ? 'R$ '+(v/1e3).toLocaleString('pt-BR',{maximumFractionDigits:1})+' mil' : pgMoney(v); };
@@ -6324,8 +6321,8 @@ window.addEventListener('resize', pgAjustaSticky);
 const pgFbMes = cod => (_pg.fbCli[cod]||[]).filter(f => String(f.data_contato||'').slice(0,7) === pgMesAtual());
 // Último contato = data mais recente entre o último feedback e a última venda
 const pgUltContato = r => {
-  const c = [ (_pg.fbCli[r.codcli]||[])[0]?.data_contato, (_pg.vendCli[r.codcli]||[])[0]?.data_venda ];
-  if(!_pg.vendasOk && (+r.valor_compra_mes_atual||0) > 0 && String(r.data_ultima_compra||'').slice(0,7) === pgMesAtual()) c.push(r.data_ultima_compra);
+  const c = [ (_pg.fbCli[r.codcli]||[])[0]?.data_contato ];
+  if((+r.valor_compra_mes_atual||0) > 0 && String(r.data_ultima_compra||'').slice(0,7) === pgMesAtual()) c.push(r.data_ultima_compra);
   return c.filter(Boolean).map(d => String(d).slice(0,10)).sort().pop() || '';
 };
 // Contatado no mês = tem feedback no mês OU comprou no mês atual (vendeu = houve contato)
@@ -6348,7 +6345,7 @@ async function renderPlanoGuerra(forcar) {
       const nomes = supNomesEquivalentes(nome);
       filtro = `&supervisor=in.(${encodeURIComponent(nomes.map(n=>`"${n}"`).join(','))})`;
     }
-    const rows = await pgFetchAll(`${encodeURIComponent(PG_TABELA)}?select=*${filtro}&order=valor_medio_ano.desc`);
+    const rows = await pgFetchAll(`${encodeURIComponent(PG_TABELA)}?select=*${filtro}&order=valor_medio_ano.desc,codcli.asc`);
     rows.forEach(r => { r.codcli = String(r.codcli); r.supervisor = supCanon(r.supervisor); r.vendedor = String(r.vendedor||'').trim(); r.ramo = String(r.ramo||'').trim(); });
     _pg.rows = rows;
     // Feedbacks (histórico completo)
@@ -6356,18 +6353,10 @@ async function renderPlanoGuerra(forcar) {
     let avisoFb = '';
     try {
       const cods = new Set(rows.map(r=>r.codcli));
-      const fb = await pgFetchAll(`${PG_FB}?select=*&order=criado_em.desc`);
+      const fb = await pgFetchAll(`${PG_FB}?select=*&order=criado_em.desc,id.desc`);
       fb.forEach(f => { const c=String(f.codcli); if(!cods.has(c)) return; (_pg.fbCli[c] = _pg.fbCli[c]||[]).push(f); });
       Object.values(_pg.fbCli).forEach(a => a.sort((x,y) => String(y.data_contato).localeCompare(String(x.data_contato)) || String(y.criado_em).localeCompare(String(x.criado_em))));
     } catch(e) { avisoFb = ' · ⚠️ Tabela de feedback não encontrada (execute o SQL de criação).'; }
-    // Vendas por cliente/dia
-    _pg.vendCli = {}; _pg.vendasOk = false;
-    try {
-      const codsV = new Set(rows.map(r=>r.codcli));
-      const vd = await pgFetchAll(`${PG_VENDAS}?select=*&data_venda=gte.${PG_VENDAS_DESDE}&order=data_venda.desc`);
-      vd.forEach(v => { const c=String(v.codcli); if(!codsV.has(c)) return; (_pg.vendCli[c] = _pg.vendCli[c]||[]).push(v); });
-      _pg.vendasOk = true;
-    } catch(e) { avisoFb += ' · ⚠️ View de vendas não encontrada (execute o SQL).'; }
     _pg.carregado = true;
     // Opções de filtro
     const selSup = document.getElementById('pg-f-sup'); const curS = selSup.value;
@@ -6454,7 +6443,12 @@ function pgHeadCli(r) {
 // Histórico de feedbacks: Mês → Dia → Contatos
 function pgHistoricoHtml(cod) {
   const fbs = (_pg.fbCli[cod]||[]).map(f => ({...f, _t:'fb'}));
-  const vds = (_pg.vendCli[cod]||[]).map(v => ({ _t:'venda', data_contato:v.data_venda, valor:v.valor }));
+  const vds = [];
+  const r0 = _pg.rows.find(x => x.codcli === cod);
+  if(r0 && (+r0.valor_compra_mes_atual||0) > 0 && String(r0.data_ultima_compra||'').slice(0,7) === pgMesAtual()) {
+    const d0 = String(r0.data_ultima_compra).slice(0,10);
+    vds.push({ _t:'venda', data_contato:d0 });
+  }
   const todos = [...fbs, ...vds];
   if(!todos.length) return '<div style="color:var(--muted);font-size:.85rem;padding:8px 0">Nenhum feedback ou venda registrado para este cliente.</div>';
   const porMes = {};
@@ -6468,7 +6462,7 @@ function pgHistoricoHtml(cod) {
         const dt = new Date(d+'T12:00:00');
         return `<details class="pg-dia" ${i===0&&j===0?'open':''}><summary>${pgData(d)} (${PG_DSEM[dt.getDay()]}) · ${cnt(dias[d])}</summary>
           ${dias[d].map(f => f._t==='venda'
-            ? `<div class="pg-fb pg-fbv"><small>🛒 Venda registrada (faturamento)</small><b>✅ Vendeu</b> · ${pgMoney(f.valor)}</div>`
+            ? `<div class="pg-fb pg-fbv"><small>🛒 Venda</small><b>✅ Vendeu</b></div>`
             : `<div class="pg-fb"><small>🕒 ${f.criado_em?new Date(f.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''} · 👤 ${pgEsc(f.usuario||'-')}</small>${pgEsc(f.feedback)}</div>`).join('')}
         </details>`;
       }).join('')}
