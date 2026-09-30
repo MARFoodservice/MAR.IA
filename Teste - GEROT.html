@@ -6475,7 +6475,7 @@ function pgHistoricoHtml(cod) {
         const dt = new Date(d+'T12:00:00');
         return `<details class="pg-dia" ${i===0&&j===0?'open':''}><summary>${pgData(d)} (${PG_DSEM[dt.getDay()]}) · ${cnt(dias[d])}</summary>
           ${dias[d].map(f => f._t==='venda'
-            ? `<div class="pg-fb pg-fbv"><small>🛒 Venda (pedido)</small><b>✅ Vendeu</b>${f.valor!=null?' · '+pgMoney(f.valor):''}</div>`
+            ? `<div class="pg-fb pg-fbv"><small>🛒 Venda do dia (pedidos somados)</small><b>✅ Vendeu</b>${f.valor!=null?' · '+pgMoney(f.valor):''}</div>`
             : `<div class="pg-fb"><small>🕒 ${f.criado_em?new Date(f.criado_em).toLocaleTimeString('pt-BR',{hour:'2-digit',minute:'2-digit'}):''} · 👤 ${pgEsc(f.usuario||'-')}</small>${pgEsc(f.feedback)}</div>`).join('')}
         </details>`;
       }).join('')}
