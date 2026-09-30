@@ -698,6 +698,7 @@ tbody td { padding: 11px 12px; }
   </div>
   <div class="pg-sticky">
     <div class="pg-filtros">
+      <div><label>Mês / Ano</label><select id="pg-f-mes" onchange="pgRenderLista()"></select></div>
       <div id="pg-sup-wrap"><label>Supervisor</label><select id="pg-f-sup" onchange="pgRenderLista()"><option value="">Todos os supervisores</option></select></div>
       <div><label>Vendedor</label><select id="pg-f-vend" onchange="pgRenderLista()"><option value="">Todos os vendedores</option></select></div>
       <div><label>Ramo de atividade</label><select id="pg-f-ramo" onchange="pgRenderLista()"><option value="">Todos os ramos</option></select></div>
@@ -708,7 +709,7 @@ tbody td { padding: 11px 12px; }
   <div id="pg-status"></div>
   <div class="pg-wrap">
     <table class="pg-table">
-      <thead><tr><th>ID</th><th>Cliente</th><th class="num">Freq / Méd</th><th class="num">Vlr Mês Atual</th><th>Últ Contato</th><th>Contato</th><th></th></tr></thead>
+      <thead><tr><th>ID</th><th>Cliente</th><th class="num">Freq / Méd</th><th class="num">Vlr do Mês</th><th>Últ Contato</th><th>Contato</th><th></th></tr></thead>
       <tbody id="pg-tbody"></tbody>
     </table>
   </div>
@@ -6293,7 +6294,7 @@ const pgMoneyC = v => { v=+v||0; return v>=1e6 ? 'R$ '+(v/1e6).toLocaleString('p
 const pgFreqMed = v => Math.floor((+v||0) + 0.6 + 1e-9);
 const pgFreqAtual = v => Math.round(+v||0);
 // "6/7" com o realizado em verde (>= média) ou vermelho (abaixo)
-const pgFreqHtml = r => { const a=pgFreqAtual(r.frequencia_atual), m=pgFreqMed(r.frequencia_media); return `<span class="pg-freq"><span class="${a>=m?'ok':'bad'}">${a}</span>/${m}</span>`; };
+const pgFreqHtml = r => { const a=pgFreqDoMes(r), m=pgFreqMed(r.frequencia_media); return a===null ? `<span class="pg-freq"><span style="color:var(--muted)">—</span>/${m}</span>` : `<span class="pg-freq"><span class="${a>=m?'ok':'bad'}">${a}</span>/${m}</span>`; };
 const pgMesAtual = () => { const h=new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}`; };
 const pgMesLabel = k => { const [a,m]=String(k).split('-'); return `${PG_MESES[+m-1]||m}/${a}`; };
 const pgHoje = () => { const h=new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}-${String(h.getDate()).padStart(2,'0')}`; };
@@ -6321,24 +6322,47 @@ function pgAjustaSticky() {
 window.addEventListener('resize', pgAjustaSticky);
 
 // Contatos do mês de referência (mês atual) → Contato Sim/Não
-const pgFbMes = cod => (_pg.fbCli[cod]||[]).filter(f => String(f.data_contato||'').slice(0,7) === pgMesAtual());
+// Mês/Ano selecionado no filtro (padrão: mês atual)
+const pgMesSel = () => document.getElementById('pg-f-mes')?.value || pgMesAtual();
+const pgMesPrev = m => { let [a,mm] = m.split('-').map(Number); mm--; if(!mm){ mm=12; a--; } return `${a}-${String(mm).padStart(2,'0')}`; };
+// Mês a que se refere a tabela do Plano (mês da última atualização): ali "mês atual" = esse mês e "mês anterior" = o anterior
+const pgRefMes = () => { const u = _pg.rows[0]?.atualizado_em; if(!u) return pgMesAtual(); const d = new Date(u); return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}`; };
+function pgPopulaMeses() {
+  const sel = document.getElementById('pg-f-mes'); if(!sel || sel.options.length) return;
+  const h = new Date(); let a = h.getFullYear(), m = h.getMonth()+1; const opts = [];
+  while(a > 2026 || (a === 2026 && m >= 1)) { opts.push(`${a}-${String(m).padStart(2,'0')}`); m--; if(!m){ m=12; a--; } }
+  sel.innerHTML = opts.map(k => `<option value="${k}">📅 ${pgMesLabel(k)}</option>`).join('');
+}
+const pgFbMes = (cod, mes) => (_pg.fbCli[cod]||[]).filter(f => String(f.data_contato||'').slice(0,7) === (mes||pgMesSel()));
 // Último contato = data mais recente entre o último feedback e a última venda
-const pgVendMes = cod => (_pg.vendCli[cod]||[]).filter(v => String(v.data_venda||'').slice(0,7) === pgMesAtual());
+const pgVendMes = (cod, mes) => (_pg.vendCli[cod]||[]).filter(v => String(v.data_venda||'').slice(0,7) === (mes||pgMesSel()));
+// Valor vendido no mês selecionado: mês da tabela → mês atual; mês anterior da tabela → mês anterior; demais → soma das vendas
+const pgValorMes = (r, mes) => { mes = mes || pgMesSel(); const ref = pgRefMes();
+  if(mes === ref) return +r.valor_compra_mes_atual||0;
+  if(mes === pgMesPrev(ref)) return +r.valor_compra_mes_anterior||0;
+  return pgVendMes(r.codcli, mes).reduce((s,v) => s + (+v.valor||0), 0); };
+// Frequência realizada no mês selecionado (mês da tabela → valor gravado; demais → dias com venda na view; sem dado → null)
+const pgFreqDoMes = r => { const mes = pgMesSel();
+  if(mes === pgRefMes()) return pgFreqAtual(r.frequencia_atual);
+  if(!_pg.vendasOk || mes < PG_VENDAS_DESDE.slice(0,7)) return null;
+  return new Set(pgVendMes(r.codcli, mes).map(v => String(v.data_venda).slice(0,10))).size; };
 const pgUltContato = r => {
-  const c = [ (_pg.fbCli[r.codcli]||[])[0]?.data_contato, (_pg.vendCli[r.codcli]||[])[0]?.data_venda ];
-  // sem pedido no mês em `vendas`, usa a última compra da tabela do Plano (mesma base do Vlr Mês Atual)
-  if(!pgVendMes(r.codcli).length && (+r.valor_compra_mes_atual||0) > 0 && String(r.data_ultima_compra||'').slice(0,7) === pgMesAtual()) c.push(r.data_ultima_compra);
-  return c.filter(Boolean).map(d => String(d).slice(0,10)).sort().pop() || '';
+  const mes = pgMesSel(), fim = mes + '-31';
+  const c = [ ...(_pg.fbCli[r.codcli]||[]).map(f => f.data_contato), ...(_pg.vendCli[r.codcli]||[]).map(v => v.data_venda) ];
+  // sem pedido no mês em `vendas`, usa a última compra da tabela do Plano (mesma base do Vlr do Mês)
+  if(mes === pgRefMes() && !pgVendMes(r.codcli).length && (+r.valor_compra_mes_atual||0) > 0 && String(r.data_ultima_compra||'').slice(0,7) === mes) c.push(r.data_ultima_compra);
+  return c.filter(Boolean).map(d => String(d).slice(0,10)).filter(d => d <= fim).sort().pop() || '';
 };
 // Contatado no mês = tem feedback no mês OU comprou no mês atual (vendeu = houve contato)
-const pgContatado = r => pgFbMes(r.codcli).length > 0 || (+r.valor_compra_mes_atual||0) > 0 || pgVendMes(r.codcli).length > 0;
+const pgContatado = r => pgFbMes(r.codcli).length > 0 || pgValorMes(r) > 0 || pgVendMes(r.codcli).length > 0;
 
 async function renderPlanoGuerra(forcar) {
   pgAjustaSticky();
   const st = document.getElementById('pg-status');
   const veTudo = perfilVeTudo();
   document.getElementById('pg-sup-wrap').style.display = veTudo ? '' : 'none';
-  document.getElementById('pg-sub').textContent = `Frutas Congeladas · clientes com compra desde Jan/2026 · Mês de referência: ${pgMesLabel(pgMesAtual())}`;
+  pgPopulaMeses();
+  document.getElementById('pg-sub').textContent = `Frutas Congeladas · clientes com compra desde Jan/2026 · Mês de referência: ${pgMesLabel(pgMesSel())}`;
   if(!sbUrl()||!sbKey()) { st.style.display='block'; st.textContent='Configure o Supabase em Config.'; return; }
   if(_pg.carregado && !forcar) { pgRenderLista(); return; }
   st.style.display='block'; st.textContent='⏳ Carregando clientes do Plano de Guerra...';
@@ -6398,6 +6422,7 @@ function pgFiltrados() {
 }
 
 function pgRenderLista() {
+  const subEl = document.getElementById('pg-sub'); if(subEl) subEl.textContent = `Frutas Congeladas · clientes com compra desde Jan/2026 · Mês de referência: ${pgMesLabel(pgMesSel())}`;
   // Vendedores dependem do supervisor selecionado
   const sup = perfilVeTudo() ? document.getElementById('pg-f-sup').value : '';
   const selV = document.getElementById('pg-f-vend'); const curV = selV.value;
@@ -6407,17 +6432,17 @@ function pgRenderLista() {
   const lista = pgFiltrados();
   const total = lista.length;
   const abord = lista.filter(pgContatado).length;
-  const posit = lista.filter(r => (+r.valor_compra_mes_atual||0) > 0).length;
-  const conv  = lista.filter(r => pgContatado(r) && (+r.valor_compra_mes_atual||0) > 0).length;
+  const posit = lista.filter(r => pgValorMes(r) > 0).length;
+  const conv  = lista.filter(r => pgContatado(r) && pgValorMes(r) > 0).length;
   const pot   = lista.reduce((s,r)=>s+(+r.valor_medio_ano||0),0);
-  const fat   = lista.reduce((s,r)=>s+(+r.valor_compra_mes_atual||0),0);
+  const fat   = lista.reduce((s,r)=>s+pgValorMes(r),0);
   const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
   const card = (l,v,s,c) => `<div class="pg-card" ${c?`style="border-top-color:${c}"`:''}><div class="l">${l}</div><div class="v" ${c?`style="color:${c}"`:''}>${v}</div><div class="s">${s}</div></div>`;
   document.getElementById('pg-cards').innerHTML =
     card('Clientes', total.toLocaleString('pt-BR'), 'na lista') +
-    card('Abordados', abord.toLocaleString('pt-BR'), `contato/compra em ${PG_MESES[new Date().getMonth()]}`) +
+    card('Abordados', abord.toLocaleString('pt-BR'), `contato/compra em ${PG_MESES[+pgMesSel().slice(5)-1]}`) +
     card('% Abordados', pct(abord,total), 'abordados / total', abord/(total||1)>=.5?'#4ade80':'#ffc24a') +
-    card('Positivados', posit.toLocaleString('pt-BR'), 'compraram no mês atual') +
+    card('Positivados', posit.toLocaleString('pt-BR'), 'compraram no mês') +
     card('% Convertidos', pct(conv,abord), `${conv} de ${abord} abordados compraram`, conv/(abord||1)>=.5?'#4ade80':'#ffc24a') +
     card('Vlr. Potencial', pgMoneyC(pot), 'soma do vlr. méd. mensal') +
     card('Vlr. Faturado', pgMoneyC(fat), `${pct(fat,pot)} do potencial`, fat>=pot?'#4ade80':null);
@@ -6427,14 +6452,14 @@ function pgRenderLista() {
   tb.innerHTML = lista.map(r => {
     const ult = pgUltContato(r);
     const contato = pgContatado(r);
-    const vMes = +r.valor_compra_mes_atual||0;
+    const vMes = pgValorMes(r);
     return `<tr>
       <td data-label="ID">${pgEsc(r.codcli)}</td>
       <td data-label="Cliente" class="pg-cli" onclick="pgAbrirCliente('${pgEsc(r.codcli)}')"><b>${pgEsc(r.cliente)}</b>
         <small>${pgEsc(r.ramo)} - ${pgEsc(r.vendedor)}</small>
         <small>Méd/ano ${pgMoney(r.valor_medio_ano)} · Últ compra ${pgData(r.data_ultima_compra)}</small></td>
       <td data-label="Freq / Méd" class="num">${pgFreqHtml(r)}</td>
-      <td data-label="Vlr Mês Atual" class="num" style="color:${vMes>0?'#4ade80':'var(--muted)'}">${pgMoney(vMes)}</td>
+      <td data-label="Vlr do Mês" class="num" style="color:${vMes>0?'#4ade80':'var(--muted)'}">${pgMoney(vMes)}</td>
       <td data-label="Últ Contato">${ult?pgData(ult):'—'}</td>
       <td data-label="Contato"><span class="pg-tag ${contato?'pg-sim':'pg-nao'}">${contato?'✅ Sim':'Não'}</span></td>
       <td class="pg-acao"><button class="pg-fbbtn" onclick="pgAbrirFeedback('${pgEsc(r.codcli)}')">💬 Feedback</button></td>
@@ -6458,7 +6483,7 @@ function pgHistoricoHtml(cod) {
   const fbs = (_pg.fbCli[cod]||[]).map(f => ({...f, _t:'fb'}));
   const vds = (_pg.vendCli[cod]||[]).map(v => ({ _t:'venda', data_contato:String(v.data_venda).slice(0,10), valor:v.valor }));
   const r0 = _pg.rows.find(x => x.codcli === cod);
-  if(r0 && !pgVendMes(cod).length && (+r0.valor_compra_mes_atual||0) > 0 && String(r0.data_ultima_compra||'').slice(0,7) === pgMesAtual()) {
+  if(r0 && !pgVendMes(cod, pgRefMes()).length && (+r0.valor_compra_mes_atual||0) > 0 && String(r0.data_ultima_compra||'').slice(0,7) === pgRefMes()) {
     const d0 = String(r0.data_ultima_compra).slice(0,10);
     vds.push({ _t:'venda', data_contato:d0, valor:null });
   }
@@ -6485,15 +6510,15 @@ function pgHistoricoHtml(cod) {
 
 function pgAbrirCliente(cod) {
   const r = _pg.rows.find(x=>x.codcli===cod); if(!r) return;
-  const fa = pgFreqAtual(r.frequencia_atual), fm = pgFreqMed(r.frequencia_media);
+  const fa = pgFreqDoMes(r), fm = pgFreqMed(r.frequencia_media);
   const kpi = (l,v,dest) => `<div class="pg-kpi ${dest?'dest':''}"><div class="l">${l}</div><div class="v">${v}</div></div>`;
   pgAbrirModal(pgHeadCli(r) + `<div class="pg-mbody">
     <div class="pg-sec" style="margin-top:0">📈 Frequência de compra</div>
     <div class="pg-kpis" style="grid-template-columns:1fr 1fr">
-      ${kpi('Frequência realizada', `<span style="color:${fa>=fm?'#4ade80':'#ff4d6d'}">${fa}</span>`, true)}
+      ${kpi('Frequência realizada ('+pgMesLabel(pgMesSel())+')', `<span style="color:${fa===null?'var(--muted)':fa>=fm?'#4ade80':'#ff4d6d'}">${fa===null?'—':fa}</span>`, true)}
       ${kpi('Frequência média histórica', fm, true)}
     </div>
-    <div style="font-size:.78rem;margin-top:6px;color:${fa>=fm?'#4ade80':'#ffc24a'}">${fa>=fm?'✅ Frequência dentro ou acima da média histórica':'⚠️ Frequência abaixo da média histórica'}</div>
+    <div style="font-size:.78rem;margin-top:6px;color:${fa===null?'var(--muted)':fa>=fm?'#4ade80':'#ffc24a'}">${fa===null?'Sem dado de frequência para o mês selecionado':fa>=fm?'✅ Frequência dentro ou acima da média histórica':'⚠️ Frequência abaixo da média histórica'}</div>
     <div class="pg-sec">💰 Valores</div>
     <div class="pg-kpis">
       ${kpi('Vlr Méd Ano', pgMoney(r.valor_medio_ano))}
@@ -6503,7 +6528,7 @@ function pgAbrirCliente(cod) {
       ${kpi('Últ. Compra', pgData(r.data_ultima_compra))}
       ${kpi('Pedido no mês', r.teve_pedido?'✅ Sim':'Não')}
       ${kpi('Pedidos pendentes', r.pedidos_pendentes ?? '—')}
-      ${kpi('Feedbacks no mês', pgFbMes(cod).length)}
+      ${kpi('Feedbacks em '+pgMesLabel(pgMesSel()), pgFbMes(cod).length)}
     </div>
     <div class="pg-sec">💬 Histórico: feedbacks e vendas</div>
     ${pgHistoricoHtml(cod)}
