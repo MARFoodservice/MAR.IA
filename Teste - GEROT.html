@@ -702,6 +702,7 @@ tbody td { padding: 11px 12px; }
       <div id="pg-sup-wrap"><label>Supervisor</label><select id="pg-f-sup" onchange="pgRenderLista()"><option value="">Todos os supervisores</option></select></div>
       <div><label>Vendedor</label><select id="pg-f-vend" onchange="pgRenderLista()"><option value="">Todos os vendedores</option></select></div>
       <div><label>Ramo de atividade</label><select id="pg-f-ramo" onchange="pgRenderLista()"><option value="">Todos os ramos</option></select></div>
+      <div><label>Contato</label><select id="pg-f-contato" onchange="pgRenderLista()"><option value="">Contato: todos</option><option value="sim">✅ Contato: Sim</option><option value="nao">❌ Contato: Não</option></select></div>
       <div><label>Buscar cliente</label><input id="pg-f-busca" placeholder="🔍 Buscar cliente (nome ou ID)" oninput="pgRenderLista()"></div>
     </div>
   </div>
@@ -6410,13 +6411,15 @@ async function renderPlanoGuerra(forcar) {
   }
 }
 
-function pgFiltrados() {
+function pgFiltrados(semContato) {
   const sup = perfilVeTudo() ? document.getElementById('pg-f-sup').value : '';
   const vend = document.getElementById('pg-f-vend').value;
   const ramo = document.getElementById('pg-f-ramo').value;
   const busca = (document.getElementById('pg-f-busca').value||'').trim().toUpperCase();
+  const cont = semContato ? '' : (document.getElementById('pg-f-contato')?.value || '');
   return _pg.rows.filter(r =>
     (!sup || r.supervisor===sup) && (!vend || r.vendedor===vend) && (!ramo || r.ramo===ramo) &&
+    (!cont || (cont==='sim') === pgContatado(r)) &&
     (!busca || r.codcli.includes(busca) || String(r.cliente||'').toUpperCase().includes(busca))
   ).sort((a,b) => (+b.valor_medio_ano||0) - (+a.valor_medio_ano||0));
 }
@@ -6430,12 +6433,13 @@ function pgRenderLista() {
   selV.innerHTML = '<option value="">Todos os vendedores</option>' + vends.map(v=>`<option ${v===curV?'selected':''} value="${pgEsc(v)}">${pgEsc(v)}</option>`).join('');
 
   const lista = pgFiltrados();
-  const total = lista.length;
-  const abord = lista.filter(pgContatado).length;
-  const posit = lista.filter(r => pgValorMes(r) > 0).length;
-  const conv  = lista.filter(r => pgContatado(r) && pgValorMes(r) > 0).length;
-  const pot   = lista.reduce((s,r)=>s+(+r.valor_medio_ano||0),0);
-  const fat   = lista.reduce((s,r)=>s+pgValorMes(r),0);
+  const base = pgFiltrados(true); // cards não mudam com o filtro de Contato
+  const total = base.length;
+  const abord = base.filter(pgContatado).length;
+  const posit = base.filter(r => pgValorMes(r) > 0).length;
+  const conv  = base.filter(r => pgContatado(r) && pgValorMes(r) > 0).length;
+  const pot   = base.reduce((s,r)=>s+(+r.valor_medio_ano||0),0);
+  const fat   = base.reduce((s,r)=>s+pgValorMes(r),0);
   const pct = (a,b) => b ? Math.round(a/b*100)+'%' : '0%';
   const card = (l,v,s,c) => `<div class="pg-card" ${c?`style="border-top-color:${c}"`:''}><div class="l">${l}</div><div class="v" ${c?`style="color:${c}"`:''}>${v}</div><div class="s">${s}</div></div>`;
   document.getElementById('pg-cards').innerHTML =
@@ -6448,7 +6452,7 @@ function pgRenderLista() {
     card('Vlr. Faturado', pgMoneyC(fat), `${pct(fat,pot)} do potencial`, fat>=pot?'#4ade80':null);
 
   const tb = document.getElementById('pg-tbody');
-  if(!total) { tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">${_pg.carregado?'Nenhum cliente para os filtros selecionados.':''}</td></tr>`; return; }
+  if(!lista.length) { tb.innerHTML = `<tr><td colspan="7" style="text-align:center;color:var(--muted);padding:30px">${_pg.carregado?'Nenhum cliente para os filtros selecionados.':''}</td></tr>`; return; }
   tb.innerHTML = lista.map(r => {
     const ult = pgUltContato(r);
     const contato = pgContatado(r);
