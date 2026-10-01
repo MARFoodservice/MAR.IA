@@ -821,6 +821,7 @@ tbody td { padding: 11px 12px; }
     <span id="t30p-status-txt">—</span>
   </div>
   <div class="filter-row" style="margin-bottom:20px;flex-wrap:wrap;gap:12px">
+    <div class="field"><label>Mês / Ano</label><select id="t30p-mes" onchange="renderTop30Painel()"></select></div>
     <div class="field"><label>Supervisor</label><select id="t30p-sup" onchange="renderTop30Painel()"><option value="">Todos</option></select></div>
     <div class="field"><label>Categoria</label>
       <select id="t30p-cat" onchange="renderTop30Painel()">
@@ -2789,13 +2790,30 @@ function rankBadge30(r) {
   return `<span style="display:inline-flex;align-items:center;justify-content:center;width:28px;height:28px;border-radius:8px;font-family:'Syne',sans-serif;font-weight:800;font-size:12px;${cls}">${r}</span>`;
 }
 
-// Carrega seleção do Supabase → _t30Selecao
+// Mês/Ano do painel (seleção e visitas valem por mês)
+let _t30SelErro = false;
+const T30_MESES_ABR = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
+function t30MesSel() {
+  const v = document.getElementById('t30p-mes')?.value;
+  if(v) return v;
+  const h = new Date(); return `${h.getFullYear()}-${String(h.getMonth()+1).padStart(2,'0')}`;
+}
+function t30MesLabel(k) { const [a,m] = String(k).split('-'); return `${T30_MESES_ABR[+m-1]||m}/${a}`; }
+function t30PopulaMeses() {
+  const sel = document.getElementById('t30p-mes'); if(!sel || sel.options.length) return;
+  const h = new Date(); let a = h.getFullYear(), m = h.getMonth()+1; const opts = [];
+  while(a > 2026 || (a === 2026 && m >= 1)) { opts.push(`${a}-${String(m).padStart(2,'0')}`); m--; if(!m){ m=12; a--; } }
+  sel.innerHTML = opts.map(k => `<option value="${k}">📅 ${t30MesLabel(k)}</option>`).join('');
+}
+
+// Carrega seleção do Supabase (do mês selecionado) → _t30Selecao
 async function carregarSelecaoTop30() {
+  _t30Selecao = {}; _t30SelErro = false;
   try {
-    const r = await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao?select=supervisor,codcli,categoria&limit=2000`, {
+    const r = await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao_mes?select=supervisor,codcli,categoria&mes=eq.${t30MesSel()}&limit=2000`, {
       headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
     });
-    if(!r.ok) return;
+    if(!r.ok) { _t30SelErro = true; return; }
     const rows = await r.json();
     _t30Selecao = {};
     rows.forEach(row => {
@@ -2822,7 +2840,7 @@ async function toggleSelecaoTop30(supervisor, codcli, categoria, btn) {
     btn.style.color = 'var(--muted)';
     btn.style.borderColor = 'var(--border)';
     try {
-      await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao?supervisor=eq.${encodeURIComponent(supervisor)}&codcli=eq.${encodeURIComponent(codcli)}&categoria=eq.${categoria}`, {
+      await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao_mes?mes=eq.${t30MesSel()}&supervisor=eq.${encodeURIComponent(supervisor)}&codcli=eq.${encodeURIComponent(codcli)}&categoria=eq.${categoria}`, {
         method:'DELETE', headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey(),'Content-Type':'application/json'}
       });
     } catch(e) {}
@@ -2838,11 +2856,12 @@ async function toggleSelecaoTop30(supervisor, codcli, categoria, btn) {
     btn.style.color = 'var(--accent)';
     btn.style.borderColor = 'var(--accent)';
     try {
-      await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao`, {
+      const rp = await fetch(`${sbUrl()}/rest/v1/gerot_top30_selecao_mes?on_conflict=mes,supervisor,codcli,categoria`, {
         method:'POST',
         headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey(),'Content-Type':'application/json','Prefer':'resolution=merge-duplicates'},
-        body: JSON.stringify({supervisor, codcli: String(codcli), categoria})
+        body: JSON.stringify({mes: t30MesSel(), supervisor, codcli: String(codcli), categoria})
       });
+      if(!rp.ok) showToast('⚠️ Erro ao salvar a seleção (execute o SQL da tabela por mês)','#ff4d6d');
     } catch(e) {}
   }
   // Atualiza counter
@@ -2886,9 +2905,11 @@ async function renderTop30Painel(forcarRecarregarDropdown=false) {
   // Lê valor atual
   const supFiltro = perfilVeTudo() ? (supSel?.value||'') : (supNomeCompleto(_loggedSupervisor)||_loggedSupervisor);
   const catF = document.getElementById('t30p-cat')?.value || '';
+  t30PopulaMeses();
+  const mesSel = t30MesSel();
 
   try {
-    // Carrega seleção salva
+    // Carrega seleção salva (do mês selecionado)
     await carregarSelecaoTop30();
 
     // Busca amostra (TOP 30 Food + TOP 20 FC por supervisor = maior amostragem)
@@ -2936,7 +2957,10 @@ async function renderTop30Painel(forcarRecarregarDropdown=false) {
     // Busca visitas de gerot_rotas_coaching (1 linha por PDV, coluna cliente_id)
     let visitadosCodcli = new Set();
     try {
-      let urlVisit = `${sbUrl()}/rest/v1/gerot_rotas_coaching?select=cliente_id,supervisor&limit=10000`;
+      // Só visitas lançadas no mês selecionado (último dia real do mês)
+      const [mAno, mMes] = mesSel.split('-').map(Number);
+      const mUlt = new Date(mAno, mMes, 0).getDate();
+      let urlVisit = `${sbUrl()}/rest/v1/gerot_rotas_coaching?select=cliente_id,supervisor&data=gte.${mesSel}-01&data=lte.${mesSel}-${String(mUlt).padStart(2,'0')}&limit=10000`;
       if(supFiltro) urlVisit += `&supervisor=ilike.*${encodeURIComponent(supFiltro.split(' ')[0])}*`;
       const rv = await fetch(urlVisit, { headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()} });
       if(rv.ok) {
@@ -2993,7 +3017,7 @@ async function renderTop30Painel(forcarRecarregarDropdown=false) {
           <div class="m-label">${supervisoresNoFiltro.filter(x=>x.split(' ')[0]===sup.split(' ')[0]).length>1 ? sup.split(' ').slice(0,2).join(' ') : sup.split(' ')[0]}</div>
           <div class="m-val" style="font-size:1.6rem;color:${cor}">${visitados}/${totalSel}</div>
           <div style="font-size:1rem;font-family:'Syne',sans-serif;font-weight:700;color:${cor}">${pct}%</div>
-          <div class="m-sub">TOP30 visitados</div>
+          <div class="m-sub">TOP30 visitados · ${t30MesLabel(mesSel)}</div>
         </div>`;
       }).join('');
 
@@ -3131,6 +3155,7 @@ async function renderTop30Painel(forcarRecarregarDropdown=false) {
     });
     if(orfaos>0) t30pStatus('warn', `⚠️ ${rows.length} clientes carregados · ${orfaos} cliente(s) selecionado(s) saíram do TOP30 no recálculo (${periodo||'período atual'}) — refazer a seleção. Atualizado: ${upd}`);
     else t30pStatus('success', `✅ ${rows.length} clientes carregados · Atualizado: ${upd}`);
+    if(_t30SelErro) t30pStatus('warn', '⚠️ Tabela gerot_top30_selecao_mes não encontrada — execute o SQL de criação. Nenhuma seleção carregada.');
 
   } catch(e) {
     t30pStatus('error','Erro: '+e.message);
