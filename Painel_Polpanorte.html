@@ -1,18 +1,6 @@
 <!doctype html>
 <html lang="pt-BR">
 <head>
-   <script>
-(function(){
-  try{
-    var a = JSON.parse(localStorage.getItem('marHubAuth')||'null');
-    if(!a || !a.exp || Date.now() > a.exp){
-      location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-    }
-  }catch(e){
-    location.replace('https://marfoodservice.github.io/MAR.IA/index.html');
-  }
-})();
-</script>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Painel Açaí - Frutas Congeladas</title>
@@ -108,6 +96,15 @@
   .produtos-wrap { padding: 4px 8px 10px 40px !important; background: #f5f1f8; font-style: italic; color: var(--muted); }
   .nested-table { font-size: 12px; }
   .nested-table th, .nested-table td { padding: 4px 6px; }
+  /* a celula que envolve a tabela aninhada faz parte de uma table.aligned
+     (que tem overflow:hidden nos td); sem isso, cliente/ramo compridos
+     cortavam a tabela inteira em vez de só truncar essas 2 colunas */
+  table.aligned td.nested-wrap { overflow: visible; text-overflow: clip; white-space: normal; }
+  table.stats-table > thead > tr > th:not(.left),
+  table.stats-table > tbody > tr > td:not(.left) { text-align: center; }
+  .nested-table td.cell-cap, .nested-table th.cell-cap {
+    max-width: 220px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
 
   table.aligned { table-layout: fixed; }
   table.aligned th, table.aligned td { overflow: hidden; text-overflow: ellipsis; }
@@ -123,17 +120,99 @@
   .col-final { width: 110px; }
   .segmento-cell { cursor: pointer; }
   .segmento-cell:hover { background: var(--accent-light); }
+
+  .feedbacks-wrap { padding: 6px 8px 12px 40px !important; background: #f5f1f8; }
+  .feedback-month-header, .feedback-day-header {
+    cursor: pointer; display: flex; align-items: center; gap: 6px; user-select: none;
+  }
+  .feedback-month-header {
+    font-weight: 700; color: var(--accent-dark); font-size: 13px;
+    padding: 6px 8px; margin-top: 6px; border-radius: 6px; background: var(--accent-light);
+  }
+  .feedback-month-header:hover { background: #e9defa; }
+  .feedback-month-body { padding-left: 8px; }
+  .feedback-day-header {
+    font-weight: 600; color: var(--muted); font-size: 12px; padding: 5px 6px 5px 14px;
+  }
+  .feedback-day-header:hover { background: #f2edf6; border-radius: 6px; }
+  .feedback-day-body { padding-left: 24px; }
+  .fb-arrow { display: inline-block; width: 12px; color: var(--accent); }
+  .feedback-count { font-weight: 400; color: var(--muted); font-size: 11px; }
+  .feedback-item { padding: 3px 0 3px 10px; border-left: 2px solid var(--border); margin-bottom: 3px; }
+  .feedback-meta { font-size: 11px; color: var(--muted); }
+  .feedback-text { font-size: 12.5px; white-space: normal; }
+
+  .modal-overlay {
+    display: none; position: fixed; inset: 0; background: rgba(43,37,48,0.55);
+    z-index: 1000; align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-box {
+    background: var(--card); border-radius: 12px; width: 100%; max-width: 760px;
+    max-height: 88vh; overflow-y: auto; box-shadow: 0 10px 40px rgba(0,0,0,0.35);
+  }
+  .modal-header {
+    background: linear-gradient(135deg, var(--accent), var(--accent-dark)); color: white;
+    padding: 16px 20px; border-radius: 12px 12px 0 0; position: sticky; top: 0;
+    display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; z-index: 1;
+  }
+  .modal-header h2 { margin: 0 0 4px; font-size: 17px; color: white; white-space: normal; }
+  .modal-header .sub { font-size: 12px; color: #e6dcf0; line-height: 1.6; white-space: normal; }
+  .modal-close {
+    background: rgba(255,255,255,0.15); border: none; color: white; width: 28px; height: 28px;
+    border-radius: 6px; cursor: pointer; font-size: 15px; line-height: 1; flex-shrink: 0;
+  }
+  .modal-close:hover { background: rgba(255,255,255,0.3); }
+  .modal-body { padding: 18px 20px; }
+  .modal-section-title { font-size: 13.5px; font-weight: 700; color: var(--accent-dark); margin: 18px 0 8px; }
+  .modal-section-title:first-child { margin-top: 0; }
+
+  .login-overlay {
+    position: fixed; inset: 0; z-index: 3000; display: flex;
+    align-items: center; justify-content: center;
+    background: linear-gradient(135deg, var(--accent-dark), var(--accent));
+  }
+  .login-box {
+    background: var(--card); border-radius: 14px; padding: 32px 28px; width: 100%;
+    max-width: 340px; box-shadow: 0 10px 40px rgba(0,0,0,0.35); text-align: center;
+  }
+  .login-box h1 { font-size: 17px; margin: 0 0 4px; color: var(--accent-dark); }
+  .login-box .sub { font-size: 12px; color: var(--muted); margin-bottom: 20px; }
+  .login-box input {
+    width: 100%; box-sizing: border-box; padding: 9px 10px; margin-bottom: 10px;
+    border: 1px solid var(--border); border-radius: 7px; font-size: 13.5px;
+  }
+  .login-box button {
+    width: 100%; margin-top: 6px;
+  }
+  .login-erro { color: var(--warn); font-size: 12px; min-height: 16px; margin-top: 8px; }
+  .user-badge { font-size: 12px; color: #e6dcf0; margin-left: auto; text-align: right; white-space: nowrap; }
+  .user-badge button {
+    background: none; border: none; color: white; cursor: pointer; font-size: 12px;
+    padding: 0; text-decoration: underline;
+  }
 </style>
 </head>
 <body>
 
-<div id="fixedTop">
+<div id="loginScreen" class="login-overlay">
+  <div class="login-box">
+    <h1>Painel Açaí</h1>
+    <div class="sub">Acesso restrito — use seu login do GEROT</div>
+    <input type="text" id="loginNome" placeholder="Usuário" autocomplete="username" onkeydown="if(event.key==='Enter') document.getElementById('loginSenha').focus()">
+    <input type="password" id="loginSenha" placeholder="Senha" autocomplete="current-password" onkeydown="if(event.key==='Enter') fazerLogin()">
+    <button id="loginBtn" onclick="fazerLogin()">Entrar</button>
+    <div class="login-erro" id="loginErro"></div>
+  </div>
+</div>
+
+<div id="fixedTop" style="display:none">
 <div class="header-bar">
   <div class="logo-box"><img src="data:image/jpeg;base64,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" alt="Polpa Norte"></div>
   <div>
     <h1>Painel Açaí — Frutas Congeladas</h1>
     <div class="sub" id="lastUpdate">Carregando...</div>
   </div>
+  <div class="user-badge" id="userBadge"></div>
 </div>
 
 <div class="toolbar">
@@ -142,6 +221,13 @@
   <select id="supervisorFilter"><option value="">Todos os supervisores</option></select>
   <select id="cidadeFilter"><option value="">Todas as cidades</option></select>
   <select id="ramoFilter"><option value="">Todos os ramos</option></select>
+  <select id="mesFilter"></select>
+  <select id="anoFilter"></select>
+  <select id="abordadoFilter">
+    <option value="">Abordados: Todos</option>
+    <option value="sim">Abordados: Sim</option>
+    <option value="nao">Abordados: Não</option>
+  </select>
   <button onclick="carregar()">Atualizar agora</button>
   <button class="secondary" onclick="exportExcelDetalhado()">Exportar Detalhado</button>
   <button class="secondary" onclick="exportExcelResumido()">Exportar Resumido</button>
@@ -151,8 +237,26 @@
 <div class="card"><h2>Faturamento e Positivação da Empresa</h2><div id="painelEmpresaWrap"></div></div>
 </div>
 
-<div id="content">
+<div id="content" style="display:none">
   <div class="loading">Buscando dados no Supabase...</div>
+</div>
+
+<div id="clientModal" class="modal-overlay" onclick="if(event.target===this) fecharClienteModal()">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <h2 id="modalClienteNome">-</h2>
+        <div class="sub" id="modalClienteInfo"></div>
+      </div>
+      <button class="modal-close" onclick="fecharClienteModal()">✕</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-section-title">Produtos do mês</div>
+      <div id="modalProdutos">-</div>
+      <div class="modal-section-title">Feedbacks</div>
+      <div id="modalFeedbacks">-</div>
+    </div>
+  </div>
 </div>
 
 <script>
@@ -180,9 +284,15 @@ function getSegmento(ramo) {
 }
 
 let ALL_CLIENTES = [];
-let MES_ATUAL = new Date().getMonth() + 1;
+const HOJE = new Date();
+const MES_ATUAL_REAL = HOJE.getMonth() + 1;
+const ANO_ATUAL_REAL = HOJE.getFullYear();
+let selMes = MES_ATUAL_REAL;
+let selAno = ANO_ATUAL_REAL;
+let MES_ATUAL = MES_ATUAL_REAL; // pivota pro mes/ano selecionado no filtro
 const PRODUTOS_CACHE = {};
 const INFO_CACHE = {};
+const FEEDBACK_CACHE = {};
 
 // estado dos filtros
 let searchText = "";
@@ -190,12 +300,12 @@ let selVendedor = "";
 let selSupervisor = "";
 let selCidade = "";
 let selRamo = "";
+let selAbordado = ""; // "" | "sim" | "nao"
 let selSegmento = null; // null | 'DISTRIBUIDOR/VAREJO' | 'FOOD'
 let statusFilter = null; // null | 'comprou' | 'naoComprou'
 
 // estado dos expandidos
 const vendorExpanded = new Set();
-const clientExpanded = new Set();
 
 function normKey(s) {
   return (s || '').trim().toUpperCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
@@ -215,6 +325,27 @@ function fmt(n) {
 function pct(n) {
   return (n || 0).toLocaleString('pt-BR', {minimumFractionDigits: 1, maximumFractionDigits: 1}) + '%';
 }
+function escapeHtml(s) {
+  return (s || '').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+// busca todas as paginas de um endpoint REST do Supabase (limite de 1000 linhas por chamada)
+async function fetchAllRows(url, headers) {
+  const all = [];
+  let offset = 0;
+  const pageSize = 1000;
+  while (true) {
+    const resp = await fetch(url, {
+      headers: { ...headers, 'Range-Unit': 'items', 'Range': `${offset}-${offset + pageSize - 1}` }
+    });
+    if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+    const rows = await resp.json();
+    all.push(...rows);
+    if (rows.length < pageSize) break;
+    offset += pageSize;
+  }
+  return all;
+}
 
 async function carregar() {
   document.getElementById('content').innerHTML = '<div class="loading">Buscando dados no Supabase...</div>';
@@ -224,11 +355,19 @@ async function carregar() {
       'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
       'Content-Type': 'application/json'
     };
-    const [respMensal, respPedidos, respFreq] = await Promise.all([
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_mensal`, { method: 'POST', headers, body: '{}' }),
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_pedidos_pendentes`, { method: 'POST', headers, body: '{}' }),
-      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_frequencia`, { method: 'POST', headers, body: '{}' })
-    ]);
+    const periodoBody = JSON.stringify({ p_ano: selAno, p_mes: selMes });
+    // pedidos pendentes é um conceito de "agora" (o que ainda não foi faturado
+    // hoje); só faz sentido buscar quando o filtro está no mês/ano atual real
+    const ehPeriodoAtual = (selAno === ANO_ATUAL_REAL && selMes === MES_ATUAL_REAL);
+
+    const promessas = [
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_mensal`, { method: 'POST', headers, body: periodoBody }),
+      ehPeriodoAtual
+        ? fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_pedidos_pendentes`, { method: 'POST', headers, body: '{}' })
+        : Promise.resolve(null),
+      fetch(`${SUPABASE_URL}/rest/v1/rpc/painel_acai_frequencia`, { method: 'POST', headers, body: periodoBody })
+    ];
+    const [respMensal, respPedidos, respFreq] = await Promise.all(promessas);
     if (!respMensal.ok) {
       const txt = await respMensal.text();
       throw new Error(`HTTP ${respMensal.status}: ${txt}`);
@@ -236,9 +375,9 @@ async function carregar() {
     const rawRows = await respMensal.json();
 
     let pedidosRows = [];
-    if (respPedidos.ok) {
+    if (respPedidos && respPedidos.ok) {
       pedidosRows = await respPedidos.json();
-    } else {
+    } else if (respPedidos && !respPedidos.ok) {
       console.warn('Falha ao buscar pedidos pendentes:', await respPedidos.text());
     }
 
@@ -249,7 +388,17 @@ async function carregar() {
       console.warn('Falha ao buscar frequência:', await respFreq.text());
     }
 
-    processarDados(rawRows, pedidosRows, freqRows);
+    let feedbackResumoRows = [];
+    try {
+      feedbackResumoRows = await fetchAllRows(
+        `${SUPABASE_URL}/rest/v1/gerot_plandeguerra_feedback_resumo?select=codcli,qtd_feedbacks,ult_feedback`,
+        headers
+      );
+    } catch (err) {
+      console.warn('Falha ao buscar resumo de feedbacks:', err.message);
+    }
+
+    processarDados(rawRows, pedidosRows, freqRows, feedbackResumoRows);
     document.getElementById('lastUpdate').textContent =
       'Atualizado em ' + new Date().toLocaleString('pt-BR');
     montarLayout();
@@ -261,8 +410,8 @@ async function carregar() {
   }
 }
 
-function processarDados(rawRows, pedidosRows, freqRows) {
-  MES_ATUAL = new Date().getMonth() + 1;
+function processarDados(rawRows, pedidosRows, freqRows, feedbackResumoRows) {
+  MES_ATUAL = selMes;
   const m1 = MES_ATUAL - 1 > 0 ? MES_ATUAL - 1 : null;
   const m2 = MES_ATUAL - 2 > 0 ? MES_ATUAL - 2 : null;
   const m3 = MES_ATUAL - 3 > 0 ? MES_ATUAL - 3 : null;
@@ -299,6 +448,11 @@ function processarDados(rawRows, pedidosRows, freqRows) {
   const freqMap = {};
   for (const f of (freqRows || [])) {
     freqMap[f.codcli] = f;
+  }
+
+  const feedbackMap = {};
+  for (const fb of (feedbackResumoRows || [])) {
+    feedbackMap[String(fb.codcli)] = fb;
   }
 
   // agrupa variantes de grafia (acentos/maiusculas/espacos) do mesmo vendedor/supervisor
@@ -348,6 +502,17 @@ function processarDados(rawRows, pedidosRows, freqRows) {
       ? null : Math.round(Number(f.frequencia_media_anterior));
     const oportunidade = freqMediaAnterior !== null ? (freqMediaAnterior - freqAtual) : null;
 
+    // feedbacks dos supervisores (GEROT) - somente leitura, view gerot_plandeguerra_feedback_resumo
+    const fb = feedbackMap[String(c.codcli)] || {};
+    const qtdFeedbacks = fb.qtd_feedbacks || 0;
+    const ultFeedback = fb.ult_feedback || null;
+    const teveFeedbackMesAtual = !!(ultFeedback &&
+      Number(ultFeedback.slice(0,4)) === selAno &&
+      Number(ultFeedback.slice(5,7)) === MES_ATUAL);
+    // "abordado" = teve feedback registrado no mes OU comprou no mes (regra do
+    // GEROT: se comprou, é pq teve contato com o vendedor, mesmo sem feedback)
+    const abordadoMesAtual = teveFeedbackMesAtual || comprouMesAtual;
+
     // normaliza grafia (acentos/espacos) pro nome canonico do vendedor/supervisor,
     // normaliza o vendedor "TATIANA ... - LITORAL" pro mesmo nome.
     // O supervisor REAL do banco é mantido (o vendedor de Televendas continua
@@ -361,7 +526,8 @@ function processarDados(rawRows, pedidosRows, freqRows) {
     return {
       ...c, vendedor, supervisor, isTelevendas,
       potencial, mediaAno, mediaTres, comprouMesAtual, pendingPedidos, pendingCount: pendingPedidos.length,
-      ultimaCompra, freqAtual, freqMediaAnterior, oportunidade
+      ultimaCompra, freqAtual, freqMediaAnterior, oportunidade,
+      qtdFeedbacks, ultFeedback, abordadoMesAtual
     };
   });
 }
@@ -401,6 +567,19 @@ function popularFiltros() {
   rSel.value = selRamo;
 }
 
+// filtro de mes/ano: independe dos dados carregados, so precisa rodar 1x no inicio
+function popularMesAnoFiltro() {
+  const mSel = document.getElementById('mesFilter');
+  mSel.innerHTML = MESES.map((m, i) => `<option value="${i+1}">${m}</option>`).join('');
+  mSel.value = selMes;
+
+  const aSel = document.getElementById('anoFilter');
+  const anos = [];
+  for (let y = ANO_ATUAL_REAL; y >= ANO_ATUAL_REAL - 3; y--) anos.push(y);
+  aSel.innerHTML = anos.map(y => `<option value="${y}">${y}</option>`).join('');
+  aSel.value = selAno;
+}
+
 function popularVendedorFiltro() {
   let relevantes = ALL_CLIENTES;
   if (selSupervisor === 'TELEVENDAS') relevantes = ALL_CLIENTES.filter(c => c.isTelevendas);
@@ -422,6 +601,8 @@ function baseFilteredList() {
     else if (selSupervisor && c.supervisor !== selSupervisor) return false;
     if (selCidade && c.cidade !== selCidade) return false;
     if (selRamo && c.ramo !== selRamo) return false;
+    if (selAbordado === 'sim' && !c.abordadoMesAtual) return false;
+    if (selAbordado === 'nao' && c.abordadoMesAtual) return false;
     if (selSegmento && getSegmento(c.ramo) !== selSegmento) return false;
     if (q && !(
       (c.cliente || '').toLowerCase().includes(q) ||
@@ -674,11 +855,17 @@ function statsDoGrupo(key, label, clientesDoGrupo) {
   const total = clientesDoGrupo.length;
   const naoComprou = total - comprou;
   const temPedido = clientesDoGrupo.reduce((a,c) => a + (c.pendingCount || 0), 0);
+  // abordado = teve feedback no mes OU comprou no mes (regra do GEROT)
+  const abordados = clientesDoGrupo.filter(c => c.abordadoMesAtual).length;
+  const naoAbordados = total - abordados;
   return {
     key, label, clientes: clientesDoGrupo,
-    comprou, naoComprou, total, temPedido,
+    comprou, naoComprou, total, temPedido, abordados, naoAbordados,
     pctComprou: total ? (comprou / total * 100) : 0,
-    pctNaoComprou: total ? (naoComprou / total * 100) : 0
+    pctNaoComprou: total ? (naoComprou / total * 100) : 0,
+    pctAbordados: total ? (abordados / total * 100) : 0,
+    pctConvertido: abordados ? (comprou / abordados * 100) : 0,
+    pctNaoAbordados: total ? (naoAbordados / total * 100) : 0
   };
 }
 
@@ -719,25 +906,35 @@ function renderResumoSupervisor() {
   const totalGeral = totalComprou + totalNao;
 
   const totalPedido = gruposParaTotal.reduce((a,g) => a + g.temPedido, 0);
+  const totalAbordados = gruposParaTotal.reduce((a,g) => a + g.abordados, 0);
+  const totalNaoAbordados = totalGeral - totalAbordados;
+  const pctAbordadosTotal = totalGeral ? (totalAbordados / totalGeral * 100) : 0;
+  const pctConvertidoTotal = totalAbordados ? (totalComprou / totalAbordados * 100) : 0;
+  const pctNaoAbordadosTotal = totalGeral ? (totalNaoAbordados / totalGeral * 100) : 0;
 
-  let html = '<table class="aligned"><colgroup>' +
+  let html = '<table class="aligned stats-table"><colgroup>' +
     '<col class="col-toggle"><col class="col-vendedor"><col class="col-supervisor">' +
     '<col class="col-num"><col class="col-num"><col class="col-num"><col class="col-num">' +
-    '<col class="col-total"><col class="col-pedido"></colgroup><thead><tr>' +
+    '<col class="col-total"><col class="col-pedido"><col class="col-num"><col class="col-num"><col class="col-num">' +
+    '<col class="col-num"><col class="col-num">' +
+    '</colgroup><thead><tr>' +
     '<th></th><th></th><th class="left">Supervisor</th><th>Já compraram</th><th>Não compraram</th>' +
-    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th>' +
+    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th><th>Abordados</th>' +
+    '<th>% Abordados</th><th>% Convertidos</th><th>Não Abordados</th><th>% Não Abordados</th>' +
     '</tr></thead><tbody>';
 
   html += `<tr class="total-row"><td></td><td></td><td class="left">Total Geral</td>` +
     `<td class="status-ok">${totalComprou}</td><td class="status-warn">${totalNao}</td>` +
     `<td>${pct(totalGeral ? totalComprou/totalGeral*100 : 0)}</td>` +
-    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td></tr>`;
+    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td><td>${totalAbordados}</td>` +
+    `<td>${pct(pctAbordadosTotal)}</td><td>${pct(pctConvertidoTotal)}</td><td>${totalNaoAbordados}</td><td>${pct(pctNaoAbordadosTotal)}</td></tr>`;
 
   for (const g of grupos) {
     const isActive = selSupervisor === g.label;
     html += `<tr class="vendor-row ${isActive ? 'active-row' : ''}" onclick="toggleSupervisorFilter('${g.label.replace(/'/g,"\\'")}')"><td></td><td></td><td class="left">${g.label}</td>` +
       `<td class="status-ok">${g.comprou}</td><td class="status-warn">${g.naoComprou}</td>` +
-      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td></tr>`;
+      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td><td>${g.abordados}</td>` +
+      `<td>${pct(g.pctAbordados)}</td><td>${pct(g.pctConvertido)}</td><td>${g.naoAbordados}</td><td>${pct(g.pctNaoAbordados)}</td></tr>`;
   }
   html += '</tbody></table>';
   document.getElementById('resumoSupervisorWrap').innerHTML = html;
@@ -764,18 +961,28 @@ function renderResumo() {
   const totalGeral = totalComprou + totalNao;
   const totalPedido = gruposParaTotal.reduce((a,g) => a + g.temPedido, 0);
 
-  let html = '<table class="aligned"><colgroup>' +
+  const totalAbordados = gruposParaTotal.reduce((a,g) => a + g.abordados, 0);
+  const totalNaoAbordados = totalGeral - totalAbordados;
+  const pctAbordadosTotal = totalGeral ? (totalAbordados / totalGeral * 100) : 0;
+  const pctConvertidoTotal = totalAbordados ? (totalComprou / totalAbordados * 100) : 0;
+  const pctNaoAbordadosTotal = totalGeral ? (totalNaoAbordados / totalGeral * 100) : 0;
+
+  let html = '<table class="aligned stats-table"><colgroup>' +
     '<col class="col-toggle"><col class="col-vendedor"><col class="col-supervisor">' +
     '<col class="col-num"><col class="col-num"><col class="col-num"><col class="col-num">' +
-    '<col class="col-total"><col class="col-pedido"></colgroup><thead><tr>' +
+    '<col class="col-total"><col class="col-pedido"><col class="col-num">' +
+    '<col class="col-num"><col class="col-num"><col class="col-num"><col class="col-num">' +
+    '</colgroup><thead><tr>' +
     '<th></th><th class="left">Vendedor</th><th class="left">Supervisor</th><th>Já compraram</th><th>Não compraram</th>' +
-    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th>' +
+    '<th>% Comprador</th><th>% Não comprador</th><th>Total</th><th>Tem Pedido</th><th>Abordados</th>' +
+    '<th>% Abordados</th><th>% Convertidos</th><th>Não Abordados</th><th>% Não Abordados</th>' +
     '</tr></thead><tbody>';
 
   html += `<tr class="total-row"><td></td><td class="left" colspan="2">Total Geral</td>` +
     `<td class="status-ok">${totalComprou}</td><td class="status-warn">${totalNao}</td>` +
     `<td>${pct(totalGeral ? totalComprou/totalGeral*100 : 0)}</td>` +
-    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td></tr>`;
+    `<td>${pct(totalGeral ? totalNao/totalGeral*100 : 0)}</td><td>${totalGeral}</td><td>${totalPedido}</td><td>${totalAbordados}</td>` +
+    `<td>${pct(pctAbordadosTotal)}</td><td>${pct(pctConvertidoTotal)}</td><td>${totalNaoAbordados}</td><td>${pct(pctNaoAbordadosTotal)}</td></tr>`;
 
   for (const g of grupos) {
     const key = g.key;
@@ -783,14 +990,16 @@ function renderResumo() {
     const isTele = key === '__TELEVENDAS__';
     const vendedor = isTele ? 'TELEVENDAS' : g.clientes[0].vendedor;
     const supervisor = isTele ? '' : g.clientes[0].supervisor;
+    const abordados = g.abordados;
     html += `<tr class="vendor-row" onclick="toggleVendor('${key.replace(/'/g,"\\'")}')">` +
       `<td><span class="toggle-icon">${isOpen ? '▾' : '▸'}</span></td>` +
       `<td class="left">${vendedor || '-'}</td><td class="left">${supervisor || '-'}</td>` +
       `<td class="status-ok">${g.comprou}</td><td class="status-warn">${g.naoComprou}</td>` +
-      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td></tr>`;
+      `<td>${pct(g.pctComprou)}</td><td>${pct(g.pctNaoComprou)}</td><td>${g.total}</td><td>${g.temPedido}</td><td>${abordados}</td>` +
+      `<td>${pct(g.pctAbordados)}</td><td>${pct(g.pctConvertido)}</td><td>${g.naoAbordados}</td><td>${pct(g.pctNaoAbordados)}</td></tr>`;
 
     if (isOpen) {
-      html += `<tr><td colspan="9" class="nested-wrap">${renderClientesNested(key, g.clientes)}</td></tr>`;
+      html += `<tr><td colspan="14" class="nested-wrap">${renderClientesNested(key, g.clientes)}</td></tr>`;
     }
   }
   html += '</tbody></table>';
@@ -798,13 +1007,12 @@ function renderResumo() {
 }
 
 function renderClientesNested(vendorKey, clientes) {
-  const colCount = 14 + MES_ATUAL;
   let html = '<table class="nested-table"><thead><tr>' +
-    '<th></th><th class="left">Codcli</th><th class="left">Cliente</th><th class="left">Cidade</th><th class="left">Ramo</th>';
+    '<th></th><th class="left">Codcli</th><th class="left cell-cap">Cliente</th><th class="left">Cidade</th><th class="left cell-cap">Ramo</th>';
   for (let m = 1; m <= MES_ATUAL; m++) html += `<th>${MESES[m-1]}</th>`;
   html += '<th>Potencial</th><th>Med. Ano</th><th>Med. 3M</th>' +
     '<th>Ult. Compra</th><th>Freq.</th><th>Freq Med.</th><th>Oportunidade</th>' +
-    '<th>Status</th><th>Tem Pedido</th></tr></thead><tbody>';
+    '<th>Status</th><th>Tem Pedido</th><th>Feedback</th><th>Últ. Feedback</th><th>Qtd</th></tr></thead><tbody>';
 
   const listaOrdenada = [...clientes].sort((a,b) => b.mediaAno - a.mediaAno);
 
@@ -818,7 +1026,7 @@ function renderClientesNested(vendorKey, clientes) {
   html += '<tr class="total-row"><td></td><td class="left" colspan="4">Total</td>';
   for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(totJan[m-1])}</td>`;
   html += `<td>${fmt(totPotencial)}</td><td>${fmt(totMediaAno)}</td><td>${fmt(totMedia3M)}</td>` +
-    '<td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
   // totalizador: qtd de clientes positivados (codoper 'S') por mês, desse vendedor
   const posMes = {};
@@ -828,25 +1036,23 @@ function renderClientesNested(vendorKey, clientes) {
   html += '<tr class="total-row"><td></td><td class="left" colspan="4">Clientes positivados</td>';
   for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(posMes[m])}</td>`;
   html += `<td>${fmt(statsPosVend.potencial)}</td><td>${fmt(statsPosVend.mediaAno)}</td><td>${fmt(statsPosVend.mediaTres)}</td>` +
-    '<td></td><td></td><td></td><td></td><td></td><td></td></tr>';
+    '<td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td><td></td></tr>';
 
   for (const c of listaOrdenada) {
-    const ck = vendorKey + '||' + c.codcli;
-    const isOpen = clientExpanded.has(ck);
-    html += `<tr class="client-row" onclick="event.stopPropagation(); toggleClient('${ck.replace(/'/g,"\\'")}', '${String(c.codcli).replace(/'/g,"\\'")}')">` +
-      `<td><span class="toggle-icon">${isOpen ? '▾' : '▸'}</span></td>` +
-      `<td class="left">${c.codcli}</td><td class="left">${c.cliente || ''}</td>` +
-      `<td class="left">${c.cidade || ''}</td><td class="left">${c.ramo || ''}</td>`;
+    html += `<tr class="client-row" onclick="event.stopPropagation(); abrirClienteModal('${String(c.codcli).replace(/'/g,"\\'")}')">` +
+      `<td><span class="toggle-icon">▸</span></td>` +
+      `<td class="left">${c.codcli}</td><td class="left cell-cap" title="${escapeHtml(c.cliente)}">${c.cliente || ''}</td>` +
+      `<td class="left">${c.cidade || ''}</td><td class="left cell-cap" title="${escapeHtml(c.ramo)}">${c.ramo || ''}</td>`;
     for (let m = 1; m <= MES_ATUAL; m++) html += `<td>${fmt(c.meses[m] || 0)}</td>`;
     html += `<td>${fmt(c.potencial)}</td><td>${fmt(c.mediaAno)}</td><td>${fmt(c.mediaTres)}</td>` +
       `<td>${c.ultimaCompra ? new Date(c.ultimaCompra + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>` +
       `<td>${c.freqAtual}</td><td>${c.freqMediaAnterior !== null ? c.freqMediaAnterior : '-'}</td>` +
       `<td>${c.oportunidade !== null ? c.oportunidade : '-'}</td>` +
       `<td class="${c.comprouMesAtual ? 'status-ok' : 'status-warn'}">${c.comprouMesAtual ? 'Comprou' : 'Não comprou'}</td>` +
-      `<td class="left">${c.pendingPedidos && c.pendingPedidos.length ? c.pendingPedidos.join(', ') : '-'}</td></tr>`;
-    if (isOpen) {
-      html += `<tr><td colspan="${colCount}" class="produtos-wrap" id="produtos-${ck.replace(/[^a-zA-Z0-9]/g,'_')}">Carregando produtos...</td></tr>`;
-    }
+      `<td class="left">${c.pendingPedidos && c.pendingPedidos.length ? c.pendingPedidos.join(', ') : '-'}</td>` +
+      `<td class="${c.qtdFeedbacks ? 'status-ok' : 'status-warn'}">${c.qtdFeedbacks ? 'Sim' : 'Não'}</td>` +
+      `<td>${c.ultFeedback ? new Date(c.ultFeedback + 'T00:00:00').toLocaleDateString('pt-BR') : '-'}</td>` +
+      `<td>${c.qtdFeedbacks || 0}</td></tr>`;
   }
   html += '</tbody></table>';
   return html;
@@ -865,19 +1071,31 @@ function toggleVendor(key) {
   renderResumo();
 }
 
-function toggleClient(clientKey, codcli) {
-  if (clientExpanded.has(clientKey)) {
-    clientExpanded.delete(clientKey);
-    renderResumo();
-    return;
-  }
-  clientExpanded.add(clientKey);
-  renderResumo();
-  carregarProdutos(clientKey, codcli);
+// Modal de detalhe do cliente: abre com os produtos comprados no mês e o
+// histórico de feedbacks (GEROT), em vez de expandir linhas na tela.
+let modalCodcli = null;
+
+function abrirClienteModal(codcli) {
+  const c = ALL_CLIENTES.find(cl => String(cl.codcli) === String(codcli));
+  if (!c) return;
+  modalCodcli = String(codcli);
+  document.getElementById('modalClienteNome').textContent = c.cliente || '-';
+  document.getElementById('modalClienteInfo').innerHTML =
+    `ID ${c.codcli} · ${c.cidade || '-'} · ${c.ramo || '-'}<br>` +
+    `Vendedor: ${c.vendedor || '-'} · Supervisor: ${c.supervisor || '-'}`;
+  document.getElementById('modalProdutos').textContent = 'Carregando produtos...';
+  document.getElementById('modalFeedbacks').textContent = 'Carregando feedbacks...';
+  document.getElementById('clientModal').style.display = 'flex';
+  carregarProdutosModal(codcli);
+  carregarFeedbacksModal(codcli);
 }
 
-async function carregarProdutos(clientKey, codcli) {
-  const cellId = 'produtos-' + clientKey.replace(/[^a-zA-Z0-9]/g,'_');
+function fecharClienteModal() {
+  document.getElementById('clientModal').style.display = 'none';
+  modalCodcli = null;
+}
+
+async function carregarProdutosModal(codcli) {
   try {
     let produtos = PRODUTOS_CACHE[codcli];
     if (!produtos) {
@@ -894,14 +1112,9 @@ async function carregarProdutos(clientKey, codcli) {
       produtos = await resp.json();
       PRODUTOS_CACHE[codcli] = produtos;
     }
-
-    const el = document.getElementById(cellId);
-    if (!el) return;
-
-    if (!produtos.length) {
-      el.innerHTML = 'Nenhum produto encontrado para o mês atual.';
-      return;
-    }
+    if (modalCodcli !== String(codcli)) return;
+    const el = document.getElementById('modalProdutos');
+    if (!produtos.length) { el.innerHTML = 'Nenhum produto encontrado para o mês atual.'; return; }
     let html = '<table class="nested-table" style="font-style: normal;"><thead><tr><th class="left">Produto</th><th>Qtd</th><th>Valor</th></tr></thead><tbody>';
     for (const p of produtos) {
       html += `<tr><td class="left">${p.produto || p.descricao || '-'}</td><td>${p.qt ?? '-'}</td><td>${fmt(p.total)}</td></tr>`;
@@ -909,9 +1122,97 @@ async function carregarProdutos(clientKey, codcli) {
     html += '</tbody></table>';
     el.innerHTML = html;
   } catch (err) {
-    const el = document.getElementById(cellId);
-    if (el) el.innerHTML = 'Erro ao buscar produtos: ' + err.message;
+    if (modalCodcli === String(codcli)) {
+      document.getElementById('modalProdutos').innerHTML = 'Erro ao buscar produtos: ' + err.message;
+    }
   }
+}
+
+// Feedbacks dos supervisores (GEROT) - somente leitura, tabela gerot_plandeguerra_feedback.
+async function carregarFeedbacksModal(codcli) {
+  try {
+    let rows = FEEDBACK_CACHE[codcli];
+    if (!rows) {
+      const resp = await fetch(
+        `${SUPABASE_URL}/rest/v1/gerot_plandeguerra_feedback?select=data_contato,feedback,usuario,criado_em&codcli=eq.${encodeURIComponent(String(codcli))}&order=data_contato.desc,criado_em.desc`,
+        {
+          headers: {
+            'apikey': SUPABASE_ANON_KEY,
+            'Authorization': 'Bearer ' + SUPABASE_ANON_KEY
+          }
+        }
+      );
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}: ${await resp.text()}`);
+      rows = await resp.json();
+      FEEDBACK_CACHE[codcli] = rows;
+    }
+    if (modalCodcli !== String(codcli)) return;
+    document.getElementById('modalFeedbacks').innerHTML = renderFeedbacks(rows);
+  } catch (err) {
+    if (modalCodcli === String(codcli)) {
+      document.getElementById('modalFeedbacks').innerHTML = 'Erro ao buscar feedbacks: ' + err.message;
+    }
+  }
+}
+
+// Alterna a visibilidade de um grupo (mes ou dia) no acordeao de feedbacks.
+function toggleFbGroup(id) {
+  const el = document.getElementById(id);
+  const arrow = document.getElementById(id + '-arrow');
+  if (!el) return;
+  const isHidden = el.style.display === 'none';
+  el.style.display = isHidden ? '' : 'none';
+  if (arrow) arrow.textContent = isHidden ? '▾' : '▸';
+}
+
+// Agrupa os feedbacks (ja ordenados data_contato desc, criado_em desc) por mes e depois
+// por dia, em acordeao: clica no mes pra ver os dias, clica no dia pra ver os feedbacks.
+// Por padrao só o mes/dia mais recente vem aberto, o resto comeca fechado.
+function renderFeedbacks(rows) {
+  if (!rows || !rows.length) return '<div style="color:var(--muted);font-style:italic;">Nenhum feedback registrado.</div>';
+  const porMes = {};
+  const mesOrder = [];
+  for (const r of rows) {
+    const dc = r.data_contato;
+    if (!dc) continue;
+    const ym = dc.slice(0,7);
+    if (!porMes[ym]) {
+      porMes[ym] = { label: `${MESES[Number(dc.slice(5,7))-1]}/${dc.slice(0,4)}`, dias: {}, diaOrder: [], total: 0 };
+      mesOrder.push(ym);
+    }
+    if (!porMes[ym].dias[dc]) { porMes[ym].dias[dc] = []; porMes[ym].diaOrder.push(dc); }
+    porMes[ym].dias[dc].push(r);
+    porMes[ym].total++;
+  }
+  let html = '<div class="feedback-list">';
+  mesOrder.forEach((ym, mi) => {
+    const grupoMes = porMes[ym];
+    const mAberto = mi === 0;
+    const mId = `fbm-${ym}`;
+    html += `<div class="feedback-month-header" onclick="toggleFbGroup('${mId}')">` +
+      `<span class="fb-arrow" id="${mId}-arrow">${mAberto ? '▾' : '▸'}</span>${grupoMes.label} ` +
+      `<span class="feedback-count">(${grupoMes.total})</span></div>`;
+    html += `<div class="feedback-month-body" id="${mId}" style="display:${mAberto ? '' : 'none'};">`;
+    grupoMes.diaOrder.forEach((dia, di) => {
+      const dAberto = mAberto && di === 0;
+      const dId = `fbd-${dia}`;
+      const dataFmt = new Date(dia + 'T00:00:00').toLocaleDateString('pt-BR');
+      const itens = grupoMes.dias[dia];
+      html += `<div class="feedback-day-header" onclick="event.stopPropagation(); toggleFbGroup('${dId}')">` +
+        `<span class="fb-arrow" id="${dId}-arrow">${dAberto ? '▾' : '▸'}</span>${dataFmt} ` +
+        `<span class="feedback-count">(${itens.length})</span></div>`;
+      html += `<div class="feedback-day-body" id="${dId}" style="display:${dAberto ? '' : 'none'};">`;
+      for (const it of itens) {
+        const hora = it.criado_em ? new Date(it.criado_em).toLocaleTimeString('pt-BR', {hour:'2-digit', minute:'2-digit'}) : '';
+        html += `<div class="feedback-item"><span class="feedback-meta">${hora ? hora + ' · ' : ''}${escapeHtml(it.usuario) || '-'}</span>` +
+          `<div class="feedback-text">${escapeHtml(it.feedback)}</div></div>`;
+      }
+      html += '</div>';
+    });
+    html += '</div>';
+  });
+  html += '</div>';
+  return html;
 }
 
 function exportExcelDetalhado() {
@@ -935,6 +1236,8 @@ function exportExcelDetalhado() {
     row['Oportunidade'] = c.oportunidade !== null ? c.oportunidade : '';
     row['Status'] = c.comprouMesAtual ? 'Comprou' : 'Nao comprou';
     row['Tem Pedido'] = (c.pendingPedidos && c.pendingPedidos.length) ? c.pendingPedidos.join(', ') : '';
+    row['Ult Feedback'] = c.ultFeedback || '';
+    row['Qtd Feedbacks'] = c.qtdFeedbacks || 0;
     return row;
   });
   const ws = XLSX.utils.json_to_sheet(rows);
@@ -1008,8 +1311,110 @@ document.getElementById('ramoFilter').addEventListener('change', (e) => {
   selRamo = e.target.value;
   renderTudo();
 });
+document.getElementById('abordadoFilter').addEventListener('change', (e) => {
+  selAbordado = e.target.value;
+  renderTudo();
+});
+document.getElementById('mesFilter').addEventListener('change', (e) => {
+  selMes = Number(e.target.value);
+  carregar();
+});
+document.getElementById('anoFilter').addEventListener('change', (e) => {
+  selAno = Number(e.target.value);
+  carregar();
+});
 
-carregar();
+// ===== Login (GEROT) =====
+const LOGIN_STORAGE_KEY = 'painel_acai_login';
+
+function getTodayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0');
+}
+
+function getSessaoValida() {
+  try {
+    const raw = localStorage.getItem(LOGIN_STORAGE_KEY);
+    if (!raw) return null;
+    const sess = JSON.parse(raw);
+    if (sess && sess.nome && sess.data === getTodayStr()) return sess;
+    return null;
+  } catch (e) { return null; }
+}
+
+function mostrarLogin() {
+  document.getElementById('loginScreen').style.display = 'flex';
+  document.getElementById('fixedTop').style.display = 'none';
+  document.getElementById('content').style.display = 'none';
+}
+
+function esconderLogin(sessao) {
+  document.getElementById('loginScreen').style.display = 'none';
+  document.getElementById('fixedTop').style.display = '';
+  document.getElementById('content').style.display = '';
+  const badge = document.getElementById('userBadge');
+  if (badge && sessao) {
+    badge.innerHTML = `${sessao.nome}${sessao.perfil ? ' · ' + sessao.perfil : ''} &nbsp;<button onclick="fazerLogout()">Sair</button>`;
+  }
+}
+
+async function fazerLogin() {
+  const nomeEl = document.getElementById('loginNome');
+  const senhaEl = document.getElementById('loginSenha');
+  const errEl = document.getElementById('loginErro');
+  const btnEl = document.getElementById('loginBtn');
+  const nome = nomeEl.value.trim();
+  const senha = senhaEl.value;
+  errEl.textContent = '';
+  if (!nome || !senha) { errEl.textContent = 'Preencha usuário e senha.'; return; }
+  btnEl.disabled = true;
+  btnEl.textContent = 'Entrando...';
+  try {
+    const resp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/gerot_login`, {
+      method: 'POST',
+      headers: {
+        'apikey': SUPABASE_ANON_KEY,
+        'Authorization': 'Bearer ' + SUPABASE_ANON_KEY,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ p_nome: nome, p_senha: senha })
+    });
+    const data = await resp.json();
+    if (!resp.ok || !data || data.erro) {
+      errEl.textContent = (data && data.erro) ? data.erro : 'Usuário ou senha inválidos.';
+      btnEl.disabled = false;
+      btnEl.textContent = 'Entrar';
+      return;
+    }
+    const sessao = { nome: data.nome, perfil: data.perfil, data: getTodayStr() };
+    localStorage.setItem(LOGIN_STORAGE_KEY, JSON.stringify(sessao));
+    senhaEl.value = '';
+    esconderLogin(sessao);
+    iniciarPainel();
+  } catch (e) {
+    errEl.textContent = 'Erro ao conectar. Tente novamente.';
+    btnEl.disabled = false;
+    btnEl.textContent = 'Entrar';
+  }
+}
+
+function fazerLogout() {
+  localStorage.removeItem(LOGIN_STORAGE_KEY);
+  location.reload();
+}
+
+function iniciarPainel() {
+  popularMesAnoFiltro();
+  carregar();
+}
+
+const sessaoAtual = getSessaoValida();
+if (sessaoAtual) {
+  esconderLogin(sessaoAtual);
+  iniciarPainel();
+} else {
+  mostrarLogin();
+}
 </script>
 
 </body>
