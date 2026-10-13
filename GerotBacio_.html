@@ -6873,6 +6873,9 @@ async function buscarClientesCompletos(vendedor, supervisor) {
   const hoje = diaSemanaDeData(document.getElementById('f-data')?.value || hojeLocalISO());
   const dataFormAtual = document.getElementById('f-data')?.value || hojeLocalISO();
   const docsFaturamento = new Set(semOutro.map(c => String(c.id)));
+  // Clientes que a gestão ARQUIVOU (retirados da base) não podem voltar pela lista da
+  // Faturamento — sem isso, quem tinha venda no ERP continuava aparecendo na busca.
+  const docsArquivados = new Set(doBacio.filter(c => c.arquivado && c.documento).map(c => String(c.documento)));
 
   // Reprogramações pendentes desse vendedor pra hoje — o Roteiro já soma isso com
   // o dia fixo, então essa lista de "previstos hoje" precisa fazer o mesmo, senão
@@ -6900,7 +6903,7 @@ async function buscarClientesCompletos(vendedor, supervisor) {
 
   // Evita duplicar cliente que já existe na Faturamento (mesmo documento/codcli)
   const bacioSemDuplicar = doBacioDoVendedor.filter(c => !docsFaturamento.has(String(c.id)));
-  const faturamentoMarcado = semOutro.map(c => ({ ...c, origem: 'FATURAMENTO', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false, temDiaFixo: false }));
+  const faturamentoMarcado = semOutro.filter(c => !docsArquivados.has(String(c.id))).map(c => ({ ...c, origem: 'FATURAMENTO', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false, temDiaFixo: false }));
 
   const todos = [...bacioSemDuplicar, ...faturamentoMarcado];
   todos.push({ id: 'OUTRO', nome: '+ Outro (não listado)', ramo: '', origem: '', bacioId: '', freezerCod: '', freezerDesc: '', previstoHoje: false, temDiaFixo: false });
