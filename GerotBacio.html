@@ -1990,10 +1990,28 @@ async function prepararIdentificacaoForm(vendedorDoCliente) {
   if(_loggedPerfil === 'vendedor') {
     await renderSupSelectorComPerfil();
   } else if(vendedorDoCliente) {
+    // Gestão lançando a visita em nome do vendedor dono do cliente
     const fVend = document.getElementById('f-vendedor');
     if(fVend) { fVend.innerHTML = `<option value="${vendedorDoCliente}" selected>${vendedorDoCliente}</option>`; fVend.disabled = true; }
+    const sup = await supervisorDoVendedor(vendedorDoCliente);
+    const fSup = document.getElementById('f-supervisor');
+    if(fSup && sup) { fSup.innerHTML = `<option value="${sup}" selected>${sup}</option>`; fSup.disabled = true; }
     preencherRotaDoVendedor(vendedorDoCliente);
   }
+}
+
+// Supervisor responsável por um vendedor (cadastro de usuários). Supervisor com carteira própria
+// (ex: Froner) responde por ele mesmo.
+async function supervisorDoVendedor(nome) {
+  try {
+    const r = await fetch(`${sbUrl()}/rest/v1/Bacio_Usuarios?nome=eq.${encodeURIComponent(nome)}&select=supervisor,perfil&limit=1`, {
+      headers:{'apikey':sbKey(),'Authorization':'Bearer '+sbKey()}
+    });
+    const rows = r.ok ? await r.json() : [];
+    if(rows[0]?.supervisor) return rows[0].supervisor;
+    if(rows[0]?.perfil === 'supervisor') return nome;
+  } catch(e) { /* cai no fallback abaixo */ }
+  return _loggedPerfil === 'supervisor' ? _loggedSupervisor : '';
 }
 
 // Clique num cliente do Roteiro: hoje + cliente do próprio usuário → abre o formulário
@@ -2003,7 +2021,12 @@ async function abrirItemRoteiro(i) {
   if(!it) return;
   const dataAlvo = document.getElementById('rot-f-data')?.value;
   const ehMeu = (it.vendedor||'').toUpperCase() === (_loggedSupervisor||'').toUpperCase();
-  if(dataAlvo === hojeLocalISO() && ehMeu) { await abrirFormularioDoRoteiro(it); return; }
+  if(dataAlvo === hojeLocalISO() && (ehMeu || _loggedPerfil !== 'vendedor')) {
+    // Gestão lançando em nome de outro vendedor: confirma antes (a localização gravada é a do celular de quem lança)
+    if(!ehMeu && !confirm(`Lançar a visita em nome de ${it.vendedor}?\n\nOK = abrir o formulário\nCancelar = ver só o endereço`)) { mostrarDetalheCliente(it); return; }
+    await abrirFormularioDoRoteiro(it);
+    return;
+  }
   mostrarDetalheCliente(it);
 }
 
