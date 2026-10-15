@@ -996,6 +996,11 @@ tbody td { padding: 11px 12px; }
           <input type="checkbox" id="cli-filtro-semvinculo" onchange="renderClientesCad()"> Só prospecções sem código (documento em branco)
         </label>
       </div>
+      <div class="field" id="cli-filtro-descartados-wrap" style="display:flex;align-items:flex-end;gap:6px;padding-bottom:10px">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:.8rem;color:var(--danger);text-transform:none;font-weight:600">
+          <input type="checkbox" id="cli-filtro-descartados" onchange="renderClientesCad()"> 🚫 Ver só os descartados
+        </label>
+      </div>
       <button class="btn btn-secondary" onclick="renderClientesCad()" style="margin-top:auto">🔄 Atualizar</button>
       <button class="btn btn-primary" onclick="exportarClientesExcel()" style="margin-top:auto">📊 Exportar Excel</button>
     </div>
@@ -5470,19 +5475,28 @@ async function renderClientesCad() {
   const busca = (document.getElementById('cli-f-busca')?.value||'').toLowerCase();
   const escopo = await vendedoresDoEscopo(); // null = vê tudo; array = só esses vendedores
   console.log('renderClientesCad — escopo aplicado:', escopo);
+  const soDescartados = !!document.getElementById('cli-filtro-descartados')?.checked;
   let lista = clientes;
   if(escopo) lista = lista.filter(c=>escopo.includes(c.vendedor));
+  // Descartados saem da lista normal; só aparecem quando o filtro "Ver só os descartados" está marcado
+  lista = soDescartados ? lista.filter(c=>c.status==='descartado') : lista.filter(c=>c.status!=='descartado');
   if(filtroVend) lista = lista.filter(c=>c.vendedor===filtroVend);
   if(document.getElementById('cli-filtro-semvinculo')?.checked) lista = lista.filter(c=>!c.documento);
   if(busca) lista = lista.filter(c => (c.nome||'').toLowerCase().includes(busca) || (c.documento||'').toLowerCase().includes(busca) || (c.razao_social||'').toLowerCase().includes(busca));
 
   // ---- Resumo de quantidade ----
-  const baseEscopo = escopo ? clientes.filter(c=>escopo.includes(c.vendedor)) : clientes;
-  const arquivados = baseEscopo.filter(c=>c.arquivado);
-  const linkArquivados = arquivados.length ? ` <span style="cursor:pointer;text-decoration:underline;color:var(--muted)" onclick="verClientesArquivados()">(${arquivados.length} arquivado${arquivados.length>1?'s':''} — descartados removidos da visão, clique pra ver)</span>` : '';
+  const baseTodos = escopo ? clientes.filter(c=>escopo.includes(c.vendedor)) : clientes;
+  const descartadosEscopo = baseTodos.filter(c=>c.status==='descartado');
+  const baseEscopo = baseTodos.filter(c=>c.status!=='descartado'); // base ativa (sem descartados)
+  const nArq = descartadosEscopo.filter(c=>c.arquivado).length;
+  const linkArquivados = descartadosEscopo.length
+    ? ` <span style="cursor:pointer;text-decoration:underline;color:var(--muted)" onclick="alternarVerDescartados()">(${descartadosEscopo.length} descartado${descartadosEscopo.length>1?'s':''}${nArq?`, ${nArq} arquivado${nArq>1?'s':''}`:''} — clique pra ${soDescartados?'voltar à lista':'ver'})</span>`
+    : '';
   const resumoEl = document.getElementById('cli-resumo-qtd');
-  if(_loggedPerfil === 'vendedor') {
-    resumoEl.innerHTML = `📊 Você tem <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) na sua base.`;
+  if(soDescartados) {
+    resumoEl.innerHTML = `🚫 Mostrando só os <b style="color:var(--danger)">${lista.length}</b> cliente(s) descartado(s) — eles não aparecem na lista normal.${linkArquivados}`;
+  } else if(_loggedPerfil === 'vendedor') {
+    resumoEl.innerHTML = `📊 Você tem <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) na sua base.${linkArquivados}`;
   } else if(filtroVend) {
     resumoEl.innerHTML = `📊 <b style="color:var(--text)">${baseEscopo.filter(c=>c.vendedor===filtroVend).length}</b> cliente(s) de <b>${filtroVend}</b> — base total (todos os vendedores no seu escopo): <b style="color:var(--text)">${baseEscopo.length}</b>.${linkArquivados}`;
   } else {
@@ -5492,7 +5506,7 @@ async function renderClientesCad() {
     resumoEl.innerHTML = `📊 Base total: <b style="color:var(--text)">${baseEscopo.length}</b> cliente(s) — ${detalhe}${linkArquivados}`;
   }
 
-  if(!lista.length) { el.innerHTML = '<tr><td colspan="7" class="empty-state">Nenhum cliente encontrado (veja o console — pode ser filtro de vendedor sem correspondência).</td></tr>'; return; }
+  if(!lista.length) { el.innerHTML = `<tr><td colspan="7" class="empty-state">${soDescartados ? 'Nenhum cliente descartado.' : 'Nenhum cliente encontrado (veja o console — pode ser filtro de vendedor sem correspondência).'}</td></tr>`; window._clientesListaAtual = []; return; }
 
   window._clientesListaAtual = lista; // pra exportação em Excel
   el.innerHTML = lista.map(c => {
@@ -5509,7 +5523,7 @@ async function renderClientesCad() {
     return `<tr style="border-bottom:1px solid var(--border)">
       <td style="padding:9px 10px;font-weight:600;cursor:pointer;color:var(--accent2)" onclick="abrirDetalhePorDocumento('${c.documento||''}','${c.id}')">${nomeComId(c.nome, c.documento)}</td>
       <td style="padding:9px 10px;color:var(--muted)">${c.vendedor||'-'}</td>
-      <td style="padding:9px 10px"><span style="font-size:.72rem;color:${st.color};background:${st.color}22;border-radius:5px;padding:2px 8px">${st.lbl}</span></td>
+      <td style="padding:9px 10px"><span style="font-size:.72rem;color:${st.color};background:${st.color}22;border-radius:5px;padding:2px 8px">${st.lbl}</span>${c.arquivado?' <span title="Arquivado pela gestão" style="font-size:.7rem;color:var(--muted)">🗄️ arquivado</span>':''}</td>
       <td style="padding:9px 10px;color:var(--muted)">${c.dia_visita!=null && c.dia_visita!=='' ? DIAS_SEMANA[c.dia_visita] : '—'}</td>
       <td style="padding:9px 10px;color:var(--muted)">${c.frequencia && c.frequencia!=='SEMANAL' ? `${c.frequencia.charAt(0)+c.frequencia.slice(1).toLowerCase()}${c.semanas_mes?' (Sem. '+c.semanas_mes+')':''}` : 'Semanal'}</td>
       <td style="padding:9px 10px;font-size:.8rem">${freezerTxt}</td>
@@ -5626,6 +5640,11 @@ async function arquivarClienteDescartado(id) {
       showToast('❌ Erro ao arquivar', '#d6304f');
     }
   } catch(e) { showToast('❌ '+e.message, '#d6304f'); }
+}
+
+function alternarVerDescartados() {
+  const chk = document.getElementById('cli-filtro-descartados');
+  if(chk) { chk.checked = !chk.checked; renderClientesCad(); }
 }
 
 function verClientesArquivados() {
