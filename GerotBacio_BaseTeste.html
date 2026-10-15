@@ -320,6 +320,7 @@ tbody td { padding: 11px 12px; }
     <div style="color:var(--muted);font-size:.85rem">Toque num item pra abrir</div>
   </div>
   <div id="home-cards" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:14px"></div>
+  <div style="text-align:center;margin-top:22px;font-size:.7rem;color:var(--muted)">Versão do app: <span id="home-versao"></span></div>
 </div>
 
 <div id="page-form" class="page">
@@ -2077,9 +2078,11 @@ async function abrirVisitaForaDoRoteiro() {
   if(d && !d.viaRoteiro && d.clienteId) { cur = 0; renderPdv(0); }
   else { cur = 0; pdvs[0] = newPdv(); renderPdv(0); saveDraft(); }
 }
+const APP_VERSAO = '15/10/2026 · rev. 3 (contador do Roteiro por clientes únicos)';
 function renderHomeCards() {
   const el = document.getElementById('home-cards');
   if(!el) return;
+  const vEl = document.getElementById('home-versao'); if(vEl) vEl.textContent = APP_VERSAO;
   const perfil = _loggedPerfil;
   const itens = [
     {page:'roteiro', icone:'🗺️', titulo:'Roteiro', cor:'#0891b2', sempre:true},
@@ -3310,7 +3313,7 @@ async function renderDashboard() {
     const visitadosHoje = new Set((porDiaRotas[dia] ? rows.filter(r=>r.data===dia) : []).map(r=>r.cliente_id));
     const idsprevistos = new Set(previstos.map(chaveClienteDash));
     const qtdCumpridos = [...idsprevistos].filter(id=>visitadosHoje.has(id)).length;
-    aderenciasPorDia.push(qtdCumpridos/previstos.length);
+    aderenciasPorDia.push(qtdCumpridos/idsprevistos.size); // clientes únicos (cadastro duplicado não pode inflar o previsto)
   });
   const aderenciaMediaRoteiro = aderenciasPorDia.length ? (aderenciasPorDia.reduce((s,v)=>s+v,0)/aderenciasPorDia.length)*100 : null;
 
@@ -6289,7 +6292,16 @@ async function renderRoteiro() {
   const reprogHoje = reprogs.filter(r => r.reprogramar_para===dataAlvo && dentroDoEscopo(r.vendedor));
 
   // ---- Aderência ao Roteiro: do que estava planejado pra hoje, quanto foi de fato lançado? ----
-  const planejadosHoje = [...fixosHoje, ...reprogHoje.map(r=>({documento:r.cliente_id, vendedor:r.vendedor}))];
+  // Planejados = clientes ÚNICOS (um cliente com 2 reprogramações pra hoje, ou com dia fixo + reprogramação,
+  // conta uma vez só — igual à lista que aparece embaixo).
+  const planejadosBrutos = [...fixosHoje, ...reprogHoje.map(r=>({documento:r.cliente_id, vendedor:r.vendedor}))];
+  const _vistosPlanejados = new Set();
+  const planejadosHoje = planejadosBrutos.filter(c => {
+    const k = String(c.documento || c.id);
+    if(_vistosPlanejados.has(k)) return false;
+    _vistosPlanejados.add(k);
+    return true;
+  });
   const elAderencia = document.getElementById('rot-aderencia');
   window._roteiroLancadosHojeIds = new Set(); // usado abaixo pra pintar de verde os já lançados
   if(!planejadosHoje.length) {
