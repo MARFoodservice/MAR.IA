@@ -178,6 +178,32 @@ tr:hover td{background:rgba(255,255,255,0.025);}
 .meta-ok{color:var(--green);}
 .meta-warn{color:var(--yellow);}
 .meta-low{color:#ef4444;}
+
+/* ── MULTI-SELECT ── */
+.ms-wrap{position:relative;display:inline-flex;flex-direction:column;gap:2px;}
+.ms-btn{background:var(--bg2,#1e2533);color:var(--text,#e2e8f0);border:1px solid rgba(255,255,255,.1);
+  border-radius:6px;padding:4px 8px;font-size:11px;cursor:pointer;min-width:90px;max-width:150px;
+  display:flex;align-items:center;justify-content:space-between;gap:4px;white-space:nowrap;height:28px;}
+.ms-btn.ms-active{border-color:#3b82f6;}
+.ms-count{background:#3b82f6;color:#fff;border-radius:10px;padding:0 5px;font-size:9px;font-weight:700;flex-shrink:0;}
+.ms-dropdown{position:fixed;z-index:9999;background:#1e2533;border:1px solid rgba(255,255,255,.15);
+  border-radius:10px;padding:8px 0;min-width:220px;max-width:300px;
+  box-shadow:0 8px 32px rgba(0,0,0,.6);display:none;flex-direction:column;overflow:hidden;}
+.ms-dropdown.ms-open{display:flex;}
+.ms-search{margin:0 8px 6px;padding:6px 10px;background:#0f1520;border:1px solid rgba(255,255,255,.1);
+  border-radius:6px;color:#e2e8f0;font-size:11px;outline:none;}
+.ms-search:focus{border-color:#3b82f6;}
+.ms-actions{display:flex;gap:6px;padding:0 8px 6px;border-bottom:1px solid rgba(255,255,255,.07);}
+.ms-ab{flex:1;padding:4px;background:#0f1520;border:1px solid rgba(255,255,255,.1);
+  border-radius:5px;color:#94a3b8;font-size:10px;cursor:pointer;text-align:center;}
+.ms-ab:hover{background:#3b82f6;color:#fff;border-color:#3b82f6;}
+.ms-list{overflow-y:auto;max-height:240px;padding:2px 4px;}
+.ms-item{display:flex;align-items:center;gap:8px;padding:5px 8px;border-radius:6px;cursor:pointer;}
+.ms-item:hover{background:rgba(255,255,255,.05);}
+.ms-item input[type=checkbox]{accent-color:#3b82f6;width:13px;height:13px;flex-shrink:0;cursor:pointer;}
+.ms-item label{flex:1;color:#e2e8f0;cursor:pointer;font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.ms-empty{padding:8px;text-align:center;color:#64748b;font-size:10px;}
+.ms-marca-note{font-size:9px;color:#f97316;padding:2px 8px 5px;font-style:italic;}
 </style>
 </head>
 <body>
@@ -193,13 +219,48 @@ tr:hover td{background:rgba(255,255,255,0.025);}
   <div class="filters">
     <div class="fg"><span class="fl">De</span><input type="date" id="f-from"/></div>
     <div class="fg"><span class="fl">Até</span><input type="date" id="f-to"/></div>
-    <div class="fg"><span class="fl">Filial</span><select id="f-fil"><option value="">Todas</option></select></div>
-    <div class="fg"><span class="fl">Supervisor</span><select id="f-sup"><option value="">Todos</option></select></div>
-    <div class="fg"><span class="fl">Vendedor</span><select id="f-vend"><option value="">Todos</option></select></div>
-    <div class="fg"><span class="fl">Departamento</span><select id="f-dep"><option value="">Todos</option></select></div>
-    <div class="fg"><span class="fl">Produto</span><select id="f-prod"><option value="">Todos</option></select></div>
-    <div class="fg"><span class="fl">Ramo</span><select id="f-ramo"><option value="">Todos</option></select></div>
-    <div class="fg"><span class="fl">Cliente</span><select id="f-cli"><option value="">Todos</option></select></div>
+    <div class="ms-wrap" id="mw-fil"><span class="fl">Filial</span>
+      <button class="ms-btn" onclick="msToggle('fil')"><span id="ms-lbl-fil">Todos</span><span class="ms-count" id="ms-cnt-fil" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-fil">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('fil',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('fil')">Todos</button><button class="ms-ab" onclick="msNone('fil')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-fil"></div></div></div>
+    <div class="ms-wrap" id="mw-sup"><span class="fl">Supervisor</span>
+      <button class="ms-btn" onclick="msToggle('sup')"><span id="ms-lbl-sup">Todos</span><span class="ms-count" id="ms-cnt-sup" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-sup">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('sup',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('sup')">Todos</button><button class="ms-ab" onclick="msNone('sup')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-sup"></div></div></div>
+    <div class="ms-wrap" id="mw-vend"><span class="fl">Vendedor</span>
+      <button class="ms-btn" onclick="msToggle('vend')"><span id="ms-lbl-vend">Todos</span><span class="ms-count" id="ms-cnt-vend" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-vend">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('vend',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('vend')">Todos</button><button class="ms-ab" onclick="msNone('vend')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-vend"></div></div></div>
+    <div class="ms-wrap" id="mw-dep"><span class="fl">Departamento</span>
+      <button class="ms-btn" onclick="msToggle('dep')"><span id="ms-lbl-dep">Todos</span><span class="ms-count" id="ms-cnt-dep" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-dep">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('dep',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('dep')">Todos</button><button class="ms-ab" onclick="msNone('dep')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-dep"></div></div></div>
+    <div class="ms-wrap" id="mw-prod"><span class="fl">Marca/Produto</span>
+      <button class="ms-btn" onclick="msToggle('prod')"><span id="ms-lbl-prod">Todos</span><span class="ms-count" id="ms-cnt-prod" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-prod">
+        <input class="ms-search" placeholder="Digite marca ou produto..." oninput="msSearch('prod',this.value)"/>
+        <div class="ms-marca-note">🔍 Busque por marca para ver todos os produtos</div><div class="ms-actions"><button class="ms-ab" onclick="msAll('prod')">Todos</button><button class="ms-ab" onclick="msNone('prod')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-prod"></div></div></div>
+    <div class="ms-wrap" id="mw-ramo"><span class="fl">Ramo</span>
+      <button class="ms-btn" onclick="msToggle('ramo')"><span id="ms-lbl-ramo">Todos</span><span class="ms-count" id="ms-cnt-ramo" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-ramo">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('ramo',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('ramo')">Todos</button><button class="ms-ab" onclick="msNone('ramo')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-ramo"></div></div></div>
+    <div class="ms-wrap" id="mw-cli"><span class="fl">Cliente</span>
+      <button class="ms-btn" onclick="msToggle('cli')"><span id="ms-lbl-cli">Todos</span><span class="ms-count" id="ms-cnt-cli" style="display:none"></span><span style="font-size:8px;opacity:.6">&#9660;</span></button>
+      <div class="ms-dropdown" id="ms-dd-cli">
+        <input class="ms-search" placeholder="Buscar..." oninput="msSearch('cli',this.value)"/>
+        <div class="ms-actions"><button class="ms-ab" onclick="msAll('cli')">Todos</button><button class="ms-ab" onclick="msNone('cli')">Limpar</button></div>
+        <div class="ms-list" id="ms-list-cli"></div></div></div>
     <button class="btn-reset" onclick="resetFilters()">↺ Limpar</button>
   </div>
   <div class="nav-tabs">
@@ -665,33 +726,88 @@ async function loadData(){
 function setSyncState(cls,txt){g('sync-dot').className=cls;g('sync-txt').textContent=txt;}
 
 function populateAllFilters(data){
-  fill('f-fil',[...new Set(data.map(r=>r.filial).filter(Boolean))].sort());
-  fill('f-sup',[...new Set(data.map(r=>r.supervisor).filter(Boolean))].sort());
-  fill('f-vend',[...new Set(data.map(r=>r.rca).filter(Boolean))].sort());
-  fill('f-dep',[...new Set(data.map(r=>r.departamento).filter(Boolean))].sort());
-  fill('f-prod',[...new Set(data.map(r=>r.descricao).filter(Boolean))].sort());
-  fill('f-ramo',[...new Set(data.map(r=>r.ramo_ativ).filter(Boolean))].sort());
-  fill('f-cli',[...new Set(data.map(r=>r.cliente).filter(Boolean))].sort());
+  msFillList('fil',[...new Set(data.map(r=>r.filial).filter(Boolean))].sort());
+  msFillList('sup',[...new Set(data.map(r=>r.supervisor).filter(Boolean))].sort());
+  msFillList('vend',[...new Set(data.map(r=>r.rca).filter(Boolean))].sort());
+  msFillList('dep',[...new Set(data.map(r=>r.departamento).filter(Boolean))].sort());
+  msFillList('prod',[...new Set(data.map(r=>r.descricao).filter(Boolean))].sort());
+  msFillList('ramo',[...new Set(data.map(r=>r.ramo_ativ).filter(Boolean))].sort());
+  msFillList('cli',[...new Set(data.map(r=>r.cliente).filter(Boolean))].sort());
 }
-g('f-sup').addEventListener('change',()=>{
-  const v=g('f-sup').value;
-  fill('f-vend',[...new Set((v?ALL.filter(r=>r.supervisor===v):ALL).map(r=>r.rca).filter(Boolean))].sort());
-  g('f-vend').value='';render();
+['f-from','f-to'].forEach(id=>g(id).addEventListener('change',render));
+
+
+// ── MULTI-SELECT ENGINE ──
+const MS={};
+const MS_OPTS={};
+const MS_KEYS=['fil','sup','vend','dep','prod','ramo','cli'];
+const MS_FIELD={fil:'filial',sup:'supervisor',vend:'rca',dep:'departamento',prod:'descricao',ramo:'ramo_ativ',cli:'cliente'};
+MS_KEYS.forEach(k=>{MS[k]=new Set();});
+
+function msToggle(k){
+  const dd=document.getElementById('ms-dd-'+k);
+  const isOpen=dd.classList.contains('ms-open');
+  MS_KEYS.forEach(x=>{document.getElementById('ms-dd-'+x).classList.remove('ms-open');document.querySelector('#mw-'+x+' .ms-btn').classList.remove('ms-active');});
+  if(!isOpen){
+    dd.classList.add('ms-open');
+    document.querySelector('#mw-'+k+' .ms-btn').classList.add('ms-active');
+    const btn=document.querySelector('#mw-'+k+' .ms-btn');
+    const rect=btn.getBoundingClientRect();
+    dd.style.top=(rect.bottom+4)+'px';
+    dd.style.left=Math.min(rect.left,window.innerWidth-310)+'px';
+  }
+}
+document.addEventListener('click',function(e){
+  if(!e.target.closest('.ms-wrap')){
+    MS_KEYS.forEach(x=>{document.getElementById('ms-dd-'+x).classList.remove('ms-open');document.querySelector('#mw-'+x+' .ms-btn').classList.remove('ms-active');});
+  }
 });
-g('f-dep').addEventListener('change',()=>{
-  const v=g('f-dep').value;
-  fill('f-prod',[...new Set((v?ALL.filter(r=>r.departamento===v):ALL).map(r=>r.descricao).filter(Boolean))].sort());
-  g('f-prod').value='';render();
-});
-g('f-ramo').addEventListener('change',()=>{
-  const v=g('f-ramo').value;
-  fill('f-cli',[...new Set((v?ALL.filter(r=>r.ramo_ativ===v):ALL).map(r=>r.cliente).filter(Boolean))].sort());
-  g('f-cli').value='';render();
-});
-['f-from','f-to','f-fil','f-vend','f-prod','f-cli'].forEach(id=>g(id).addEventListener('change',render));
+function msFillList(k,opts){
+  MS_OPTS[k]=opts;
+  // Keep only still-valid selections
+  MS[k]=new Set([...MS[k]].filter(v=>opts.includes(v)));
+  msRenderList(k,'');msUpdateBtn(k);
+}
+function msRenderList(k,q){
+  const list=document.getElementById('ms-list-'+k);
+  const filtered=q?MS_OPTS[k].filter(o=>o.toLowerCase().includes(q.toLowerCase())):MS_OPTS[k];
+  if(!filtered.length){list.innerHTML='<div class="ms-empty">Nenhum resultado</div>';return;}
+  list.innerHTML=filtered.map(o=>{
+    const chk=MS[k].has(o)?'checked':'';
+    const id='cb-'+k+'-'+btoa(unescape(encodeURIComponent(o))).replace(/[^a-zA-Z0-9]/g,'').slice(0,12);
+    const esc=o.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="ms-item"><input type="checkbox" id="${id}" ${chk} onchange="msCb('${k}','${esc}',this.checked)"/><label for="${id}">${o}</label></div>`;
+  }).join('');
+}
+function msSearch(k,q){msRenderList(k,q);}
+function msCb(k,val,chk){if(chk)MS[k].add(val);else MS[k].delete(val);msUpdateBtn(k);render();}
+function msAll(k){
+  const list=document.getElementById('ms-list-'+k);
+  list.querySelectorAll('input[type=checkbox]').forEach(cb=>{
+    if(!cb.checked){const lbl=cb.nextElementSibling.textContent;MS[k].add(lbl);cb.checked=true;}
+  });
+  msUpdateBtn(k);render();
+}
+function msNone(k){
+  MS[k].clear();
+  document.getElementById('ms-list-'+k).querySelectorAll('input[type=checkbox]').forEach(cb=>cb.checked=false);
+  msUpdateBtn(k);render();
+}
+function msUpdateBtn(k){
+  const cnt=document.getElementById('ms-cnt-'+k);
+  const lbl=document.getElementById('ms-lbl-'+k);
+  const n=MS[k].size;
+  if(n===0){cnt.style.display='none';lbl.textContent='Todos';}
+  else{cnt.style.display='inline';cnt.textContent=n;lbl.textContent=n===1?[...MS[k]][0].slice(0,16):n+' selecionados';}
+}
+function msFilter(r,k,field){const s=MS[k];if(s.size===0)return true;return s.has(r[field]);}
 
 function fill(id,opts){
-  const el=g(id),cur=el.value;
+  const keyMap={'f-fil':'fil','f-sup':'sup','f-vend':'vend','f-dep':'dep','f-prod':'prod','f-ramo':'ramo','f-cli':'cli'};
+  const k=keyMap[id];
+  if(k){msFillList(k,opts);return;}
+  const el=g(id);if(!el)return;
+  const cur=el.value;
   el.innerHTML='<option value="">Todos</option>';
   opts.forEach(o=>{const op=document.createElement('option');op.value=op.textContent=o;el.appendChild(op);});
   if(cur&&opts.includes(cur))el.value=cur;
@@ -706,40 +822,39 @@ function pd(s){
 
 function getFiltered(){
   const from=g('f-from').value,to=g('f-to').value;
-  const fil=g('f-fil').value,sup=g('f-sup').value,vend=g('f-vend').value;
-  const dep=g('f-dep').value,prod=g('f-prod').value,ramo=g('f-ramo').value,cli=g('f-cli').value;
   return ALL.filter(r=>{
     const d=pd(r.data_lancamento);
     if(!d||d.length!==10)return false;
     if(from&&d<from)return false;
     if(to&&d>to)return false;
-    if(fil&&r.filial!==fil)return false;
-    if(sup&&r.supervisor!==sup)return false;
-    if(vend&&r.rca!==vend)return false;
-    if(dep&&r.departamento!==dep)return false;
-    if(prod&&r.descricao!==prod)return false;
-    if(ramo&&r.ramo_ativ!==ramo)return false;
-    if(cli&&r.cliente!==cli)return false;
+    if(!msFilter(r,'fil','filial'))return false;
+    if(!msFilter(r,'sup','supervisor'))return false;
+    if(!msFilter(r,'vend','rca'))return false;
+    if(!msFilter(r,'dep','departamento'))return false;
+    if(!msFilter(r,'prod','descricao'))return false;
+    if(!msFilter(r,'ramo','ramo_ativ'))return false;
+    if(!msFilter(r,'cli','cliente'))return false;
     return true;
   });
 }
 
 // Tendência: sem filtro de data, só perfil
 function getFilteredTrend(){
-  const fil=g('f-fil').value,sup=g('f-sup').value,vend=g('f-vend').value;
-  const dep=g('f-dep').value,prod=g('f-prod').value,ramo=g('f-ramo').value,cli=g('f-cli').value;
   return ALL.filter(r=>{
-    if(fil&&r.filial!==fil)return false;if(sup&&r.supervisor!==sup)return false;
-    if(vend&&r.rca!==vend)return false;if(dep&&r.departamento!==dep)return false;
-    if(prod&&r.descricao!==prod)return false;if(ramo&&r.ramo_ativ!==ramo)return false;
-    if(cli&&r.cliente!==cli)return false;
+    if(!msFilter(r,'fil','filial'))return false;
+    if(!msFilter(r,'sup','supervisor'))return false;
+    if(!msFilter(r,'vend','rca'))return false;
+    if(!msFilter(r,'dep','departamento'))return false;
+    if(!msFilter(r,'prod','descricao'))return false;
+    if(!msFilter(r,'ramo','ramo_ativ'))return false;
+    if(!msFilter(r,'cli','cliente'))return false;
     return true;
   });
 }
 
 function resetFilters(){
   g('f-from').value=firstDay;g('f-to').value=today;
-  ['f-fil','f-sup','f-vend','f-dep','f-prod','f-ramo','f-cli'].forEach(id=>g(id).value='');
+  MS_KEYS.forEach(k=>{MS[k].clear();msUpdateBtn(k);});
   populateAllFilters(ALL);render();
 }
 
