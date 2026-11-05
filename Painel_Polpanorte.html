@@ -528,7 +528,9 @@ function processarDados(rawRows, pedidosRows, freqRows, feedbackResumoRows, feed
           Number(ultFeedback.slice(5,7)) === MES_ATUAL);
     // "abordado" = teve feedback registrado no mes OU comprou no mes (regra do
     // GEROT: se comprou, é pq teve contato com o vendedor, mesmo sem feedback)
-    const abordadoMesAtual = teveFeedbackMesAtual || comprouMesAtual;
+    // + pedido lançado no mês e já faturado (freqAtual>0), mesmo que a nota seja
+    // de outro mês (3ª condição do GEROT)
+    const abordadoMesAtual = teveFeedbackMesAtual || comprouMesAtual || freqAtual > 0;
 
     // normaliza grafia (acentos/espacos) pro nome canonico do vendedor/supervisor,
     // normaliza o vendedor "TATIANA ... - LITORAL" pro mesmo nome.
