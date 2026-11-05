@@ -453,6 +453,14 @@ function processarDados(rawRows, pedidosRows, freqRows, feedbackResumoRows, feed
     clientes[r.codcli].mesesComprou[r.mes] = clientes[r.codcli].mesesComprou[r.mes] || !!r.comprou;
     clientes[r.codcli].mesesPeso[r.mes] = (clientes[r.codcli].mesesPeso[r.mes] || 0) + Number(r.peso_liquido || 0);
   }
+  // regra final: positivado = tem lançamento 'S' no mês E o líquido do mês > 0
+  // (venda totalmente devolvida / só bonificação ou devolução não positiva)
+  for (const cod in clientes) {
+    const cl = clientes[cod];
+    for (const m in cl.mesesComprou) {
+      if (cl.mesesComprou[m] && !((cl.meses[m] || 0) > 0)) cl.mesesComprou[m] = false;
+    }
+  }
 
   const pendingMap = {};
   for (const p of (pedidosRows || [])) {
