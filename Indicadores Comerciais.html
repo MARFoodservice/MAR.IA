@@ -42,6 +42,9 @@
   }
   .wa-btn:hover{background:#178a66}
   .wa-btn:disabled{background:#333; color:#777; cursor:not-allowed}
+  .xl-btn{ background:#2a2a2a; border:1px solid #3a3a3a; color:#ddd; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
+  .xl-btn:hover{ background:#333; }
+  .xl-btn:disabled{ opacity:.5; cursor:wait; }
   .wa-btn svg{width:13px; height:13px; fill:currentColor}
   .wrap{max-width:1400px; margin:0 auto}
   .status{font-size:12px; color:#8a8a8a; margin-bottom:16px; min-height:16px}
@@ -118,6 +121,7 @@
   .form-add label{ font-size:11px; color:#8a8a8a; }
   .hidden{ display:none; }
 </style>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 </head>
 <body>
 
@@ -301,6 +305,7 @@ function corMetaRitmo(valor, meta, idealPct){
 // bem pra trás até o fim (conversões de retenção/reativação acontecem mais tarde no mês).
 const CURVA_RITMO_IDEAL = {
   total: [8.2,21.1,32.7,41.2,48.3,52.5,59.1,64.4,68.1,71.6,74.3,78.0,81.8,84.6,87.1,88.8,91.4,94.9,97.8,100],
+  novo:  [2.1,6.8,13.4,18.9,23.3,26.1,33.8,38.8,42.4,46.2,49.8,55.6,61.5,66.5,70.9,74.6,80.5,86.9,93.5,100],
   rec:   [10.5,27.1,41.5,51.4,60.1,65.1,71.9,76.9,80.6,84.0,86.1,89.0,91.8,93.4,94.8,95.8,96.8,98.3,99.3,100],
   ret:   [3.4,8.8,13.6,17.9,20.9,23.8,29.5,35.9,39.3,43.1,47.6,53.4,59.2,65.3,69.7,72.9,78.8,88.2,95.1,100],
   reat:  [4.2,10.3,14.1,19.3,25.3,26.4,29.5,36.3,40.8,43.9,45.1,49.9,55.6,61.3,67.3,72.9,81.4,85.2,91.1,100],
@@ -308,12 +313,37 @@ const CURVA_RITMO_IDEAL = {
 };
 
 // % ideal hoje pra uma métrica específica, lendo direto da curva (dia 20 = 100%, meses passam disso ficam 100%)
-function calcularRitmoIdealMetrica(diasUteisInfo, metrica){
-  if(!diasUteisInfo || diasUteisInfo.decorridos <= 0) return 0;
+// Valor da curva (0 a 100) para o dia útil atual. O alvo é o 20º dia útil; em meses com menos de 20
+// dias úteis (ex.: novembro/26 tem 19) o alvo passa a ser o ÚLTIMO dia útil e a curva é escalada
+// proporcionalmente. Em meses com 20 ou mais dias úteis, nada muda.
+function interpolarCurvaRitmo(curva, diasUteisInfo){
+  if(!diasUteisInfo || diasUteisInfo.totais <= 0 || diasUteisInfo.decorridos <= 0) return 0;
+  const alvo = Math.min(20, diasUteisInfo.totais);
   const dia = diasUteisInfo.decorridos;
-  const curva = CURVA_RITMO_IDEAL[metrica];
-  if(dia >= 20) return 100;
-  return curva[dia - 1];
+  if(dia >= alvo) return 100;
+  const pos = dia * 20 / alvo;            // posição equivalente na curva de 20 dias
+  const i = Math.floor(pos), frac = pos - i;
+  const v0 = i === 0 ? 0 : curva[i - 1];
+  const v1 = curva[Math.min(i, 19)];
+  return Math.round((v0 + (v1 - v0) * frac) * 10) / 10;
+}
+function calcularRitmoIdealMetrica(diasUteisInfo, metrica){
+  return interpolarCurvaRitmo(CURVA_RITMO_IDEAL[metrica], diasUteisInfo);
+}
+
+// Balança ideal, em % da base (positivados do mês anterior): precisa chegar a ZERO no dia alvo
+// (20º dia útil, ou o último dia útil se o mês tiver menos de 20) e ficar em zero ou mais até o fim.
+// O formato do caminho vem do comportamento histórico (curva de positivados de jul-set/26):
+// ideal(d) = curva_total(d) - 100. Começa perto de -100% (ninguém comprou ainda) e termina em 0%.
+function calcularBalancaIdealPct(diasUteisInfo){
+  if(!diasUteisInfo || diasUteisInfo.totais <= 0 || diasUteisInfo.decorridos <= 0) return -100;
+  return Math.round((interpolarCurvaRitmo(CURVA_RITMO_IDEAL.total, diasUteisInfo) - 100) * 10) / 10;
+}
+
+// Perdidos: teto aceitável em % da base do mês anterior. É o que sobra depois da cobertura ideal
+// (meta de cobertura = 80% da base), então termina em 20% no dia 20 e é o espelho da Cobertura.
+function calcularTetoPerdidosPct(diasUteisInfo){
+  return 100 - 80 * calcularRitmoIdealMetrica(diasUteisInfo, 'cob') / 100;
 }
 
 function fmtData(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
@@ -730,13 +760,17 @@ function linhaFaturamento(chave, label, valor, meta, cor, supervisorId){
   </div>`;
 }
 
-function linhaPerdidos(valor, supervisorId){
+function linhaPerdidos(valor, supervisorId, tetoAbs){
+  const temTeto = tetoAbs !== undefined && tetoAbs !== null;
+  const cor = temTeto ? (valor <= tetoAbs ? '#3fae7a' : '#d3673f') : '#d3673f';
+  const largura = temTeto ? (tetoAbs > 0 ? Math.min(100, Math.round(valor / tetoAbs * 100)) : 100) : 100;
+  const tetoHtml = temTeto ? ` <span class="sub" style="display:inline">(teto ideal hoje: ${tetoAbs})</span>` : '';
   return `<div class="linha" data-chave="perdidos" data-sup="${supervisorId}">
     <div class="lbl-row">
       <span><span class="setinha">▶</span>perdidos</span>
-      <b>${valor}</b>
+      <b>${valor}${tetoHtml}</b>
     </div>
-    <div class="barra-bg"><div class="barra-fg" style="width:100%;background:#d3673f"></div></div>
+    <div class="barra-bg"><div class="barra-fg" style="width:${largura}%;background:${cor}"></div></div>
     <div class="drill" id="drill-${supervisorId}-perdidos"></div>
   </div>`;
 }
@@ -754,7 +788,7 @@ function linhaCoberturaAuto(valorAtual, totalAnteriorSup, carregando, supervisor
   return linhaBarra('cobertura','cobertura', valorAtual, metaCobertura, CORES.cobertura, supervisorId, idealPct);
 }
 
-function linhaBalanca(diffQtd, pctBalanca, carregando){
+function linhaBalanca(diffQtd, pctBalanca, carregando, idealAbs){
   if(carregando){
     return `<div class="linha-balanca">
       <div class="lbl-row">
@@ -763,13 +797,15 @@ function linhaBalanca(diffQtd, pctBalanca, carregando){
       </div>
     </div>`;
   }
-  const cor = diffQtd >= 0 ? '#3fae7a' : '#d3673f';
+  const temIdeal = idealAbs !== undefined && idealAbs !== null;
+  const cor = temIdeal ? (diffQtd >= idealAbs ? '#3fae7a' : '#d3673f') : (diffQtd >= 0 ? '#3fae7a' : '#d3673f');
   const sinal = diffQtd > 0 ? '+' : '';
   const pctTexto = (pctBalanca === null) ? '\u2014' : (pctBalanca + '%');
+  const idealHtml = temIdeal ? ` <span class="sub" style="display:inline">(ideal hoje: ${idealAbs > 0 ? '+' : ''}${idealAbs})</span>` : '';
   return `<div class="linha-balanca">
     <div class="lbl-row">
       <span>balança</span>
-      <b style="color:${cor}">${sinal}${diffQtd} · ${pctTexto}</b>
+      <b style="color:${cor}">${sinal}${diffQtd} · ${pctTexto}${idealHtml}</b>
     </div>
   </div>`;
 }
@@ -896,12 +932,19 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   const mesLabel = mesLabelObj ? mesLabelObj.l : document.getElementById('mesInput').value;
   const diasUteisInfo = calcularDiasUteis(document.getElementById('mesInput').value);
   const ritmoIdeal = {
+    novo:  calcularRitmoIdealMetrica(diasUteisInfo, 'novo'),
     total: calcularRitmoIdealMetrica(diasUteisInfo, 'total'),
     rec:   calcularRitmoIdealMetrica(diasUteisInfo, 'rec'),
     ret:   calcularRitmoIdealMetrica(diasUteisInfo, 'ret'),
     reat:  calcularRitmoIdealMetrica(diasUteisInfo, 'reat'),
     cob:   calcularRitmoIdealMetrica(diasUteisInfo, 'cob')
   };
+  // Perdidos e Balança dependem da base do mês anterior: só aparecem depois de "Calcular Balança"
+  const comBaseAnterior = detalheAnterior.length > 0;
+  const tetoPerdidosPct = calcularTetoPerdidosPct(diasUteisInfo);
+  const balancaIdealPct = calcularBalancaIdealPct(diasUteisInfo);
+  const tetoPerdidosAbs = base => comBaseAnterior ? Math.round(base * tetoPerdidosPct / 100) : null;
+  const balancaIdealAbs = base => comBaseAnterior ? Math.round(base * balancaIdealPct / 100) : null;
   window._painelDados = {};
 
   supervisores.filter(s=>s.ativo && s.nome_sistema !== 'TELE VENDAS').forEach(sup=>{
@@ -964,6 +1007,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
             <svg viewBox="0 0 24 24"><path d="M17.6 6.32A7.85 7.85 0 0 0 12 4a7.94 7.94 0 0 0-6.86 11.9L4 20l4.2-1.1A7.9 7.9 0 0 0 12 20a7.94 7.94 0 0 0 5.6-13.68zM12 18.5a6.4 6.4 0 0 1-3.3-.9l-.24-.14-2.47.65.66-2.4-.16-.25A6.5 6.5 0 1 1 18.5 12 6.46 6.46 0 0 1 12 18.5zm3.5-4.85c-.19-.1-1.13-.56-1.3-.62s-.3-.1-.42.1-.48.62-.6.74-.22.14-.41.05a5.3 5.3 0 0 1-2.6-2.28c-.2-.33.2-.31.55-1a.6.6 0 0 0 0-.55c-.05-.1-.42-1-.58-1.4s-.3-.32-.42-.33h-.36a.7.7 0 0 0-.5.23 2.1 2.1 0 0 0-.66 1.56 3.7 3.7 0 0 0 .77 1.94 8.5 8.5 0 0 0 3.26 2.88c.45.2.8.31 1.08.4a2.6 2.6 0 0 0 1.2.08 2 2 0 0 0 1.3-.92 1.6 1.6 0 0 0 .11-.92c-.05-.09-.17-.14-.36-.24z"/></svg>
             WhatsApp
           </button>
+          <button class="xl-btn" data-tipo="supervisor" data-sup="${sup.nome_sistema}" title="Exportar clientes perdidos (Excel)">Perdidos (Excel)</button>
         </div>
         <span class="meta">meta ${meta.meta_total}</span>
       </div>
@@ -978,12 +1022,12 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       )}
       ${linhaBarra('total','total positivados', agregado.total, meta.meta_total, CORES.total, id, ritmoIdeal.total)}
       ${linhaBarra('rec','recorrente', agregado.rec, metaDist.rec, CORES.rec, id, ritmoIdeal.rec)}
-      ${linhaBarra('novo','novo', agregado.novo, metaDist.novo, CORES.novo, id)}
+      ${linhaBarra('novo','novo', agregado.novo, metaDist.novo, CORES.novo, id, ritmoIdeal.novo)}
       ${linhaBarra('ret','retido', agregado.ret, metaDist.ret, CORES.ret, id, ritmoIdeal.ret)}
       ${linhaBarra('reat','reativado', agregado.reat, metaDist.reat, CORES.reat, id, ritmoIdeal.reat)}
       ${linhaCoberturaAuto(agregado.cobertura, totalAnteriorSup, detalheAnterior.length === 0, id, ritmoIdeal.cob)}
-      ${linhaPerdidos(perdidosInfo.total, id)}
-      ${linhaBalanca(diffQtd, pctBalanca, detalheAnterior.length === 0)}
+      ${linhaPerdidos(perdidosInfo.total, id, tetoPerdidosAbs(totalAnteriorSup))}
+      ${linhaBalanca(diffQtd, pctBalanca, detalheAnterior.length === 0, balancaIdealAbs(totalAnteriorSup))}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', batalhaInfo.mediaItens, meta.meta_batalha_naval, CORES.batalha, id, batalhaInfo.clientes)}
       ${linhaGerotContainer(id, contarMetasGerotBatidas(gerotInfo, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao)),
         linhaBarra('gerotRotas', 'rotas', gerotInfo.rotas, buscarMetaGerot(gerotMetasMap, sup.nome_exibicao).rotas, CORES.gerot, id) +
@@ -1034,6 +1078,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
             <svg viewBox="0 0 24 24"><path d="M17.6 6.32A7.85 7.85 0 0 0 12 4a7.94 7.94 0 0 0-6.86 11.9L4 20l4.2-1.1A7.9 7.9 0 0 0 12 20a7.94 7.94 0 0 0 5.6-13.68zM12 18.5a6.4 6.4 0 0 1-3.3-.9l-.24-.14-2.47.65.66-2.4-.16-.25A6.5 6.5 0 1 1 18.5 12 6.46 6.46 0 0 1 12 18.5zm3.5-4.85c-.19-.1-1.13-.56-1.3-.62s-.3-.1-.42.1-.48.62-.6.74-.22.14-.41.05a5.3 5.3 0 0 1-2.6-2.28c-.2-.33.2-.31.55-1a.6.6 0 0 0 0-.55c-.05-.1-.42-1-.58-1.4s-.3-.32-.42-.33h-.36a.7.7 0 0 0-.5.23 2.1 2.1 0 0 0-.66 1.56 3.7 3.7 0 0 0 .77 1.94 8.5 8.5 0 0 0 3.26 2.88c.45.2.8.31 1.08.4a2.6 2.6 0 0 0 1.2.08 2 2 0 0 0 1.3-.92 1.6 1.6 0 0 0 .11-.92c-.05-.09-.17-.14-.36-.24z"/></svg>
             WhatsApp
           </button>
+          <button class="xl-btn" data-tipo="televendas" title="Exportar clientes perdidos do Tele Vendas (Excel)">Perdidos (Excel)</button>
         </div>
         <span class="meta">meta ${tvMeta.meta_total}</span>
       </div>
@@ -1047,12 +1092,12 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       )}
       ${linhaBarra('total','total positivados', tvPositivacao.agregado.total, tvMeta.meta_total, CORES.total, idTV, ritmoIdeal.total)}
       ${linhaBarra('rec','recorrente', tvPositivacao.agregado.rec, tvMetaDist.rec, CORES.rec, idTV, ritmoIdeal.rec)}
-      ${linhaBarra('novo','novo', tvPositivacao.agregado.novo, tvMetaDist.novo, CORES.novo, idTV)}
+      ${linhaBarra('novo','novo', tvPositivacao.agregado.novo, tvMetaDist.novo, CORES.novo, idTV, ritmoIdeal.novo)}
       ${linhaBarra('ret','retido', tvPositivacao.agregado.ret, tvMetaDist.ret, CORES.ret, idTV, ritmoIdeal.ret)}
       ${linhaBarra('reat','reativado', tvPositivacao.agregado.reat, tvMetaDist.reat, CORES.reat, idTV, ritmoIdeal.reat)}
       ${linhaCoberturaAuto(tvPositivacao.agregado.cobertura, tvTotalAnterior, detalheAnterior.length === 0, idTV, ritmoIdeal.cob)}
-      ${linhaPerdidos(tvPerdidos.total, idTV)}
-      ${linhaBalanca(tvDiff, tvPctBalanca, detalheAnterior.length === 0)}
+      ${linhaPerdidos(tvPerdidos.total, idTV, tetoPerdidosAbs(tvTotalAnterior))}
+      ${linhaBalanca(tvDiff, tvPctBalanca, detalheAnterior.length === 0, balancaIdealAbs(tvTotalAnterior))}
       ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', tvBatalha.mediaItens, tvMeta.meta_batalha_naval, CORES.batalha, idTV, tvBatalha.clientes)}
       ${linhaGerotContainer(idTV, contarMetasGerotBatidas(tvGerot, GEROT_METAS_PADRAO),
         linhaBarra('gerotRotas', 'rotas', tvGerot.rotas, GEROT_METAS_PADRAO.rotas, CORES.gerot, idTV) +
@@ -1080,7 +1125,13 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   const cardTotal = document.createElement('div');
   cardTotal.className = 'card destaque';
   cardTotal.innerHTML = `
-    <div class="head"><p class="nome">Total Geral</p><span class="meta">meta ${somaMeta.total}</span></div>
+    <div class="head">
+      <div class="nome-row">
+        <p class="nome">Total Geral</p>
+        <button class="xl-btn" data-tipo="empresa" title="Exportar clientes perdidos de toda a empresa (Excel)">Perdidos (Excel)</button>
+      </div>
+      <span class="meta">meta ${somaMeta.total}</span>
+    </div>
     ${linhaTendenciaDestaque(somaFaturamento + somaPetry + somaBroker, somaMetaFaturamento + somaMetaPetry + somaMetaBroker, diasUteisInfo)}
     ${linhaFaturamentoTotalContainer(
       idTotal,
@@ -1092,12 +1143,12 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     )}
     ${linhaBarra('total','total positivados', somaReal.total, somaMeta.total, CORES.total, idTotal, ritmoIdeal.total)}
     ${linhaBarra('rec','recorrente', somaReal.rec, somaMetaDist.rec, CORES.rec, idTotal, ritmoIdeal.rec)}
-    ${linhaBarra('novo','novo', somaReal.novo, somaMetaDist.novo, CORES.novo, idTotal)}
+    ${linhaBarra('novo','novo', somaReal.novo, somaMetaDist.novo, CORES.novo, idTotal, ritmoIdeal.novo)}
     ${linhaBarra('ret','retido', somaReal.ret, somaMetaDist.ret, CORES.ret, idTotal, ritmoIdeal.ret)}
     ${linhaBarra('reat','reativado', somaReal.reat, somaMetaDist.reat, CORES.reat, idTotal, ritmoIdeal.reat)}
     ${linhaCoberturaAuto(somaReal.cobertura, somaTotalAnterior, detalheAnterior.length === 0, idTotal, ritmoIdeal.cob)}
-    ${linhaPerdidos(somaPerdidos, idTotal)}
-    ${linhaBalanca(diffTotal, pctBalancaTotal, detalheAnterior.length === 0)}
+    ${linhaPerdidos(somaPerdidos, idTotal, tetoPerdidosAbs(somaTotalAnterior))}
+    ${linhaBalanca(diffTotal, pctBalancaTotal, detalheAnterior.length === 0, balancaIdealAbs(somaTotalAnterior))}
     ${linhaBatalhaNaval('batalha', 'batalha naval (méd. itens/cliente)', mediaBatalhaTotal, metaBatalhaTotal, CORES.batalha, idTotal, somaBatalhaClientes)}
     ${linhaGerotContainer(idTotal, contarMetasGerotBatidas(
         { rotas: somaGerot.rotas, pdvsMedia: somaGerot.rotas>0 ? Math.round((somaGerot.pdvsTotal/somaGerot.rotas)*10)/10 : null, cadastros: somaGerot.cadastros, vendaMedia: somaGerot.rotas>0 ? Math.round(somaGerot.vendaTotal/somaGerot.rotas) : null },
@@ -1143,6 +1194,141 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   ativarDrillDown();
   ativarBotoesWhats();
 }
+
+// ---------- EXPORTAR CLIENTES PERDIDOS (Excel) ----------
+async function obterPerdidosClientes(mesVal){
+  window._perdidosCache = window._perdidosCache || {};
+  const c = window._perdidosCache[mesVal];
+  if(c && Date.now() - c.ts < 10*60*1000) return c.rows; // reaproveita por 10 min
+  const rows = await sbRpc('gerot_positivacao_perdidos_clientes', { p_mes: mesParaData(mesVal) });
+  window._perdidosCache[mesVal] = { ts: Date.now(), rows };
+  return rows;
+}
+
+function rotuloMes(v){
+  const m = MESES_LABEL.find(x => x.v === v);
+  return m ? m.l : v;
+}
+
+function dataBR(d){
+  return String(d.getDate()).padStart(2,'0') + '/' + String(d.getMonth()+1).padStart(2,'0') + '/' + d.getFullYear();
+}
+
+async function exportarPerdidos(tipo, supNomeSistema, botao){
+  const b = window._painelBase;
+  if(!b){ setStatus('Aguarde o painel terminar de carregar.', true); return; }
+  const mesVal = document.getElementById('mesInput').value;
+  if(botao) botao.disabled = true;
+  setStatus('Gerando lista de clientes perdidos...');
+  try{
+    const rows = await obterPerdidosClientes(mesVal);
+    const nomeExib = {};
+    b.supervisores.forEach(s => nomeExib[s.nome_sistema] = s.nome_exibicao);
+    const cadastrados = new Set(b.supervisores.filter(s => s.ativo && s.nome_sistema !== 'TELE VENDAS').map(s => s.nome_sistema));
+
+    // mesmos filtros dos cards, pra lista bater com o número exibido no painel
+    let lista, escopo;
+    if(tipo === 'supervisor'){
+      lista = rows.filter(r => r.supervisor === supNomeSistema);
+      escopo = nomeExib[supNomeSistema] || supNomeSistema;
+    } else if(tipo === 'televendas'){
+      lista = rows.filter(r => ehTelevendas(r.vendedor));
+      escopo = 'Tele Vendas';
+    } else {
+      lista = rows.filter(r => cadastrados.has(r.supervisor));
+      escopo = 'Empresa';
+    }
+    if(!lista.length){ setStatus('Nenhum cliente perdido para esse filtro neste mês.', true); return; }
+
+    const COL_FAT = 'Faturamento mês anterior (R$)';
+    const dados = lista.map(r => ({
+      'Supervisor': nomeExib[r.supervisor] || r.supervisor,
+      'Vendedor': (r.vendedor || '').trim(),
+      'Cód. cliente': r.codcli,
+      'Cliente': (r.cliente || '').trim(),
+      'Ramo': (r.ramo || '').trim(),
+      'Cidade': (r.cidade || '').trim(),
+      'Bairro': (r.bairro || '').trim(),
+      'CNPJ': r.cnpj == null ? '' : String(r.cnpj),
+      'Última compra': r.ultima_compra ? new Date(r.ultima_compra + 'T00:00:00') : null,
+      'Dias sem comprar': r.dias_sem_comprar,
+      [COL_FAT]: Number(r.faturamento_mes_anterior) || 0
+    })).sort((a,b2) =>
+      a['Supervisor'].localeCompare(b2['Supervisor']) ||
+      a['Vendedor'].localeCompare(b2['Vendedor']) ||
+      b2[COL_FAT] - a[COL_FAT]);
+
+    // resumo por supervisor/vendedor
+    const mapa = {};
+    dados.forEach(d => {
+      const k = d['Supervisor'] + '||' + d['Vendedor'];
+      if(!mapa[k]) mapa[k] = { sup:d['Supervisor'], vend:d['Vendedor'], qtd:0, fat:0 };
+      mapa[k].qtd++; mapa[k].fat += d[COL_FAT];
+    });
+    const resumo = Object.values(mapa).sort((a,b2) => a.sup.localeCompare(b2.sup) || b2.qtd - a.qtd);
+    const totalFat = dados.reduce((acc,d) => acc + d[COL_FAT], 0);
+
+    const aoa = [
+      ['Clientes perdidos - ' + escopo],
+      ['Compraram em ' + rotuloMes(mesAnterior(mesVal)) + ' e não compraram em ' + rotuloMes(mesVal)],
+      ['Gerado em ' + new Date().toLocaleString('pt-BR')]
+    ];
+    if(mesVal === mesAtualValue()) aoa.push(['Mês em andamento: a lista diminui conforme os clientes voltam a comprar.']);
+    aoa.push([]);
+    const linhaCab = aoa.length;
+    aoa.push(['Supervisor', 'Vendedor', 'Qtd. perdidos', COL_FAT]);
+    resumo.forEach(r => aoa.push([r.sup, r.vend, r.qtd, r.fat]));
+    aoa.push(['TOTAL', '', dados.length, totalFat]);
+
+    const nomeArq = 'perdidos_' + escopo.normalize('NFD').replace(/[\u0300-\u036f]/g,'').replace(/[^A-Za-z0-9]+/g,'_') + '_' + mesVal;
+
+    if(window.XLSX){
+      const ws = XLSX.utils.json_to_sheet(dados, { cellDates:true });
+      ws['!cols'] = [{wch:22},{wch:32},{wch:12},{wch:42},{wch:28},{wch:20},{wch:20},{wch:18},{wch:14},{wch:12},{wch:24}];
+      ws['!autofilter'] = { ref: ws['!ref'] };
+      for(let i = 0; i < dados.length; i++){
+        const cd = ws[XLSX.utils.encode_cell({ r:i+1, c:8 })]; if(cd && cd.t === 'd') cd.z = 'dd/mm/yyyy';
+        const cv = ws[XLSX.utils.encode_cell({ r:i+1, c:10 })]; if(cv) cv.z = '#,##0.00';
+      }
+      const wsR = XLSX.utils.aoa_to_sheet(aoa);
+      wsR['!cols'] = [{wch:24},{wch:34},{wch:14},{wch:28}];
+      for(let r = linhaCab + 1; r < aoa.length; r++){
+        const cv = wsR[XLSX.utils.encode_cell({ r, c:3 })]; if(cv) cv.z = '#,##0.00';
+      }
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, 'Perdidos');
+      XLSX.utils.book_append_sheet(wb, wsR, 'Resumo');
+      XLSX.writeFile(wb, nomeArq + '.xlsx');
+      setStatus('Arquivo gerado: ' + nomeArq + '.xlsx (' + dados.length + ' clientes)');
+    } else {
+      // plano B: biblioteca de Excel não carregou (sem internet?) — baixa CSV, que o Excel abre normalmente
+      const cab = Object.keys(dados[0]);
+      const esc = v => '"' + (v == null ? '' : (v instanceof Date ? dataBR(v) : String(v))).replace(/"/g,'""') + '"';
+      const linhas = [cab.map(esc).join(';')].concat(dados.map(d => cab.map(k => {
+        const v = d[k];
+        return typeof v === 'number' ? String(v).replace('.', ',') : esc(v);
+      }).join(';')));
+      const blob = new Blob(['\uFEFF' + linhas.join('\r\n')], { type:'text/csv;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = nomeArq + '.csv';
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 2000);
+      setStatus('Biblioteca de Excel indisponível; baixado em CSV: ' + nomeArq + '.csv (' + dados.length + ' clientes)');
+    }
+  }catch(e){
+    setStatus('Erro ao exportar perdidos: ' + e.message, true);
+  }finally{
+    if(botao) botao.disabled = false;
+  }
+}
+
+document.addEventListener('click', (e) => {
+  const btn = e.target.closest('.xl-btn');
+  if(!btn) return;
+  e.stopPropagation();
+  exportarPerdidos(btn.dataset.tipo, btn.dataset.sup, btn);
+});
 
 function ativarBotoesWhats(){
   document.querySelectorAll('.wa-btn').forEach(btn=>{
