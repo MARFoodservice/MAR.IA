@@ -42,6 +42,7 @@
   }
   .wa-btn:hover{background:#178a66}
   .wa-btn:disabled{background:#333; color:#777; cursor:not-allowed}
+  .carga-info{ font-size:11px; color:#666; }
   .xl-btn{ background:#2a2a2a; border:1px solid #3a3a3a; color:#ddd; border-radius:6px; padding:5px 10px; font-size:12px; font-weight:700; cursor:pointer; display:inline-flex; align-items:center; gap:5px; }
   .xl-btn:hover{ background:#333; }
   .xl-btn:disabled{ opacity:.5; cursor:wait; }
@@ -137,6 +138,7 @@
     <select id="mesInput"></select>
   </div>
   <button class="acao" id="btnCalcularBalanca">Calcular Balança</button>
+  <span class="carga-info" id="cargaInfo"></span>
 </div>
 
 <div class="wrap">
@@ -346,6 +348,20 @@ function calcularTetoPerdidosPct(diasUteisInfo){
   return 100 - 80 * calcularRitmoIdealMetrica(diasUteisInfo, 'cob') / 100;
 }
 
+// ---------- FUSO HORÁRIO: sempre Brasília ----------
+// Todo "hoje" do painel vem do calendário de Brasília, não do relógio/fuso do computador de quem abre.
+const FUSO_BR = 'America/Sao_Paulo';
+function hojeBrasil(){
+  const p = {};
+  new Intl.DateTimeFormat('en-US', { timeZone: FUSO_BR, year:'numeric', month:'2-digit', day:'2-digit' })
+    .formatToParts(new Date()).forEach(x => { p[x.type] = x.value; });
+  // devolve meia-noite local com o dia/mês/ano de Brasília (formato que o resto do código já usa)
+  return new Date(Number(p.year), Number(p.month) - 1, Number(p.day));
+}
+function agoraBrasilTexto(opcoes){
+  return new Date().toLocaleString('pt-BR', Object.assign({ timeZone: FUSO_BR }, opcoes || {}));
+}
+
 function fmtData(d){ return d.getFullYear() + '-' + String(d.getMonth()+1).padStart(2,'0') + '-' + String(d.getDate()).padStart(2,'0'); }
 
 function calcularPascoa(ano){
@@ -394,7 +410,7 @@ function calcularDiasUteis(mesVal){
   const feriados = new Set([...feriadosDoAno(ano-1), ...feriadosDoAno(ano), ...feriadosDoAno(ano+1)]);
   const inicioMes = new Date(ano, mesN-1, 1);
   const fimMes = new Date(ano, mesN, 0);
-  const hoje = new Date(); hoje.setHours(0,0,0,0);
+  const hoje = hojeBrasil();
   let diaRef = hoje;
   if(hoje < inicioMes) diaRef = null;       // mês futuro: nada decorrido ainda
   if(hoje > fimMes) diaRef = fimMes;        // mês já fechado: conta o mês inteiro
@@ -429,14 +445,14 @@ function mesAnterior(mesInputValue){
 const NOMES_MES = ['Jan','Fev','Mar','Abr','Mai','Jun','Jul','Ago','Set','Out','Nov','Dez'];
 
 function mesAtualValue(){
-  const hoje = new Date();
+  const hoje = hojeBrasil();
   return hoje.getFullYear() + '-' + String(hoje.getMonth()+1).padStart(2,'0');
 }
 
 // Gera a lista de meses sempre a partir de Jan/2026 até o mês atual + alguns meses futuros,
 // assim nunca precisa atualizar isso manualmente — ano a ano ela já segue sozinha.
 function gerarMesesLabel(){
-  const hoje = new Date();
+  const hoje = hojeBrasil();
   const anoLimite = hoje.getFullYear() + 1; // mostra até o fim do ano seguinte
   const lista = [];
   for(let ano = 2026; ano <= anoLimite; ano++){
@@ -598,6 +614,7 @@ async function carregarPainel(){
     window._detalheAnterior = []; // some sempre que troca de mês, precisa clicar em "Calcular Balança" de novo
     renderPainel(supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas, []);
     renderRanking();
+    marcarCargaBR();
     setStatus('');
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
@@ -1271,7 +1288,7 @@ async function exportarPerdidos(tipo, supNomeSistema, botao){
     const aoa = [
       ['Clientes perdidos - ' + escopo],
       ['Compraram em ' + rotuloMes(mesAnterior(mesVal)) + ' e não compraram em ' + rotuloMes(mesVal)],
-      ['Gerado em ' + new Date().toLocaleString('pt-BR')]
+      ['Gerado em ' + agoraBrasilTexto() + ' (Brasília)']
     ];
     if(mesVal === mesAtualValue()) aoa.push(['Mês em andamento: a lista diminui conforme os clientes voltam a comprar.']);
     aoa.push([]);
@@ -1584,6 +1601,31 @@ document.getElementById('btnCopiarMesAnterior').addEventListener('click', async 
     carregarTabelaMetas(supervisores);
   }catch(e){ setStatus('Erro ao copiar metas: '+e.message, true); }
 });
+
+// ---------- VIRADA DO DIA (Brasília) ----------
+// A página é carregada uma vez. Se ficar aberta de um dia pro outro, "hoje", os dias úteis e o mês atual
+// ficariam parados. Este vigia confere a data de Brasília a cada minuto (e ao voltar pra aba) e,
+// quando o dia vira, recarrega os dados.
+let diaCarregadoBR = null;
+function marcarCargaBR(){
+  diaCarregadoBR = fmtData(hojeBrasil());
+  const el = document.getElementById('cargaInfo');
+  if(el) el.textContent = 'Dados carregados em ' + agoraBrasilTexto({ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' (Brasília)';
+}
+function verificarVirouODia(){
+  if(diaCarregadoBR === null) return;
+  const hoje = fmtData(hojeBrasil());
+  if(hoje === diaCarregadoBR) return;
+  const mesAnteriorCarga = diaCarregadoBR.slice(0, 7);
+  diaCarregadoBR = hoje;                     // evita disparar de novo enquanto recarrega
+  const sel = document.getElementById('mesInput');
+  if(sel.value === mesAnteriorCarga && hoje.slice(0, 7) !== mesAnteriorCarga) sel.value = hoje.slice(0, 7); // virou o mês: acompanha
+  window._perdidosCache = {};
+  window._detalheAnterior = [];
+  carregarPainel();
+}
+setInterval(verificarVirouODia, 60 * 1000);
+document.addEventListener('visibilitychange', () => { if(!document.hidden) verificarVirouODia(); });
 
 // ---------- INIT ----------
 document.getElementById('btnCalcularBalanca').addEventListener('click', calcularBalanca);
