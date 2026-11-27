@@ -475,7 +475,7 @@ function renderRanking(){
   b.supervisores.forEach(s => nomeExib[s.nome_sistema] = s.nome_exibicao);
 
   // vendedores: ignora o grupo "SUPERVISOR GERAL" (colaboradores, transportadores etc. não são vendedores)
-  const vendedoresBase = b.detalhe.filter(d => d.supervisor && d.supervisor !== 'SUPERVISOR GERAL');
+  const vendedoresBase = b.detalhe.filter(d => d.nivel === 'V' && d.supervisor && d.supervisor !== 'SUPERVISOR GERAL');
 
   const eventos = [
     { campo:'novos',       agg:'novo', label:'Prospecção (novos)', cor:CORES.novo },
@@ -600,7 +600,7 @@ async function carregarPainel(){
     const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
       sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc'),
       sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`),
-      sbRpc('gerot_positivacao_detalhe', { p_mes: mes }),
+      sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mes, p_tv: VENDEDORAS_TELEVENDAS }),
       sbRpc('gerot_positivacao_perdidos', { p_mes: mes }),
       sbRpc('gerot_positivacao_batalha_naval', { p_mes: mes }),
       sbRpc('gerot_positivacao_faturamento', { p_mes: mes }),
@@ -618,6 +618,10 @@ async function carregarPainel(){
     setStatus('');
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
+    if(/gerot_positivacao_detalhe_v2/.test(e.message || '')){
+      setStatus('Falta criar a função gerot_positivacao_detalhe_v2 no Supabase. Rode o SQL da função nova e recarregue a página.', true);
+      return;
+    }
     setStatus('Erro ao carregar: ' + e.message, true);
   }
 }
@@ -628,7 +632,7 @@ async function calcularBalanca(){
   const mesAnteriorData = mesParaData(mesAnterior(mesVal));
   setStatus('Calculando balança (mês anterior)... pode demorar');
   try{
-    const detalheAnterior = await sbRpc('gerot_positivacao_detalhe', { p_mes: mesAnteriorData });
+    const detalheAnterior = await sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mesAnteriorData, p_tv: VENDEDORAS_TELEVENDAS });
     if(minhaVersao !== cargaAtual) return; // usuário trocou de mês enquanto calculava
     window._detalheAnterior = detalheAnterior;
     const b = window._painelBase;
@@ -639,17 +643,23 @@ async function calcularBalanca(){
   }
 }
 
+// A função v2 devolve 4 níveis: 'V' (supervisor+vendedor), 'S' (supervisor), 'G' (empresa) e 'T' (Tele Vendas).
+// Regra: o cliente conta em TODO supervisor/vendedor que vendeu a ele no mês, mas dentro de cada nível
+// ele é contado uma só vez (cliente distinto). Por isso a soma dos cards pode passar do Total Geral.
+function linhaParaAgregado(l){
+  if(!l) return {rec:0,novo:0,ret:0,reat:0,cobertura:0,total:0};
+  return {
+    rec: Number(l.recorrentes), novo: Number(l.novos), ret: Number(l.retidos),
+    reat: Number(l.reativados), cobertura: Number(l.cobertura), total: Number(l.total)
+  };
+}
 function agregarPorSupervisor(detalhe, nomeSistema){
-  const linhas = detalhe.filter(d => d.supervisor === nomeSistema);
-  const total = linhas.reduce((acc,l)=>({
-    rec: acc.rec + Number(l.recorrentes),
-    novo: acc.novo + Number(l.novos),
-    ret: acc.ret + Number(l.retidos),
-    reat: acc.reat + Number(l.reativados),
-    cobertura: acc.cobertura + Number(l.cobertura),
-    total: acc.total + Number(l.total)
-  }), {rec:0,novo:0,ret:0,reat:0,cobertura:0,total:0});
-  return { agregado: total, vendedores: linhas };
+  const linhaS = detalhe.find(d => d.nivel === 'S' && d.supervisor === nomeSistema);
+  const vendedores = detalhe.filter(d => d.nivel === 'V' && d.supervisor === nomeSistema);
+  return { agregado: linhaParaAgregado(linhaS), vendedores };
+}
+function agregarGeral(detalhe){
+  return { agregado: linhaParaAgregado(detalhe.find(d => d.nivel === 'G')) };
 }
 
 function linhaBarra(chave, label, valor, meta, cor, supervisorId, idealPct){
@@ -850,16 +860,9 @@ function renderVendedoresDrill(vendedores, chave){
 }
 
 function agregarTelevendasPositivacao(detalhe){
-  const linhas = detalhe.filter(d => ehTelevendas(d.vendedor));
-  const total = linhas.reduce((acc,l)=>({
-    rec: acc.rec + Number(l.recorrentes),
-    novo: acc.novo + Number(l.novos),
-    ret: acc.ret + Number(l.retidos),
-    reat: acc.reat + Number(l.reativados),
-    cobertura: acc.cobertura + Number(l.cobertura),
-    total: acc.total + Number(l.total)
-  }), {rec:0,novo:0,ret:0,reat:0,cobertura:0,total:0});
-  return { agregado: total, vendedores: linhas };
+  const linhaT = detalhe.find(d => d.nivel === 'T');                       // clientes distintos do grupo
+  const vendedores = detalhe.filter(d => d.nivel === 'V' && ehTelevendas(d.vendedor));
+  return { agregado: linhaParaAgregado(linhaT), vendedores };
 }
 function agregarTelevendasPerdidos(perdidosDetalhe){
   const linhas = perdidosDetalhe.filter(d => ehTelevendas(d.vendedor));
@@ -941,6 +944,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   let somaBroker = 0;
   let somaMetaBroker = 0;
   let somaTotalAnterior = 0;
+  let somaCardsPositivados = 0;
   let somaGerot = { rotas:0, pdvsTotal:0, cadastros:0, vendaTotal:0 };
   let somaMetaGerot = { rotas:0, pdvs_rota:0, cadastros:0, venda_media:0 };
 
@@ -981,6 +985,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
     const diffQtd = agregado.total - totalAnteriorSup;
     const pctBalanca = totalAnteriorSup > 0 ? Math.round((diffQtd/totalAnteriorSup*100)*10)/10 : null;
     somaTotalAnterior += totalAnteriorSup;
+    somaCardsPositivados += agregado.total;
 
     window._painelDados[id] = { nome: sup.nome_exibicao, telefone: telLimpo, agregado, meta, mesLabel, perdidos: perdidosInfo.total, diffQtd, pctBalanca, batalhaMedia: null, batalhaMeta: null };
 
@@ -1135,6 +1140,14 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
   // Total geral
   const idTotal = 'totalgeral';
   const somaMetaDist = metasDistribuidas(somaMeta.total);
+  // Total Geral = clientes distintos da empresa (cliente atendido por 2 supervisores conta 1 vez)
+  const geral = agregarGeral(detalhe).agregado;
+  somaReal = { total:geral.total, rec:geral.rec, novo:geral.novo, ret:geral.ret, reat:geral.reat, cobertura:geral.cobertura };
+  if(detalheAnterior.length > 0) somaTotalAnterior = agregarGeral(detalheAnterior).agregado.total;
+  const compartilhados = Math.max(0, somaCardsPositivados - geral.total);
+  const notaCompartilhados = compartilhados > 0
+    ? `<div class="sub" style="margin:2px 0 8px">Clientes distintos. A soma dos supervisores é ${somaCardsPositivados}: ${compartilhados} cliente(s) foram atendidos por mais de um supervisor.</div>`
+    : '';
   const diffTotal = somaReal.total - somaTotalAnterior;
   const pctBalancaTotal = somaTotalAnterior > 0 ? Math.round((diffTotal/somaTotalAnterior*100)*10)/10 : null;
   const mediaBatalhaTotal = somaBatalhaClientes > 0 ? Math.round((somaBatalhaMix/somaBatalhaClientes)*10)/10 : null;
@@ -1149,6 +1162,7 @@ function renderPainel(supervisores, metas, detalhe, perdidosDetalhe, batalhaDeta
       </div>
       <span class="meta">meta ${somaMeta.total}</span>
     </div>
+    ${notaCompartilhados}
     ${linhaTendenciaDestaque(somaFaturamento + somaPetry + somaBroker, somaMetaFaturamento + somaMetaPetry + somaMetaBroker, diasUteisInfo)}
     ${linhaFaturamentoTotalContainer(
       idTotal,
