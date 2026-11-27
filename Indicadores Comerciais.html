@@ -588,6 +588,24 @@ document.getElementById('mesInput').addEventListener('change', ()=>{
 });
 
 // ---------- PAINEL ----------
+// Positivação do mês: lê o cache pré-calculado (rápido). Se o mês ainda não tem cache, calcula ao vivo (pode demorar).
+async function obterDetalhe(mesData){
+  const cache = await sbGet('gerot_positivacao_detalhe_cache', `?select=*&mes=eq.${mesData}`);
+  if(cache && cache.length){
+    const maisRecente = cache.reduce((a, l) => (l.atualizado_em > a ? l.atualizado_em : a), '');
+    return { rows: cache, origem: 'cache', atualizadoEm: maisRecente };
+  }
+  try{
+    const rows = await sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mesData, p_tv: VENDEDORAS_TELEVENDAS });
+    return { rows, origem: 'ao vivo', atualizadoEm: null };
+  }catch(e){
+    if(/57014|timeout/i.test((e && e.message) || '')){
+      throw new Error("Este mês ainda não tem cache e o cálculo ao vivo estourou o tempo. No Supabase, rode: select gerot_positivacao_detalhe_cache_refresh('" + mesData + "');");
+    }
+    throw e;
+  }
+}
+
 let detalheAtual = []; // linhas supervisor+vendedor do mês atual
 let cargaAtual = 0;    // token pra ignorar respostas antigas fora de ordem
 
@@ -597,10 +615,10 @@ async function carregarPainel(){
   setStatus('Carregando ' + mesVal + '...');
   const mes = mesParaData(mesVal);
   try{
-    const [supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
+    const [supervisores, metas, detalheRes, perdidos, batalha, faturamento, petry, gerot, gerotMetas] = await Promise.all([
       sbGet('gerot_positivacao_supervisores', '?select=*&order=ordem.asc'),
       sbGet('gerot_positivacao_metas', `?select=*&mes=eq.${mes}`),
-      sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mes, p_tv: VENDEDORAS_TELEVENDAS }),
+      obterDetalhe(mes),
       sbRpc('gerot_positivacao_perdidos', { p_mes: mes }),
       sbRpc('gerot_positivacao_batalha_naval', { p_mes: mes }),
       sbRpc('gerot_positivacao_faturamento', { p_mes: mes }),
@@ -609,6 +627,8 @@ async function carregarPainel(){
       sbGet('gerot_metas', '?select=supervisor,rotas,pdvsrota,cadastros,vendaporrota')
     ]);
     if(minhaVersao !== cargaAtual) return; // outra seleção de mês já chegou depois, ignora esta
+    const detalhe = detalheRes.rows;
+    window._origemDetalhe = { origem: detalheRes.origem, atualizadoEm: detalheRes.atualizadoEm };
     detalheAtual = detalhe;
     window._painelBase = { supervisores, metas, detalhe, perdidos, batalha, faturamento, petry, gerot, gerotMetas };
     window._detalheAnterior = []; // some sempre que troca de mês, precisa clicar em "Calcular Balança" de novo
@@ -618,6 +638,10 @@ async function carregarPainel(){
     setStatus('');
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
+    if(/gerot_positivacao_detalhe_cache/.test(e.message || '') && /(PGRST20|42P01|not find|does not exist)/i.test(e.message || '')){
+      setStatus('Falta criar a tabela de cache no Supabase. Rode o SQL do cache e recarregue a página.', true);
+      return;
+    }
     if(/gerot_positivacao_detalhe_v2/.test(e.message || '')){
       setStatus('Falta criar a função gerot_positivacao_detalhe_v2 no Supabase. Rode o SQL da função nova e recarregue a página.', true);
       return;
@@ -632,7 +656,7 @@ async function calcularBalanca(){
   const mesAnteriorData = mesParaData(mesAnterior(mesVal));
   setStatus('Calculando balança (mês anterior)... pode demorar');
   try{
-    const detalheAnterior = await sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mesAnteriorData, p_tv: VENDEDORAS_TELEVENDAS });
+    const detalheAnterior = (await obterDetalhe(mesAnteriorData)).rows;
     if(minhaVersao !== cargaAtual) return; // usuário trocou de mês enquanto calculava
     window._detalheAnterior = detalheAnterior;
     const b = window._painelBase;
@@ -1624,7 +1648,14 @@ let diaCarregadoBR = null;
 function marcarCargaBR(){
   diaCarregadoBR = fmtData(hojeBrasil());
   const el = document.getElementById('cargaInfo');
-  if(el) el.textContent = 'Dados carregados em ' + agoraBrasilTexto({ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' (Brasília)';
+  const o = window._origemDetalhe;
+  let origemTxt = '';
+  if(o){
+    origemTxt = o.origem === 'cache'
+      ? ' · positivação do cache de ' + (o.atualizadoEm ? new Date(o.atualizadoEm).toLocaleString('pt-BR', { timeZone: FUSO_BR, day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) : '?')
+      : ' · positivação ao vivo';
+  }
+  if(el) el.textContent = 'Dados carregados em ' + agoraBrasilTexto({ day:'2-digit', month:'2-digit', hour:'2-digit', minute:'2-digit' }) + ' (Brasília)' + origemTxt;
 }
 function verificarVirouODia(){
   if(diaCarregadoBR === null) return;
