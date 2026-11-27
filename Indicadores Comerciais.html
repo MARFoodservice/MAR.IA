@@ -606,6 +606,26 @@ async function obterDetalhe(mesData){
   }
 }
 
+// Abre rápido com o cache e, em segundo plano, calcula ao vivo; quando terminar, troca pelos números atuais.
+async function atualizarDetalheAoVivo(mes, minhaVersao){
+  try{
+    const rows = await sbRpc('gerot_positivacao_detalhe_v2', { p_mes: mes, p_tv: VENDEDORAS_TELEVENDAS });
+    if(minhaVersao !== cargaAtual) return;               // usuário já trocou de mês
+    const b = window._painelBase;
+    if(!b || !rows || !rows.length) { setStatus(''); return; }
+    b.detalhe = rows;
+    detalheAtual = rows;
+    window._origemDetalhe = { origem: 'ao vivo', atualizadoEm: null };
+    renderPainel(b.supervisores, b.metas, rows, b.perdidos, b.batalha, b.faturamento, b.petry, b.gerot, b.gerotMetas, window._detalheAnterior || []);
+    renderRanking();
+    marcarCargaBR();
+    setStatus('');
+  }catch(e){
+    if(minhaVersao !== cargaAtual) return;
+    setStatus('Positivação mostrada do cache: o cálculo ao vivo não terminou agora.');
+  }
+}
+
 let detalheAtual = []; // linhas supervisor+vendedor do mês atual
 let cargaAtual = 0;    // token pra ignorar respostas antigas fora de ordem
 
@@ -636,6 +656,10 @@ async function carregarPainel(){
     renderRanking();
     marcarCargaBR();
     setStatus('');
+    if(detalheRes.origem === 'cache'){
+      setStatus('Atualizando a positivação com os dados de agora...');
+      atualizarDetalheAoVivo(mes, minhaVersao);
+    }
   }catch(e){
     if(minhaVersao !== cargaAtual) return;
     if(/gerot_positivacao_detalhe_cache/.test(e.message || '') && /(PGRST20|42P01|not find|does not exist)/i.test(e.message || '')){
